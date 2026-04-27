@@ -148,6 +148,15 @@ const graphqlHandler: HttpResponseResolver = async ({ request }) => {
     });
   }
 
+  // Handle GetTopLoggedItems query
+  if (query.includes("GetTopLoggedItems")) {
+    return HttpResponse.json({
+      data: {
+        food_diary_diary_entry: [],
+      },
+    });
+  }
+
   // Handle SearchItemsAndRecipes query
   if (query.includes("SearchItemsAndRecipes")) {
     return HttpResponse.json({

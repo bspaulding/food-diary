@@ -3,6 +3,7 @@ import { createSignal, Show } from "solid-js";
 import {
   fetchRecentEntries,
   fetchEntriesAroundTime,
+  fetchTopLoggedItems,
   createDiaryEntry,
   SearchNutritionItem,
   SearchRecipe,
@@ -47,6 +48,12 @@ interface GetEntriesAroundTimeResponse {
   };
 }
 
+interface GetTopLoggedItemsResponse {
+  data: {
+    food_diary_diary_entry: RecentEntry[];
+  };
+}
+
 const NewDiaryEntryForm: Component<Props> = ({ onSubmit }: Props) => {
   const [getRecentItemsQuery] = createAuthorizedResource((token: string) =>
     fetchRecentEntries(token),
@@ -66,6 +73,37 @@ const NewDiaryEntryForm: Component<Props> = ({ onSubmit }: Props) => {
     (getTimeBasedItemsQuery() as GetEntriesAroundTimeResponse | undefined)?.data
       ?.food_diary_diary_entry ?? [];
 
+  const [getTopLoggedItemsQuery] = createAuthorizedResource((token: string) =>
+    fetchTopLoggedItems(token),
+  );
+  const topLoggedItems = (): RecentEntry[] => {
+    const entries =
+      (getTopLoggedItemsQuery() as GetTopLoggedItemsResponse | undefined)?.data
+        ?.food_diary_diary_entry ?? [];
+    const seen = new Map<string, { count: number; entry: RecentEntry }>();
+    for (const entry of entries) {
+      const key = entry.nutrition_item
+        ? `item_${entry.nutrition_item.id}`
+        : entry.recipe
+          ? `recipe_${entry.recipe.id}`
+          : null;
+      if (!key) continue;
+      if (!seen.has(key)) {
+        seen.set(key, { count: 0, entry });
+      }
+      seen.get(key)!.count++;
+    }
+    return Array.from(seen.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+      .map(({ entry }) => entry);
+  };
+
+  const hasAnySuggestions = (): boolean =>
+    timeBasedItems().length > 0 ||
+    recentItems().length > 0 ||
+    topLoggedItems().length > 0;
+
   return (
     <div>
       <div class="flex space-x-4 mb-4">
@@ -79,17 +117,23 @@ const NewDiaryEntryForm: Component<Props> = ({ onSubmit }: Props) => {
             <Show when={segment === "Suggestions"}>
               <div>
                 <Show when={timeBasedItems().length > 0}>
-                  <h2 class="text-lg font-semibold">Logged around this time</h2>
+                  <h2 class="text-lg font-semibold">
+                    Logged at this time of day
+                  </h2>
                   <SuggestionsList items={timeBasedItems()} />
                 </Show>
-                <h2 class="text-lg font-semibold">Suggested Items</h2>
-                <Show when={recentItems().length === 0}>
+                <Show when={recentItems().length > 0}>
+                  <h2 class="text-lg font-semibold">Recently logged</h2>
+                  <SuggestionsList items={recentItems()} />
+                </Show>
+                <Show when={topLoggedItems().length > 0}>
+                  <h2 class="text-lg font-semibold">Most logged</h2>
+                  <SuggestionsList items={topLoggedItems()} />
+                </Show>
+                <Show when={!hasAnySuggestions()}>
                   <p class="text-slate-400 text-center">
                     No suggestions available
                   </p>
-                </Show>
-                <Show when={recentItems().length > 0}>
-                  <SuggestionsList items={recentItems()} />
                 </Show>
               </div>
             </Show>

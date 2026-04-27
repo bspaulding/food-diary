@@ -421,7 +421,7 @@ export async function fetchNutritionItem(
 
 const getRecentEntriesQuery = `
 query GetRecentEntryItems {
-  food_diary_diary_entry_recent(order_by: {consumed_at:desc}, limit: 10) {
+  food_diary_diary_entry_recent(order_by: {consumed_at:desc}, limit: 5) {
     consumed_at
   	nutrition_item { id, description }
     recipe { id, name }
@@ -441,6 +441,7 @@ query GetEntriesAroundTime($startTime: timestamptz!, $endTime: timestamptz!) {
     }
     order_by: {consumed_at: desc}
     distinct_on: [nutrition_item_id, recipe_id]
+    limit: 5
   ) {
     consumed_at
     nutrition_item { id, description }
@@ -458,6 +459,23 @@ export async function fetchEntriesAroundTime(
     startTime,
     endTime,
   });
+}
+
+const getTopLoggedItemsQuery = `
+query GetTopLoggedItems {
+  food_diary_diary_entry(
+    order_by: {consumed_at: desc}
+    limit: 100
+  ) {
+    consumed_at
+    nutrition_item { id, description }
+    recipe { id, name }
+  }
+}
+`;
+
+export async function fetchTopLoggedItems(accessToken: string) {
+  return await fetchQuery(accessToken, getTopLoggedItemsQuery);
 }
 
 const createDiaryEntryQuery = `

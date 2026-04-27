@@ -80,6 +80,21 @@ describe("NewDiaryEntryForm", () => {
           });
         }
 
+        // Mock GetTopLoggedItems query (most logged suggestions)
+        if (query.includes("GetTopLoggedItems")) {
+          return HttpResponse.json({
+            data: {
+              food_diary_diary_entry: [
+                {
+                  consumed_at: "2024-01-20T08:00:00Z",
+                  nutrition_item: { id: 4, description: "Granola Bar" },
+                  recipe: null,
+                },
+              ],
+            },
+          });
+        }
+
         return HttpResponse.json({ data: {} });
       }),
     );
@@ -97,7 +112,9 @@ describe("NewDiaryEntryForm", () => {
     // Check that the time-based header appears
     await waitFor(
       () => {
-        const timeBasedHeader = screen.queryByText("Logged around this time");
+        const timeBasedHeader = screen.queryByText(
+          "Logged at this time of day",
+        );
         expect(timeBasedHeader).not.toBeNull();
       },
       { timeout: 5000 },
@@ -107,9 +124,13 @@ describe("NewDiaryEntryForm", () => {
     expect(screen.queryByText("Morning Oatmeal")).not.toBeNull();
     expect(screen.queryByText("Breakfast Smoothie")).not.toBeNull();
 
-    // Verify regular suggestions section still exists
-    expect(screen.queryByText("Suggested Items")).not.toBeNull();
+    // Verify recently logged section still exists
+    expect(screen.queryByText("Recently logged")).not.toBeNull();
     expect(screen.queryByText("Dinner Salad")).not.toBeNull();
+
+    // Verify most logged section exists
+    expect(screen.queryByText("Most logged")).not.toBeNull();
+    expect(screen.queryByText("Granola Bar")).not.toBeNull();
   });
 
   it("should not display time-based header when no time-based suggestions", async () => {
@@ -148,6 +169,13 @@ describe("NewDiaryEntryForm", () => {
           });
         }
 
+        // Mock GetTopLoggedItems query
+        if (query.includes("GetTopLoggedItems")) {
+          return HttpResponse.json({
+            data: { food_diary_diary_entry: [] },
+          });
+        }
+
         return HttpResponse.json({ data: {} });
       }),
     );
@@ -162,16 +190,16 @@ describe("NewDiaryEntryForm", () => {
       { timeout: 5000 },
     );
 
-    // Verify regular suggestions section exists
+    // Verify recently logged section exists
     await waitFor(
       () => {
-        expect(screen.queryByText("Suggested Items")).not.toBeNull();
+        expect(screen.queryByText("Recently logged")).not.toBeNull();
       },
       { timeout: 5000 },
     );
 
     // Time-based header should NOT appear when there are no time-based suggestions
-    const timeBasedHeader = screen.queryByText("Logged around this time");
+    const timeBasedHeader = screen.queryByText("Logged at this time of day");
     expect(timeBasedHeader).toBeNull();
   });
 
@@ -200,6 +228,13 @@ describe("NewDiaryEntryForm", () => {
           });
         }
 
+        // Mock GetTopLoggedItems query
+        if (query.includes("GetTopLoggedItems")) {
+          return HttpResponse.json({
+            data: { food_diary_diary_entry: [] },
+          });
+        }
+
         // Mock search query
         if (query.includes("SearchItemsAndRecipes")) {
           return HttpResponse.json({
@@ -218,9 +253,9 @@ describe("NewDiaryEntryForm", () => {
 
     render(() => <NewDiaryEntryForm />);
 
-    // Wait for component to load
+    // Wait for component to load (suggestions tab is shown)
     await waitFor(() => {
-      expect(screen.queryByText("Suggested Items")).not.toBeNull();
+      expect(screen.queryByText("Suggestions")).not.toBeNull();
     });
 
     // Click on Search tab
@@ -263,6 +298,13 @@ describe("NewDiaryEntryForm", () => {
 
         // Mock GetEntriesAroundTime query
         if (query.includes("GetEntriesAroundTime")) {
+          return HttpResponse.json({
+            data: { food_diary_diary_entry: [] },
+          });
+        }
+
+        // Mock GetTopLoggedItems query
+        if (query.includes("GetTopLoggedItems")) {
           return HttpResponse.json({
             data: { food_diary_diary_entry: [] },
           });
@@ -363,6 +405,13 @@ describe("NewDiaryEntryForm", () => {
 
         // Mock GetEntriesAroundTime query
         if (query.includes("GetEntriesAroundTime")) {
+          return HttpResponse.json({
+            data: { food_diary_diary_entry: [] },
+          });
+        }
+
+        // Mock GetTopLoggedItems query
+        if (query.includes("GetTopLoggedItems")) {
           return HttpResponse.json({
             data: { food_diary_diary_entry: [] },
           });
@@ -549,6 +598,13 @@ describe("NewDiaryEntryForm", () => {
           });
         }
 
+        // Mock GetTopLoggedItems query
+        if (query.includes("GetTopLoggedItems")) {
+          return HttpResponse.json({
+            data: { food_diary_diary_entry: [] },
+          });
+        }
+
         // Mock CreateDiaryEntry mutation
         if (query.includes("CreateDiaryEntry")) {
           return HttpResponse.json({
@@ -588,5 +644,90 @@ describe("NewDiaryEntryForm", () => {
 
     // Logging dialog should be closed after save
     expect(screen.queryByText("Save")).toBeNull();
+  });
+
+  it("should display most logged section with top items by frequency", async () => {
+    server.use(
+      http.post("*/api/v1/graphql", async ({ request }): Promise<Response> => {
+        const body: unknown = await request.json();
+        if (!isGraphQLRequest(body)) {
+          return HttpResponse.json({
+            errors: [{ message: "Invalid request" }],
+          });
+        }
+        const query: string = body.query || "";
+
+        if (query.includes("GetEntriesAroundTime")) {
+          return HttpResponse.json({
+            data: { food_diary_diary_entry: [] },
+          });
+        }
+
+        if (query.includes("GetRecentEntryItems")) {
+          return HttpResponse.json({
+            data: { food_diary_diary_entry_recent: [] },
+          });
+        }
+
+        if (query.includes("GetTopLoggedItems")) {
+          return HttpResponse.json({
+            data: {
+              food_diary_diary_entry: [
+                {
+                  consumed_at: "2024-01-20T08:00:00Z",
+                  nutrition_item: { id: 1, description: "Oatmeal" },
+                  recipe: null,
+                },
+                {
+                  consumed_at: "2024-01-19T08:00:00Z",
+                  nutrition_item: { id: 1, description: "Oatmeal" },
+                  recipe: null,
+                },
+                {
+                  consumed_at: "2024-01-18T08:00:00Z",
+                  nutrition_item: { id: 1, description: "Oatmeal" },
+                  recipe: null,
+                },
+                {
+                  consumed_at: "2024-01-20T12:00:00Z",
+                  nutrition_item: { id: 2, description: "Chicken Salad" },
+                  recipe: null,
+                },
+                {
+                  consumed_at: "2024-01-19T12:00:00Z",
+                  nutrition_item: { id: 2, description: "Chicken Salad" },
+                  recipe: null,
+                },
+                {
+                  consumed_at: "2024-01-20T18:00:00Z",
+                  nutrition_item: null,
+                  recipe: { id: 3, name: "Pasta Dinner" },
+                },
+              ],
+            },
+          });
+        }
+
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+
+    render(() => <NewDiaryEntryForm />);
+
+    await waitFor(
+      () => {
+        expect(screen.queryByText("Most logged")).not.toBeNull();
+      },
+      { timeout: 5000 },
+    );
+
+    // All three unique items should appear
+    expect(screen.queryByText("Oatmeal")).not.toBeNull();
+    expect(screen.queryByText("Chicken Salad")).not.toBeNull();
+    expect(screen.queryByText("Pasta Dinner")).not.toBeNull();
+
+    // Time-based and recently logged sections should not appear
+    expect(screen.queryByText("Logged at this time of day")).toBeNull();
+    expect(screen.queryByText("Recently logged")).toBeNull();
   });
 });
