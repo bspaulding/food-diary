@@ -434,10 +434,10 @@ export async function fetchRecentEntries(accessToken: string) {
 }
 
 const getEntriesAroundTimeQuery = `
-query GetEntriesAroundTime($startTime: timestamptz!, $endTime: timestamptz!) {
+query GetEntriesAroundTime($startTime: timetz!, $endTime: timetz!) {
   food_diary_diary_entry(
     where: {
-      consumed_at: { _gte: $startTime, _lte: $endTime }
+      consumed_at: { _cast: { timetz: { _gte: $startTime, _lte: $endTime } } }
     }
     order_by: [{nutrition_item_id: asc_nulls_last}, {recipe_id: asc_nulls_last}, {consumed_at: desc}]
     distinct_on: [nutrition_item_id, recipe_id]
