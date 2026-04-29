@@ -1,5 +1,5 @@
 import type { Component } from "solid-js";
-import { createSignal, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import {
   fetchRecentEntries,
   fetchEntriesAroundTime,
@@ -76,7 +76,7 @@ const NewDiaryEntryForm: Component<Props> = ({ onSubmit }: Props) => {
   const [getTopLoggedItemsQuery] = createAuthorizedResource((token: string) =>
     fetchTopLoggedItems(token),
   );
-  const topLoggedItems = (): RecentEntry[] => {
+  const topLoggedItems = createMemo((): RecentEntry[] => {
     const entries =
       (getTopLoggedItemsQuery() as GetTopLoggedItemsResponse | undefined)?.data
         ?.food_diary_diary_entry ?? [];
@@ -97,12 +97,14 @@ const NewDiaryEntryForm: Component<Props> = ({ onSubmit }: Props) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
       .map(({ entry }) => entry);
-  };
+  });
 
-  const hasAnySuggestions = (): boolean =>
-    timeBasedItems().length > 0 ||
-    recentItems().length > 0 ||
-    topLoggedItems().length > 0;
+  const hasAnySuggestions = createMemo(
+    () =>
+      timeBasedItems().length > 0 ||
+      recentItems().length > 0 ||
+      topLoggedItems().length > 0,
+  );
 
   return (
     <div>
