@@ -17,16 +17,6 @@ import SegmentedControl from "./SegmentedControl";
 import SuggestionsList from "./SuggestionsList";
 import { subHours, addHours } from "date-fns";
 
-function toTimetz(d: Date): string {
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  const offsetMins = -d.getTimezoneOffset();
-  const sign = offsetMins >= 0 ? "+" : "-";
-  const oh = String(Math.floor(Math.abs(offsetMins) / 60)).padStart(2, "0");
-  const om = String(Math.abs(offsetMins) % 60).padStart(2, "0");
-  return `${h}:${m}:00${sign}${oh}:${om}`;
-}
-
 type RecipeId = number;
 type NutritionItemId = number;
 type ItemLink = RecipeId | NutritionItemId;
@@ -73,11 +63,11 @@ const NewDiaryEntryForm: Component<Props> = ({ onSubmit }: Props) => {
       ?.food_diary_diary_entry_recent ?? [];
 
   const now: Date = new Date();
-  const startTime: string = toTimetz(subHours(now, 1));
-  const endTime: string = toTimetz(addHours(now, 1));
+  const startHour: number = subHours(now, 1).getUTCHours();
+  const endHour: number = addHours(now, 1).getUTCHours();
 
   const [getTimeBasedItemsQuery] = createAuthorizedResource((token: string) =>
-    fetchEntriesAroundTime(token, startTime, endTime),
+    fetchEntriesAroundTime(token, startHour, endHour),
   );
   const timeBasedItems = (): RecentEntry[] =>
     (getTimeBasedItemsQuery() as GetEntriesAroundTimeResponse | undefined)?.data
