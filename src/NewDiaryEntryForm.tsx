@@ -2,7 +2,7 @@ import type { Component } from "solid-js";
 import { createMemo, createSignal, Show } from "solid-js";
 import {
   fetchRecentEntries,
-  fetchEntriesAroundTime,
+  fetchTopEntriesAroundHour,
   fetchTopLoggedItems,
   createDiaryEntry,
   SearchNutritionItem,
@@ -15,7 +15,6 @@ import SearchItemsForm from "./SearchItemsForm";
 import ButtonLink from "./ButtonLink";
 import SegmentedControl from "./SegmentedControl";
 import SuggestionsList from "./SuggestionsList";
-import { subHours, addHours } from "date-fns";
 
 type RecipeId = number;
 type NutritionItemId = number;
@@ -42,9 +41,9 @@ interface GetRecentEntriesResponse {
   };
 }
 
-interface GetEntriesAroundTimeResponse {
+interface GetTopEntriesAroundHourResponse {
   data: {
-    food_diary_diary_entry: RecentEntry[];
+    food_diary_top_entries_around_hour: RecentEntry[];
   };
 }
 
@@ -62,16 +61,16 @@ const NewDiaryEntryForm: Component<Props> = ({ onSubmit }: Props) => {
     (getRecentItemsQuery() as GetRecentEntriesResponse | undefined)?.data
       ?.food_diary_diary_entry_recent ?? [];
 
-  const now: Date = new Date();
-  const startHour: number = subHours(now, 1).getUTCHours();
-  const endHour: number = addHours(now, 1).getUTCHours();
+  const currentHour: number = new Date().getHours();
+  const startHour: number = Math.max(0, currentHour - 1);
+  const endHour: number = Math.min(23, currentHour + 1);
 
   const [getTimeBasedItemsQuery] = createAuthorizedResource((token: string) =>
-    fetchEntriesAroundTime(token, startHour, endHour),
+    fetchTopEntriesAroundHour(token, startHour, endHour),
   );
   const timeBasedItems = (): RecentEntry[] =>
-    (getTimeBasedItemsQuery() as GetEntriesAroundTimeResponse | undefined)?.data
-      ?.food_diary_diary_entry ?? [];
+    (getTimeBasedItemsQuery() as GetTopEntriesAroundHourResponse | undefined)
+      ?.data?.food_diary_top_entries_around_hour ?? [];
 
   const [getTopLoggedItemsQuery] = createAuthorizedResource((token: string) =>
     fetchTopLoggedItems(token),

@@ -433,15 +433,10 @@ export async function fetchRecentEntries(accessToken: string) {
   return await fetchQuery(accessToken, getRecentEntriesQuery);
 }
 
-const getEntriesAroundTimeQuery = `
-query GetEntriesAroundTime($startHour: Int!, $endHour: Int!) {
-  food_diary_diary_entry(
-    where: {
-      hour_of_day: { _gte: $startHour, _lte: $endHour }
-    }
-    order_by: [{nutrition_item_id: asc_nulls_last}, {recipe_id: asc_nulls_last}, {consumed_at: desc}]
-    distinct_on: [nutrition_item_id, recipe_id]
-    limit: 5
+const getTopEntriesAroundHourQuery = `
+query TopEntriesAroundHour($startHour: Int!, $endHour: Int!) {
+  food_diary_top_entries_around_hour(
+    args: { start_hour: $startHour, end_hour: $endHour, n: 5 }
   ) {
     consumed_at
     nutrition_item { id, description }
@@ -450,12 +445,12 @@ query GetEntriesAroundTime($startHour: Int!, $endHour: Int!) {
 }
 `;
 
-export async function fetchEntriesAroundTime(
+export async function fetchTopEntriesAroundHour(
   accessToken: string,
   startHour: number,
   endHour: number,
 ) {
-  return await fetchQuery(accessToken, getEntriesAroundTimeQuery, {
+  return await fetchQuery(accessToken, getTopEntriesAroundHourQuery, {
     startHour,
     endHour,
   });

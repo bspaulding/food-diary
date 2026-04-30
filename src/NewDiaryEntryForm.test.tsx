@@ -45,11 +45,11 @@ describe("NewDiaryEntryForm", () => {
         }
         const query: string = body.query || "";
 
-        // Mock GetEntriesAroundTime query (time-based suggestions)
-        if (query.includes("GetEntriesAroundTime")) {
+        // Mock TopEntriesAroundHour query (time-based suggestions)
+        if (query.includes("TopEntriesAroundHour")) {
           return HttpResponse.json({
             data: {
-              food_diary_diary_entry: [
+              food_diary_top_entries_around_hour: [
                 {
                   consumed_at: "2024-01-24T05:30:00Z",
                   nutrition_item: { id: 1, description: "Morning Oatmeal" },
@@ -145,11 +145,11 @@ describe("NewDiaryEntryForm", () => {
         }
         const query: string = body.query || "";
 
-        // Mock GetEntriesAroundTime query - empty response
-        if (query.includes("GetEntriesAroundTime")) {
+        // Mock TopEntriesAroundHour query - empty response
+        if (query.includes("TopEntriesAroundHour")) {
           return HttpResponse.json({
             data: {
-              food_diary_diary_entry: [],
+              food_diary_top_entries_around_hour: [],
             },
           });
         }
@@ -221,10 +221,10 @@ describe("NewDiaryEntryForm", () => {
           });
         }
 
-        // Mock GetEntriesAroundTime query
-        if (query.includes("GetEntriesAroundTime")) {
+        // Mock TopEntriesAroundHour query
+        if (query.includes("TopEntriesAroundHour")) {
           return HttpResponse.json({
-            data: { food_diary_diary_entry: [] },
+            data: { food_diary_top_entries_around_hour: [] },
           });
         }
 
@@ -296,10 +296,10 @@ describe("NewDiaryEntryForm", () => {
           });
         }
 
-        // Mock GetEntriesAroundTime query
-        if (query.includes("GetEntriesAroundTime")) {
+        // Mock TopEntriesAroundHour query
+        if (query.includes("TopEntriesAroundHour")) {
           return HttpResponse.json({
-            data: { food_diary_diary_entry: [] },
+            data: { food_diary_top_entries_around_hour: [] },
           });
         }
 
@@ -403,10 +403,10 @@ describe("NewDiaryEntryForm", () => {
           });
         }
 
-        // Mock GetEntriesAroundTime query
-        if (query.includes("GetEntriesAroundTime")) {
+        // Mock TopEntriesAroundHour query
+        if (query.includes("TopEntriesAroundHour")) {
           return HttpResponse.json({
-            data: { food_diary_diary_entry: [] },
+            data: { food_diary_top_entries_around_hour: [] },
           });
         }
 
@@ -509,10 +509,10 @@ describe("NewDiaryEntryForm", () => {
           });
         }
 
-        // Mock GetEntriesAroundTime query
-        if (query.includes("GetEntriesAroundTime")) {
+        // Mock TopEntriesAroundHour query
+        if (query.includes("TopEntriesAroundHour")) {
           return HttpResponse.json({
-            data: { food_diary_diary_entry: [] },
+            data: { food_diary_top_entries_around_hour: [] },
           });
         }
 
@@ -591,10 +591,10 @@ describe("NewDiaryEntryForm", () => {
           });
         }
 
-        // Mock GetEntriesAroundTime query
-        if (query.includes("GetEntriesAroundTime")) {
+        // Mock TopEntriesAroundHour query
+        if (query.includes("TopEntriesAroundHour")) {
           return HttpResponse.json({
-            data: { food_diary_diary_entry: [] },
+            data: { food_diary_top_entries_around_hour: [] },
           });
         }
 
@@ -657,9 +657,9 @@ describe("NewDiaryEntryForm", () => {
         }
         const query: string = body.query || "";
 
-        if (query.includes("GetEntriesAroundTime")) {
+        if (query.includes("TopEntriesAroundHour")) {
           return HttpResponse.json({
-            data: { food_diary_diary_entry: [] },
+            data: { food_diary_top_entries_around_hour: [] },
           });
         }
 
