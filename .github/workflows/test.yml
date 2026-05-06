@@ -21,7 +21,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
         ports:
-          - 5432:5432
+          - 5432
 
     steps:
       - uses: actions/checkout@v4
@@ -39,26 +39,15 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Start Hasura
-        # Find the postgres service container by its published port (more robust than
-        # --filter ancestor which can fail if GHA normalises the image reference).
-        # Create an explicit bridge network, graft postgres onto it with a stable alias,
-        # then start Hasura on the same network. Container-to-container traffic on the
-        # same bridge is always allowed; -p 8080:8080 publishes Hasura to localhost on
-        # the runner for the health check and tests.
+        # Services are accessible at localhost on the runner via the host port assigned by GHA.
+        # --network host puts the Hasura container on the host network so it can reach
+        # localhost:<postgres_port>. Port 8080 is then directly available on the runner too.
         run: |
-          PG_ID=$(docker ps --format '{{.ID}}\t{{.Ports}}' \
-            | awk -F'\t' '$2 ~ /5432/ {print $1; exit}')
-          echo "postgres container: $PG_ID"
-
-          docker network create ci-test-net
-          docker network connect --alias postgres ci-test-net "$PG_ID"
-
           docker run -d \
             --name hasura \
-            --network ci-test-net \
-            -p 8080:8080 \
-            -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
-            -e PG_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
+            --network host \
+            -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@localhost:${{ job.services.postgres.ports[5432] }}/postgres" \
+            -e PG_DATABASE_URL="postgres://postgres:postgrespassword@localhost:${{ job.services.postgres.ports[5432] }}/postgres" \
             -e HASURA_GRAPHQL_ENABLE_CONSOLE=false \
             -e HASURA_GRAPHQL_DEV_MODE=true \
             -e HASURA_GRAPHQL_ADMIN_SECRET=testadminsecret \
