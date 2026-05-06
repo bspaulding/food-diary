@@ -39,23 +39,26 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Start Hasura
-        # Discover the Docker network and IP of the postgres service container at runtime,
-        # then join that network directly. This is more reliable than --network host or
-        # host-gateway, both of which depend on iptables forwarding that GHA blocks.
-        # -p 8080:8080 publishes Hasura to localhost on the runner for the health check and tests.
+        # Find the postgres service container by its published port (more robust than
+        # --filter ancestor which can fail if GHA normalises the image reference).
+        # Create an explicit bridge network, graft postgres onto it with a stable alias,
+        # then start Hasura on the same network. Container-to-container traffic on the
+        # same bridge is always allowed; -p 8080:8080 publishes Hasura to localhost on
+        # the runner for the health check and tests.
         run: |
-          PG_CONTAINER=$(docker ps -q --filter ancestor=postgres:14)
-          PG_NETWORK=$(docker inspect "$PG_CONTAINER" \
-            --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
-          PG_IP=$(docker inspect "$PG_CONTAINER" \
-            --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-          echo "postgres container=$PG_CONTAINER network=$PG_NETWORK ip=$PG_IP"
+          PG_ID=$(docker ps --format '{{.ID}}\t{{.Ports}}' \
+            | awk -F'\t' '$2 ~ /5432/ {print $1; exit}')
+          echo "postgres container: $PG_ID"
+
+          docker network create ci-test-net
+          docker network connect --alias postgres ci-test-net "$PG_ID"
+
           docker run -d \
             --name hasura \
-            --network "$PG_NETWORK" \
+            --network ci-test-net \
             -p 8080:8080 \
-            -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@${PG_IP}:5432/postgres" \
-            -e PG_DATABASE_URL="postgres://postgres:postgrespassword@${PG_IP}:5432/postgres" \
+            -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
+            -e PG_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
             -e HASURA_GRAPHQL_ENABLE_CONSOLE=false \
             -e HASURA_GRAPHQL_DEV_MODE=true \
             -e HASURA_GRAPHQL_ADMIN_SECRET=testadminsecret \
