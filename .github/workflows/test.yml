@@ -37,24 +37,29 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Start Hasura
-        # For runner jobs (no container: key) GHA does NOT register DNS aliases in the
-        # service network, so joining that network and using "postgres" as a hostname
-        # doesn't work. Instead:
-        #   1. Create our own bridge network.
-        #   2. Use ${{ job.services.postgres.id }} (the exact container ID from GHA
-        #      context) to connect the postgres service container to our network with
-        #      a predictable alias.
-        #   3. Start Hasura on the same network — "postgres" resolves via the alias.
-        #   4. -p 8080:8080 publishes Hasura to localhost on the runner.
+        # For runner jobs (no container: key) GHA service containers are placed on
+        # the default Docker bridge network. We get their IP directly via docker inspect
+        # and use it in the database URL — this avoids DNS/alias resolution entirely
+        # and works regardless of iptables userland-proxy settings.
         run: |
-          docker network create hasura-net
-          docker network connect --alias postgres hasura-net ${{ job.services.postgres.id }}
+          PG_ID="${{ job.services.postgres.id }}"
+          echo "Postgres container ID: '${PG_ID}'"
+          docker ps -a
+
+          PG_IP=$(docker inspect "${PG_ID}" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null | head -1)
+          echo "Postgres IP: '${PG_IP}'"
+
+          if [ -z "${PG_IP}" ]; then
+            echo "ERROR: Could not determine postgres container IP"
+            docker inspect "${PG_ID}" || true
+            exit 1
+          fi
+
           docker run -d \
             --name hasura \
-            --network hasura-net \
             -p 8080:8080 \
-            -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
-            -e PG_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
+            -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@${PG_IP}:5432/postgres" \
+            -e PG_DATABASE_URL="postgres://postgres:postgrespassword@${PG_IP}:5432/postgres" \
             -e HASURA_GRAPHQL_ENABLE_CONSOLE=false \
             -e HASURA_GRAPHQL_DEV_MODE=true \
             -e HASURA_GRAPHQL_ADMIN_SECRET=testadminsecret \
@@ -67,8 +72,6 @@ jobs:
           docker ps -a
           echo "=== docker logs hasura (early) ==="
           docker logs hasura || true
-          echo "=== docker inspect hasura network ==="
-          docker inspect hasura --format '{{json .NetworkSettings.Networks}}' || true
 
       - name: Wait for Hasura to be healthy
         run: |
