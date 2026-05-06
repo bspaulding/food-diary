@@ -11,6 +11,7 @@ services:
       retries: 10
 
   graphql-engine:
+    image: food-diary-hasura:ci
     build: .
     ports:
       - "8080:8080"

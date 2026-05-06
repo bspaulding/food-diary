@@ -10,17 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_PASSWORD: postgrespassword
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
       - uses: actions/checkout@v4
 
@@ -36,47 +25,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Start Hasura
-        # For runner jobs (no container: key) GHA service containers are placed on
-        # the default Docker bridge network. We get their IP directly via docker inspect
-        # and use it in the database URL — this avoids DNS/alias resolution entirely
-        # and works regardless of iptables userland-proxy settings.
+      - name: Start services
+        # Use docker-compose so compose manages the bridge network and DNS.
+        # --no-build uses the food-diary-hasura:ci image we just built above.
         run: |
-          PG_ID="${{ job.services.postgres.id }}"
-          echo "Postgres container ID: '${PG_ID}'"
-          docker ps -a
-
-          PG_IP=$(docker inspect "${PG_ID}" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null | head -1)
-          echo "Postgres IP: '${PG_IP}'"
-
-          if [ -z "${PG_IP}" ]; then
-            echo "ERROR: Could not determine postgres container IP"
-            docker inspect "${PG_ID}" || true
-            exit 1
-          fi
-
-          docker run -d \
-            --name hasura \
-            -p 8080:8080 \
-            -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@${PG_IP}:5432/postgres" \
-            -e PG_DATABASE_URL="postgres://postgres:postgrespassword@${PG_IP}:5432/postgres" \
-            -e HASURA_GRAPHQL_ENABLE_CONSOLE=false \
-            -e HASURA_GRAPHQL_DEV_MODE=true \
-            -e HASURA_GRAPHQL_ADMIN_SECRET=testadminsecret \
-            -e HASURA_GRAPHQL_ENABLED_LOG_TYPES="startup, http-log, query-log" \
-            food-diary-hasura:ci
-
-      - name: Debug - initial container state
-        run: |
-          echo "=== docker ps -a ==="
-          docker ps -a
-          echo "=== docker logs hasura (early) ==="
-          docker logs hasura || true
+          docker compose -f docker-compose.test.yml up --no-build -d postgres graphql-engine
 
       - name: Wait for Hasura to be healthy
         run: |
           for i in $(seq 1 40); do
-            if curl -fsS http://localhost:8080/healthz | grep -q ok; then
+            if curl -fsS http://localhost:8080/healthz 2>/dev/null | grep -q ok; then
               echo "Hasura is healthy after $((i * 3))s"
               exit 0
             fi
@@ -84,7 +42,7 @@ jobs:
             sleep 3
           done
           echo "Hasura did not become healthy within 120s"
-          docker logs hasura
+          docker compose -f docker-compose.test.yml logs
           exit 1
 
       - uses: actions/setup-node@v4
@@ -102,6 +60,6 @@ jobs:
           HASURA_ADMIN_SECRET: testadminsecret
         run: npm test
 
-      - name: Show Hasura logs
+      - name: Show service logs
         if: always()
-        run: docker logs hasura || true
+        run: docker compose -f docker-compose.test.yml logs
