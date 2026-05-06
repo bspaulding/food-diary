@@ -61,6 +61,15 @@ jobs:
             -e HASURA_GRAPHQL_ENABLED_LOG_TYPES="startup, http-log, query-log" \
             food-diary-hasura:ci
 
+      - name: Debug - initial container state
+        run: |
+          echo "=== docker ps -a ==="
+          docker ps -a
+          echo "=== docker logs hasura (early) ==="
+          docker logs hasura || true
+          echo "=== docker inspect hasura network ==="
+          docker inspect hasura --format '{{json .NetworkSettings.Networks}}' || true
+
       - name: Wait for Hasura to be healthy
         run: |
           for i in $(seq 1 40); do
@@ -91,5 +100,5 @@ jobs:
         run: npm test
 
       - name: Show Hasura logs
-        if: failure()
-        run: docker logs hasura
+        if: always()
+        run: docker logs hasura || true
