@@ -37,15 +37,21 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Start Hasura
-        # Join the Docker network GHA created for the job's service containers.
-        # Within that network the postgres service container is reachable at the
-        # hostname "postgres" (GHA registers each service with its key as a network alias).
-        # -p 8080:8080 publishes Hasura back to localhost on the runner for the
-        # health check and tests.
+        # For runner jobs (no container: key) GHA does NOT register DNS aliases in the
+        # service network, so joining that network and using "postgres" as a hostname
+        # doesn't work. Instead:
+        #   1. Create our own bridge network.
+        #   2. Use ${{ job.services.postgres.id }} (the exact container ID from GHA
+        #      context) to connect the postgres service container to our network with
+        #      a predictable alias.
+        #   3. Start Hasura on the same network — "postgres" resolves via the alias.
+        #   4. -p 8080:8080 publishes Hasura to localhost on the runner.
         run: |
+          docker network create hasura-net
+          docker network connect --alias postgres hasura-net ${{ job.services.postgres.id }}
           docker run -d \
             --name hasura \
-            --network ${{ job.services.postgres.network }} \
+            --network hasura-net \
             -p 8080:8080 \
             -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
             -e PG_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
