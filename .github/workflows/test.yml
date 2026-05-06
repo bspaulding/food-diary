@@ -13,28 +13,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build Hasura image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          load: true
-          tags: food-diary-hasura:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: docker build -t food-diary-hasura:ci .
+
+      - name: Verify image exists
+        run: docker images food-diary-hasura:ci
 
       - name: Start services
-        # Use docker-compose so compose manages the bridge network and DNS.
-        # --no-build uses the food-diary-hasura:ci image we just built above.
         run: |
           docker compose -f docker-compose.test.yml up --no-build -d postgres graphql-engine
+
+      - name: Show early service logs
+        run: |
+          sleep 10
+          docker compose -f docker-compose.test.yml ps
+          docker compose -f docker-compose.test.yml logs
 
       - name: Wait for Hasura to be healthy
         run: |
           for i in $(seq 1 40); do
-            if curl -fsS http://localhost:8080/healthz 2>/dev/null | grep -q ok; then
+            if curl -fsS http://localhost:8080/healthz 2>/dev/null | grep -qi ok; then
               echo "Hasura is healthy after $((i * 3))s"
               exit 0
             fi
