@@ -352,8 +352,7 @@ describe('food_diary_trends_weekly view', () => {
   });
 
   test('protein is the average diary_entry_protein for the week', async () => {
-    // Note: recipe_protein does NOT divide by total_servings (see SQL function),
-    // so recipe entry protein = 1 × (2×31 + 1×5) = 67 (not per-serving).
+    // recipe_protein divides by total_servings (= 33.5/serving), matching recipe_calories behaviour.
     const data = await userClient(USER_A).request<any>(`
       query { food_diary_trends_weekly { protein } }
     `);
