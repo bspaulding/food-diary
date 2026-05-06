@@ -20,8 +20,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-        ports:
-          - 5432
 
     steps:
       - uses: actions/checkout@v4
@@ -39,15 +37,18 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Start Hasura
-        # Services are accessible at localhost on the runner via the host port assigned by GHA.
-        # --network host puts the Hasura container on the host network so it can reach
-        # localhost:<postgres_port>. Port 8080 is then directly available on the runner too.
+        # Join the Docker network GHA created for the job's service containers.
+        # Within that network the postgres service container is reachable at the
+        # hostname "postgres" (GHA registers each service with its key as a network alias).
+        # -p 8080:8080 publishes Hasura back to localhost on the runner for the
+        # health check and tests.
         run: |
           docker run -d \
             --name hasura \
-            --network host \
-            -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@localhost:${{ job.services.postgres.ports[5432] }}/postgres" \
-            -e PG_DATABASE_URL="postgres://postgres:postgrespassword@localhost:${{ job.services.postgres.ports[5432] }}/postgres" \
+            --network ${{ job.services.postgres.network }} \
+            -p 8080:8080 \
+            -e HASURA_GRAPHQL_METADATA_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
+            -e PG_DATABASE_URL="postgres://postgres:postgrespassword@postgres:5432/postgres" \
             -e HASURA_GRAPHQL_ENABLE_CONSOLE=false \
             -e HASURA_GRAPHQL_DEV_MODE=true \
             -e HASURA_GRAPHQL_ADMIN_SECRET=testadminsecret \
