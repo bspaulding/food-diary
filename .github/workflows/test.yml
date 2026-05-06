@@ -39,13 +39,16 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Start Hasura
-        # --network host lets the container reach the postgres service on localhost:5432
+        # host-gateway lets the container resolve host.docker.internal to the runner's host IP,
+        # so Hasura can reach the postgres service (published to host:5432).
+        # -p 8080:8080 publishes Hasura back to the host so the test runner can reach it.
         run: |
           docker run -d \
             --name hasura \
-            --network host \
-            -e HASURA_GRAPHQL_METADATA_DATABASE_URL=postgres://postgres:postgrespassword@localhost:5432/postgres \
-            -e PG_DATABASE_URL=postgres://postgres:postgrespassword@localhost:5432/postgres \
+            --add-host host.docker.internal:host-gateway \
+            -p 8080:8080 \
+            -e HASURA_GRAPHQL_METADATA_DATABASE_URL=postgres://postgres:postgrespassword@host.docker.internal:5432/postgres \
+            -e PG_DATABASE_URL=postgres://postgres:postgrespassword@host.docker.internal:5432/postgres \
             -e HASURA_GRAPHQL_ENABLE_CONSOLE=false \
             -e HASURA_GRAPHQL_DEV_MODE=true \
             -e HASURA_GRAPHQL_ADMIN_SECRET=testadminsecret \
