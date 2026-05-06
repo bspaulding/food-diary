@@ -1,4 +1,4 @@
-DROP FUNCTION IF EXISTS food_diary.top_entries_around_hour(integer, integer);
+DROP FUNCTION IF EXISTS food_diary.top_entries_around_hour(integer, integer, integer);
 
 CREATE OR REPLACE FUNCTION food_diary.top_entries_around_hour(
   start_hour integer,
