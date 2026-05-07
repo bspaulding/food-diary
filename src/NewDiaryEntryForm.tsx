@@ -87,10 +87,12 @@ const NewDiaryEntryForm: Component<Props> = ({ onSubmit }: Props) => {
           ? `recipe_${entry.recipe.id}`
           : null;
       if (!key) continue;
-      if (!seen.has(key)) {
-        seen.set(key, { count: 0, entry });
+      const existing = seen.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        seen.set(key, { count: 1, entry });
       }
-      seen.get(key)!.count++;
     }
     return Array.from(seen.values())
       .sort((a, b) => b.count - a.count)
