@@ -1,0 +1,63 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Hasura image
+        run: docker build -t food-diary-hasura:ci .
+
+      - name: Verify image exists
+        run: docker images food-diary-hasura:ci
+
+      - name: Start services
+        run: |
+          docker compose -f docker-compose.test.yml up --no-build -d postgres graphql-engine
+
+      - name: Show early service logs
+        run: |
+          sleep 10
+          docker compose -f docker-compose.test.yml ps
+          docker compose -f docker-compose.test.yml logs
+
+      - name: Wait for Hasura to be healthy
+        run: |
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:8080/healthz 2>/dev/null | grep -qi ok; then
+              echo "Hasura is healthy after $((i * 3))s"
+              exit 0
+            fi
+            echo "[$i/40] not ready yet, retrying in 3s..."
+            sleep 3
+          done
+          echo "Hasura did not become healthy within 120s"
+          docker compose -f docker-compose.test.yml logs
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: npm install
+
+      - name: Run GraphQL tests
+        working-directory: tests
+        env:
+          HASURA_ENDPOINT: http://localhost:8080/v1/graphql
+          HASURA_ADMIN_SECRET: testadminsecret
+        run: npm test
+
+      - name: Show service logs
+        if: always()
+        run: docker compose -f docker-compose.test.yml logs

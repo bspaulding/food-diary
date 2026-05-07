@@ -1,0 +1,22 @@
+-- Revert to pre-fix versions (no division by total_servings)
+CREATE OR REPLACE FUNCTION food_diary.recipe_protein(recipe food_diary.recipe)
+RETURNS numeric LANGUAGE sql STABLE AS $$
+  SELECT sum(total_protein) FROM (
+    SELECT recipe_id, servings, protein_grams, servings * protein_grams AS total_protein
+    FROM food_diary.recipe_item
+    LEFT OUTER JOIN food_diary.nutrition_item
+      ON food_diary.recipe_item.nutrition_item_id = food_diary.nutrition_item.id
+    WHERE recipe_id = recipe.id
+  ) recipe_item_with_protein;
+$$;
+
+CREATE OR REPLACE FUNCTION food_diary.recipe_added_sugar(recipe food_diary.recipe)
+RETURNS numeric LANGUAGE sql STABLE AS $$
+  SELECT sum(total_added_sugar) FROM (
+    SELECT recipe_id, servings, added_sugars_grams, servings * added_sugars_grams AS total_added_sugar
+    FROM food_diary.recipe_item
+    LEFT OUTER JOIN food_diary.nutrition_item
+      ON food_diary.recipe_item.nutrition_item_id = food_diary.nutrition_item.id
+    WHERE recipe_id = recipe.id
+  ) recipe_item_with_added_sugar;
+$$;
