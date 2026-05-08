@@ -61,7 +61,7 @@ const NewDiaryEntryForm: Component<Props> = ({ onSubmit }: Props) => {
     (getRecentItemsQuery() as GetRecentEntriesResponse | undefined)?.data
       ?.food_diary_diary_entry_recent ?? [];
 
-  const currentHour: number = new Date().getHours();
+  const currentHour: number = new Date().getUTCHours();
   const startHour: number = Math.max(0, currentHour - 1);
   const endHour: number = Math.min(23, currentHour + 1);
 
