@@ -203,6 +203,56 @@ describe("NewDiaryEntryForm", () => {
     expect(timeBasedHeader).toBeNull();
   });
 
+  it("should send UTC hours to the time-based suggestions API", async () => {
+    let capturedVariables: Record<string, unknown> | undefined;
+
+    server.use(
+      http.post("*/api/v1/graphql", async ({ request }): Promise<Response> => {
+        const body: unknown = await request.json();
+        if (!isGraphQLRequest(body)) {
+          return HttpResponse.json({
+            errors: [{ message: "Invalid request" }],
+          });
+        }
+        const query: string = body.query || "";
+
+        if (query.includes("TopEntriesAroundHour")) {
+          capturedVariables = body.variables;
+          return HttpResponse.json({
+            data: { food_diary_top_entries_around_hour: [] },
+          });
+        }
+
+        if (query.includes("GetRecentEntryItems")) {
+          return HttpResponse.json({
+            data: { food_diary_diary_entry_recent: [] },
+          });
+        }
+
+        if (query.includes("GetTopLoggedItems")) {
+          return HttpResponse.json({
+            data: { food_diary_diary_entry: [] },
+          });
+        }
+
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+
+    render(() => <NewDiaryEntryForm onSubmit={() => ({})} />);
+
+    await waitFor(
+      () => {
+        expect(capturedVariables).toBeDefined();
+      },
+      { timeout: 5000 },
+    );
+
+    const expectedHour = new Date().getUTCHours();
+    expect(capturedVariables?.startHour).toBe(Math.max(0, expectedHour - 1));
+    expect(capturedVariables?.endHour).toBe(Math.min(23, expectedHour + 1));
+  });
+
   it("should display Search tab and allow searching for items", async () => {
     const user = await import("@testing-library/user-event").then((m) =>
       m.default.setup(),

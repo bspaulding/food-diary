@@ -139,11 +139,11 @@ const graphqlHandler: HttpResponseResolver = async ({ request }) => {
     });
   }
 
-  // Handle GetEntriesAroundTime query
-  if (query.includes("GetEntriesAroundTime")) {
+  // Handle TopEntriesAroundHour query
+  if (query.includes("TopEntriesAroundHour")) {
     return HttpResponse.json({
       data: {
-        food_diary_diary_entry: [],
+        food_diary_top_entries_around_hour: [],
       },
     });
   }
