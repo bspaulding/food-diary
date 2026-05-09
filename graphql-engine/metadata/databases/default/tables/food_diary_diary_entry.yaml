@@ -1,0 +1,84 @@
+table:
+  name: diary_entry
+  schema: food_diary
+object_relationships:
+  - name: nutrition_item
+    using:
+      foreign_key_constraint_on: nutrition_item_id
+  - name: recipe
+    using:
+      foreign_key_constraint_on: recipe_id
+computed_fields:
+  - name: calories
+    definition:
+      function:
+        name: diary_entry_calories
+        schema: food_diary
+  - name: day
+    definition:
+      function:
+        name: diary_entry_day
+        schema: food_diary
+  - name: hour_of_day
+    definition:
+      function:
+        name: diary_entry_hour_of_day
+        schema: food_diary
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: x-hasura-User-Id
+      columns:
+        - consumed_at
+        - created_at
+        - id
+        - nutrition_item_id
+        - recipe_id
+        - servings
+        - updated_at
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - consumed_at
+        - created_at
+        - id
+        - nutrition_item_id
+        - recipe_id
+        - servings
+        - updated_at
+      computed_fields:
+        - calories
+        - day
+        - hour_of_day
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - consumed_at
+        - created_at
+        - id
+        - nutrition_item_id
+        - recipe_id
+        - servings
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
+      set:
+        user_id: x-hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

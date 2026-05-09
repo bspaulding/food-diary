@@ -1,0 +1,7 @@
+function:
+  name: top_entries_around_hour
+  schema: food_diary
+configuration:
+  exposed_as: query
+permissions:
+  - role: user

@@ -1,0 +1,95 @@
+table:
+  name: nutrition_item
+  schema: food_diary
+array_relationships:
+  - name: diary_entries
+    using:
+      foreign_key_constraint_on:
+        column: nutrition_item_id
+        table:
+          name: diary_entry
+          schema: food_diary
+  - name: recipe_items
+    using:
+      foreign_key_constraint_on:
+        column: nutrition_item_id
+        table:
+          name: recipe_item
+          schema: food_diary
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: x-hasura-User-Id
+      columns:
+        - added_sugars_grams
+        - calories
+        - cholesterol_milligrams
+        - description
+        - dietary_fiber_grams
+        - id
+        - monounsaturated_fat_grams
+        - polyunsaturated_fat_grams
+        - protein_grams
+        - saturated_fat_grams
+        - sodium_milligrams
+        - total_carbohydrate_grams
+        - total_fat_grams
+        - total_sugars_grams
+        - trans_fat_grams
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - added_sugars_grams
+        - calories
+        - cholesterol_milligrams
+        - description
+        - dietary_fiber_grams
+        - id
+        - monounsaturated_fat_grams
+        - polyunsaturated_fat_grams
+        - protein_grams
+        - saturated_fat_grams
+        - sodium_milligrams
+        - total_carbohydrate_grams
+        - total_fat_grams
+        - total_sugars_grams
+        - trans_fat_grams
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - added_sugars_grams
+        - calories
+        - cholesterol_milligrams
+        - description
+        - dietary_fiber_grams
+        - id
+        - monounsaturated_fat_grams
+        - polyunsaturated_fat_grams
+        - protein_grams
+        - saturated_fat_grams
+        - sodium_milligrams
+        - total_carbohydrate_grams
+        - total_fat_grams
+        - total_sugars_grams
+        - trans_fat_grams
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
+      set:
+        user_id: x-hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

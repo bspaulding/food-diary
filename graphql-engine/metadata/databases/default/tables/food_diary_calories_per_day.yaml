@@ -1,0 +1,13 @@
+table:
+  name: calories_per_day
+  schema: food_diary
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - day
+        - sum
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true

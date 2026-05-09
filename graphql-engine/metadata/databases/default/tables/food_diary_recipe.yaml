@@ -1,0 +1,65 @@
+table:
+  name: recipe
+  schema: food_diary
+array_relationships:
+  - name: diary_entries
+    using:
+      foreign_key_constraint_on:
+        column: recipe_id
+        table:
+          name: diary_entry
+          schema: food_diary
+  - name: recipe_items
+    using:
+      foreign_key_constraint_on:
+        column: recipe_id
+        table:
+          name: recipe_item
+          schema: food_diary
+computed_fields:
+  - name: calories
+    definition:
+      function:
+        name: recipe_calories
+        schema: food_diary
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: x-hasura-User-Id
+      columns:
+        - name
+        - total_servings
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - name
+        - total_servings
+      computed_fields:
+        - calories
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - name
+        - total_servings
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
+      set:
+        user_id: x-hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

@@ -1,0 +1,16 @@
+table:
+  name: trends_weekly
+  schema: food_diary
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - calories
+        - protein
+        - added_sugar
+        - user_id
+        - week_of_year
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true

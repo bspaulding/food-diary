@@ -1,0 +1,51 @@
+table:
+  name: recipe_item
+  schema: food_diary
+object_relationships:
+  - name: nutrition_item
+    using:
+      foreign_key_constraint_on: nutrition_item_id
+  - name: recipe
+    using:
+      foreign_key_constraint_on: recipe_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: x-hasura-User-Id
+      columns:
+        - nutrition_item_id
+        - recipe_id
+        - servings
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - nutrition_item_id
+        - recipe_id
+        - servings
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - nutrition_item_id
+        - recipe_id
+        - servings
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
+      set:
+        user_id: x-hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

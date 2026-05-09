@@ -1,0 +1,36 @@
+table:
+  name: diary_entry_recent
+  schema: food_diary
+object_relationships:
+  - name: nutrition_item
+    using:
+      manual_configuration:
+        column_mapping:
+          nutrition_item_id: id
+        insertion_order: null
+        remote_table:
+          name: nutrition_item
+          schema: food_diary
+  - name: recipe
+    using:
+      manual_configuration:
+        column_mapping:
+          recipe_id: id
+        insertion_order: null
+        remote_table:
+          name: recipe
+          schema: food_diary
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - consumed_at
+        - created_at
+        - id
+        - nutrition_item_id
+        - recipe_id
+        - servings
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
