@@ -1,4 +1,5 @@
 use std::time::Instant;
+use std::path::Path;
 use log::{info, debug};
 use std::collections::HashMap;
 use serde_derive::{Deserialize, Serialize};
@@ -321,6 +322,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
     }
 
+    #[ignore] // requires local image files not tracked in git
     #[test]
     fn check_test_cases() {
         init();
