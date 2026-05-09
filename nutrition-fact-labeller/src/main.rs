@@ -1,8 +1,6 @@
 use std::time::Instant;
-use std::path::Path;
 use log::{info, debug};
 use std::collections::HashMap;
-use serde_derive::{Deserialize, Serialize};
 use oar_ocr::prelude::*;
 use warp::Filter;
 use warp::multipart::FormData;
@@ -10,6 +8,8 @@ use futures_util::TryStreamExt;
 use bytes::BufMut;
 use oar_ocr::utils::image::dynamic_to_rgb;
 use oar_ocr::core::config::onnx::{OrtSessionConfig, OrtExecutionProvider, OrtGraphOptimizationLevel};
+use serde_derive::{Deserialize, Serialize};
+use nutrition_fact_labeller::ParsedNutritionFacts;
 mod spellcheck;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -163,21 +163,6 @@ fn parse_facts_from_regions(regions: Vec<MyTextRegion>) -> ParsedNutritionFacts 
 
 use regex::Regex;
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct ParsedNutritionFacts {
-    pub servings_per_container: Option<f64>,
-    pub serving_size_grams: Option<f64>,
-    pub calories: Option<i32>,
-    pub total_fat_grams: Option<f64>,
-    pub cholesterol_mg: Option<f64>,
-    pub sodium_mg: Option<f64>,
-    pub total_carbohydrates_g: Option<f64>,
-    pub dietary_fiber_g: Option<f64>,
-    pub total_sugars_g: Option<f64>,
-    pub added_sugars_g: Option<f64>,
-    pub protein_g: Option<f64>,
-}
-
 #[derive(Debug, Serialize)]
 struct LabelledValue {
     label: String,
@@ -317,6 +302,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     use std::fs;
+    use std::path::Path;
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
