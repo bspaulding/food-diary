@@ -1,0 +1,32 @@
+name: CI (nutrition-fact-labeller)
+on:
+  push:
+    paths:
+      - "nutrition-fact-labeller/**"
+  pull_request:
+    paths:
+      - "nutrition-fact-labeller/**"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nutrition-fact-labeller
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            nutrition-fact-labeller/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('nutrition-fact-labeller/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Run tests
+        run: cargo test

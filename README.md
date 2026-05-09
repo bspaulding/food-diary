@@ -2,12 +2,13 @@
 
 A food journaling app available at [food-diary.motingo.com](https://food-diary.motingo.com).
 
-This monorepo contains two components:
+This monorepo contains three components:
 
 | Component | Description |
 |---|---|
 | [`web/`](web/) | SolidJS frontend (TypeScript, Vite, Tailwind) |
 | [`graphql-engine/`](graphql-engine/) | Hasura GraphQL engine — migrations, metadata, and tests |
+| [`nutrition-fact-labeller/`](nutrition-fact-labeller/) | Rust/Warp OCR service — parses nutrition label images |
 
 ## Quick Start
 
@@ -52,6 +53,13 @@ hasura migrate apply --admin-secret $HASURA_GRAPHQL_ADMIN_SECRET
 hasura metadata apply --admin-secret $HASURA_GRAPHQL_ADMIN_SECRET
 ```
 
+### nutrition-fact-labeller
+
+```bash
+cd nutrition-fact-labeller
+cargo run
+```
+
 ## Development
 
 See each component's README for full details:
@@ -67,3 +75,4 @@ Images are published to GHCR on every push to `main` and on version tags:
 |---|---|
 | `ghcr.io/bspaulding/food-diary/web` | `web-v1.2.3` → `:v1.2.3` |
 | `ghcr.io/bspaulding/food-diary/graphql-engine` | `graphql-engine-v1.2.3` → `:v1.2.3` |
+| `ghcr.io/bspaulding/food-diary/nutrition-fact-labeller` | `nutrition-fact-labeller-v1.2.3` → `:v1.2.3` |
