@@ -19,7 +19,6 @@ graphql-engine/db_data/
 # nutrition-fact-labeller
 nutrition-fact-labeller/target/
 nutrition-fact-labeller/paddleocr-models/
-nutrition-fact-labeller/images/
 
 # macOS
 .DS_Store
