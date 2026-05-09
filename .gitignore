@@ -1,3 +1,7 @@
+# local dev
+.env
+node_modules/
+
 # web
 web/node_modules/
 web/dist/

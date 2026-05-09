@@ -10,54 +10,56 @@ This monorepo contains three components:
 | [`graphql-engine/`](graphql-engine/) | Hasura GraphQL engine — migrations, metadata, and tests |
 | [`nutrition-fact-labeller/`](nutrition-fact-labeller/) | Rust/Warp OCR service — parses nutrition label images |
 
-## Quick Start
+## Local Development
 
-### web
-
-```bash
-cd web
-npm install
-npm run dev        # http://localhost:3000
-```
-
-To connect to a local backend, update the proxy target in `vite.config.mts`:
-
-```js
-target: "http://localhost:8080/"
-```
-
-### graphql-engine
+### Prerequisites
 
 ```bash
-cd graphql-engine
-docker-compose up
+brew install overmind   # process manager — requires tmux
 ```
 
-Required environment variables:
+### Setup
 
 ```bash
-export HASURA_GRAPHQL_ADMIN_SECRET=...
-export HASURA_GRAPHQL_JWT_SECRET=...
+cp .env.example .env
+# fill in HASURA_GRAPHQL_ADMIN_SECRET and HASURA_GRAPHQL_JWT_SECRET in .env
 ```
 
-Open the Hasura console:
+### Run everything
+
+```bash
+overmind start
+```
+
+This starts all three services with proxies wired to local backends:
+
+| Process | URL |
+|---|---|
+| `web` | https://localhost:3000 |
+| `graphql` | http://localhost:8080 |
+| `labeller` | http://localhost:3030 |
+
+Vite proxies `/api/*` → Hasura and `/labeller/*` → the OCR service, mirroring the production ingress routing.
+
+### Useful Overmind commands
+
+```bash
+overmind restart labeller          # restart just the Rust service
+overmind connect labeller          # attach a tmux pane for input/inspection
+overmind stop graphql              # stop a single service
+```
+
+### Hasura console
 
 ```bash
 hasura console --admin-secret $HASURA_GRAPHQL_ADMIN_SECRET
 ```
 
-New database setup (migrations + metadata):
+### New database setup (first time or after reset)
 
 ```bash
 hasura migrate apply --admin-secret $HASURA_GRAPHQL_ADMIN_SECRET
 hasura metadata apply --admin-secret $HASURA_GRAPHQL_ADMIN_SECRET
-```
-
-### nutrition-fact-labeller
-
-```bash
-cd nutrition-fact-labeller
-cargo run
 ```
 
 ## Development

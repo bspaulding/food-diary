@@ -5,7 +5,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 const useLocalHasura: boolean =
   process.env.FOOD_DIARY_USE_LOCAL_HASURA === "true";
-console.log({ useLocalHasura });
+const useLocalLabeller: boolean =
+  process.env.FOOD_DIARY_USE_LOCAL_LABELLER === "true";
+console.log({ useLocalHasura, useLocalLabeller });
 
 export default defineConfig({
   plugins: [tailwindcss(), solidPlugin(), basicSsl()],
@@ -22,7 +24,9 @@ export default defineConfig({
         rewrite: (path: string) => path.replace(/^\/api/, ""),
       },
       "/labeller": {
-        target: "https://food-diary.motingo.com/labeller/",
+        target: useLocalLabeller
+          ? "http://localhost:3030"
+          : "https://food-diary.motingo.com/labeller/",
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/labeller/, ""),
       },
