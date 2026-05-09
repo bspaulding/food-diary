@@ -1,0 +1,9 @@
+node_modules
+dist
+.env.local
+src/__screenshots__
+coverage
+src-gleam/build
+src-gleam/tags
+.lustre/
+.worktrees/

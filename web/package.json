@@ -1,0 +1,48 @@
+{
+  "name": "vite-template-solid",
+  "version": "0.0.0",
+  "description": "",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview",
+    "test": "vitest",
+    "test:acceptance": "vitest --config vitest.acceptance.config.mts",
+    "test:acceptance:docker": "docker run --rm -v \"$(pwd)\":/app -v /app/node_modules -w /app -e TZ=America/Los_Angeles mcr.microsoft.com/playwright:v1.57.0-noble sh -c 'npm ci && npm run test:acceptance -- --run'",
+    "prettier": "./node_modules/.bin/prettier",
+    "prettier:check": "prettier --check .",
+    "prettier:format": "prettier --write .",
+    "type-coverage": "type-coverage --at-least 100 --strict --ignore-as-assertion"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@auth0/auth0-spa-js": "^1.22.4",
+    "@solid-primitives/scheduled": "^1.0.1",
+    "@solidjs/router": "^0.10.0",
+    "@solidjs/testing-library": "^0.8.10",
+    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/vite": "^4.2.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^25.0.10",
+    "@vitejs/plugin-basic-ssl": "^2.2.0",
+    "@vitest/browser-playwright": "^4.1.0",
+    "@vitest/coverage-istanbul": "^4.1.0",
+    "autoprefixer": "^10.4.11",
+    "csv-parse": "^5.3.0",
+    "date-fns": "^2.29.3",
+    "jsdom": "^26.0.0",
+    "msw": "^2.12.4",
+    "playwright": "^1.49.1",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^4.0.7",
+    "type-coverage": "^2.29.7",
+    "typescript": "^5.7.0",
+    "vite": "^8.0.0",
+    "vite-plugin-solid": "^2.11.11",
+    "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "solid-js": "^1.8.4"
+  }
+}

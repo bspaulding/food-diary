@@ -1,0 +1,48 @@
+{
+  "name": "Food Diary Frontend",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/meaningful-ooo/devcontainer-features/gleam:1": {
+      "version": "latest"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "gleam.gleam",
+        "vscodevim.vim",
+        "inbedby7pm.inbedby7pm-theme"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[gleam]": {
+          "editor.defaultFormatter": "gleam.gleam"
+        },
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        }
+      }
+    }
+  },
+  "forwardPorts": [3000, 1234],
+  "portsAttributes": {
+    "3000": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "notify"
+    },
+    "1234": {
+      "label": "Lustre Dev Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "npm install && cd src-gleam && gleam deps download",
+  "remoteEnv": {
+    "TZ": "America/Los_Angeles"
+  }
+}

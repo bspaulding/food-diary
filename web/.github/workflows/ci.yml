@@ -1,0 +1,32 @@
+name: CI
+on:
+  push:
+    branches: "*"
+  pull_request:
+    branches: "*"
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - name: Check code formatting with Prettier
+        run: npm run prettier:check
+      - name: TypeScript Check
+        run: npx tsc --noEmit
+      - name: Type Coverage Check
+        run: npm run type-coverage
+      - run: npm test -- --run --coverage
+        env:
+          TZ: America/Los_Angeles
+      - name: Install Playwright Browsers
+        run: npx playwright install chromium
+      - name: Run Acceptance Tests
+        run: npm run test:acceptance -- --run
+        env:
+          TZ: America/Los_Angeles

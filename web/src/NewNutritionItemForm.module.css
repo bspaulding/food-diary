@@ -1,0 +1,76 @@
+.form {
+  --vertical-spacing: 8px;
+  padding: var(--vertical-spacing) 0px;
+}
+
+.form input {
+  padding: var(--vertical-spacing);
+  font-size: 1em;
+}
+
+.form fieldset {
+  margin: 0 0 var(--vertical-spacing);
+
+  display: flex;
+  flex-direction: column;
+}
+
+.form fieldset label {
+  margin-bottom: var(--vertical-spacing);
+}
+
+.form fieldset input {
+  border: 1px solid #3e4a49;
+  margin-bottom: var(--vertical-spacing);
+}
+
+.form fieldset button {
+  -webkit-appearance: none;
+  border: none;
+  font-size: 1.2em;
+  background: cornflowerblue;
+  padding: var(--vertical-spacing) 0px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  color: white;
+}
+
+.form fieldset.facts {
+  display: grid;
+  --columns: 2;
+  grid-template-columns: 1fr 120px;
+  gap: var(--vertical-spacing);
+}
+
+.form fieldset.facts legend {
+  color: #ffffff;
+  font-weight: bold;
+  padding: 5px;
+  margin-bottom: 0;
+  width: 9em;
+}
+
+.form fieldset.facts label {
+  grid-column: 1 / var(--columns);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.form fieldset.facts input {
+  grid-column: var(--columns);
+}
+
+.form fieldset.facts input[type="number"] {
+  text-align: right;
+}
+
+.form fieldset label[for="calories"],
+.form fieldset label[for="total-fat-grams"],
+.form fieldset label[for="cholesterol-milligrams"],
+.form fieldset label[for="sodium-milligrams"],
+.form fieldset label[for="total-carbohydrate-grams"],
+.form fieldset label[for="protein-grams"] {
+  font-weight: bold;
+}
