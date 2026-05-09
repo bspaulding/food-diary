@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pre-push hook that runs cargo fmt, test, and clippy
+
+set -e
+
+echo "Running pre-push checks..."
+
+# Check formatting
+echo "🔍 Checking code formatting..."
+cargo fmt --check
+
+# Run tests
+echo "🧪 Running tests..."
+cargo test
+
+# Run linter
+echo "📋 Running linter..."
+cargo clippy -- -D warnings
+
+echo "✅ All checks passed!"

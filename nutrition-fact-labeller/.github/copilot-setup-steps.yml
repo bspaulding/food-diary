@@ -1,0 +1,4 @@
+tasks:
+  - name: install-hooks
+    description: Install git pre-push hook for cargo fmt, test, and clippy
+    command: bash install-hooks.sh
