@@ -1,0 +1,48 @@
+name: Migrate GHCR Packages
+on:
+  workflow_dispatch:
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Migrate food-diary-frontend to food-diary/web
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAGS=$(gh api /users/bspaulding/packages/container/food-diary-frontend/versions \
+            --paginate | jq -r '.[].metadata.container.tags[]' | sort -u)
+          echo "Tags found: $TAGS"
+          for TAG in $TAGS; do
+            echo "Migrating food-diary-frontend:$TAG to food-diary/web:$TAG"
+            docker pull ghcr.io/bspaulding/food-diary-frontend:$TAG
+            docker tag  ghcr.io/bspaulding/food-diary-frontend:$TAG \
+                        ghcr.io/bspaulding/food-diary/web:$TAG
+            docker push ghcr.io/bspaulding/food-diary/web:$TAG
+          done
+
+      - name: Migrate food-diary-graphql-engine to food-diary/graphql-engine
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAGS=$(gh api /users/bspaulding/packages/container/food-diary-graphql-engine/versions \
+            --paginate | jq -r '.[].metadata.container.tags[]' | sort -u)
+          echo "Tags found: $TAGS"
+          for TAG in $TAGS; do
+            echo "Migrating food-diary-graphql-engine:$TAG to food-diary/graphql-engine:$TAG"
+            docker pull ghcr.io/bspaulding/food-diary-graphql-engine:$TAG
+            docker tag  ghcr.io/bspaulding/food-diary-graphql-engine:$TAG \
+                        ghcr.io/bspaulding/food-diary/graphql-engine:$TAG
+            docker push ghcr.io/bspaulding/food-diary/graphql-engine:$TAG
+          done

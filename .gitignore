@@ -1,0 +1,16 @@
+# web
+web/node_modules/
+web/dist/
+web/.env.local
+web/src/__screenshots__/
+web/coverage/
+web/src-gleam/build/
+web/src-gleam/tags
+web/.lustre/
+web/.worktrees/
+
+# graphql-engine
+graphql-engine/db_data/
+
+# macOS
+.DS_Store
