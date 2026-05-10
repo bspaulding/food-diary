@@ -336,6 +336,426 @@
         "protein_grams": 3.0,
         "total_carbohydrate_grams": 3.0
       }
+    },
+    {
+      "id": "salmon-cooked",
+      "query": "100g cooked Atlantic salmon fillet",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #175167",
+      "ground_truth": {
+        "description": "100g cooked Atlantic salmon",
+        "calories": 206,
+        "total_fat_grams": 12.4,
+        "saturated_fat_grams": 2.5,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 3.9,
+        "monounsaturated_fat_grams": 4.4,
+        "cholesterol_milligrams": 63,
+        "sodium_milligrams": 59,
+        "total_carbohydrate_grams": 0,
+        "dietary_fiber_grams": 0,
+        "total_sugars_grams": 0,
+        "added_sugars_grams": 0,
+        "protein_grams": 22.1
+      },
+      "tolerances": {
+        "calories": 20,
+        "total_fat_grams": 2.0,
+        "protein_grams": 2.0,
+        "total_carbohydrate_grams": 1.0
+      }
+    },
+    {
+      "id": "avocado-half",
+      "query": "half a medium avocado (68g)",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #171705",
+      "ground_truth": {
+        "description": "Half a medium avocado",
+        "calories": 114,
+        "total_fat_grams": 10.5,
+        "saturated_fat_grams": 1.5,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 1.3,
+        "monounsaturated_fat_grams": 7.1,
+        "cholesterol_milligrams": 0,
+        "sodium_milligrams": 5,
+        "total_carbohydrate_grams": 6.0,
+        "dietary_fiber_grams": 4.6,
+        "total_sugars_grams": 0.4,
+        "added_sugars_grams": 0,
+        "protein_grams": 1.3
+      },
+      "tolerances": {
+        "calories": 15,
+        "total_fat_grams": 1.5,
+        "protein_grams": 0.5,
+        "total_carbohydrate_grams": 2.0
+      }
+    },
+    {
+      "id": "sweet-potato-baked",
+      "query": "1 medium baked sweet potato with skin (150g)",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #168482",
+      "ground_truth": {
+        "description": "1 medium baked sweet potato, with skin",
+        "calories": 129,
+        "total_fat_grams": 0.1,
+        "saturated_fat_grams": 0.0,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 0.0,
+        "monounsaturated_fat_grams": 0.0,
+        "cholesterol_milligrams": 0,
+        "sodium_milligrams": 82,
+        "total_carbohydrate_grams": 30.0,
+        "dietary_fiber_grams": 3.8,
+        "total_sugars_grams": 9.4,
+        "added_sugars_grams": 0,
+        "protein_grams": 2.9
+      },
+      "tolerances": {
+        "calories": 20,
+        "total_fat_grams": 0.5,
+        "protein_grams": 0.5,
+        "total_carbohydrate_grams": 5.0
+      }
+    },
+    {
+      "id": "almonds-1oz",
+      "query": "1 oz (28g) dry roasted almonds",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #170567",
+      "ground_truth": {
+        "description": "1 oz dry roasted almonds",
+        "calories": 170,
+        "total_fat_grams": 15.0,
+        "saturated_fat_grams": 1.1,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 3.7,
+        "monounsaturated_fat_grams": 9.6,
+        "cholesterol_milligrams": 0,
+        "sodium_milligrams": 97,
+        "total_carbohydrate_grams": 6.0,
+        "dietary_fiber_grams": 3.3,
+        "total_sugars_grams": 1.3,
+        "added_sugars_grams": 0,
+        "protein_grams": 6.0
+      },
+      "tolerances": {
+        "calories": 15,
+        "total_fat_grams": 1.5,
+        "protein_grams": 1.0,
+        "total_carbohydrate_grams": 2.0
+      }
+    },
+    {
+      "id": "black-beans-cooked",
+      "query": "1/2 cup cooked black beans (86g)",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #173735",
+      "ground_truth": {
+        "description": "1/2 cup cooked black beans",
+        "calories": 114,
+        "total_fat_grams": 0.5,
+        "saturated_fat_grams": 0.1,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 0.2,
+        "monounsaturated_fat_grams": 0.0,
+        "cholesterol_milligrams": 0,
+        "sodium_milligrams": 1,
+        "total_carbohydrate_grams": 20.4,
+        "dietary_fiber_grams": 7.5,
+        "total_sugars_grams": 0.3,
+        "added_sugars_grams": 0,
+        "protein_grams": 7.6
+      },
+      "tolerances": {
+        "calories": 20,
+        "total_fat_grams": 0.5,
+        "protein_grams": 1.5,
+        "total_carbohydrate_grams": 3.0
+      }
+    },
+    {
+      "id": "cheddar-cheese-1oz",
+      "query": "1 oz (28g) sharp cheddar cheese",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #173414",
+      "ground_truth": {
+        "description": "1 oz cheddar cheese",
+        "calories": 115,
+        "total_fat_grams": 9.5,
+        "saturated_fat_grams": 5.4,
+        "trans_fat_grams": 0.3,
+        "polyunsaturated_fat_grams": 0.3,
+        "monounsaturated_fat_grams": 2.7,
+        "cholesterol_milligrams": 30,
+        "sodium_milligrams": 185,
+        "total_carbohydrate_grams": 0.4,
+        "dietary_fiber_grams": 0,
+        "total_sugars_grams": 0.1,
+        "added_sugars_grams": 0,
+        "protein_grams": 6.4
+      },
+      "tolerances": {
+        "calories": 15,
+        "total_fat_grams": 1.5,
+        "protein_grams": 1.0,
+        "total_carbohydrate_grams": 0.5
+      }
+    },
+    {
+      "id": "peanut-butter-2tbsp",
+      "query": "2 tablespoons peanut butter (32g)",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #172470",
+      "ground_truth": {
+        "description": "2 tablespoons peanut butter",
+        "calories": 190,
+        "total_fat_grams": 16.0,
+        "saturated_fat_grams": 3.4,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 4.5,
+        "monounsaturated_fat_grams": 7.5,
+        "cholesterol_milligrams": 0,
+        "sodium_milligrams": 136,
+        "total_carbohydrate_grams": 7.0,
+        "dietary_fiber_grams": 1.5,
+        "total_sugars_grams": 3.4,
+        "added_sugars_grams": 3.0,
+        "protein_grams": 7.0
+      },
+      "tolerances": {
+        "calories": 20,
+        "total_fat_grams": 2.0,
+        "protein_grams": 1.0,
+        "total_carbohydrate_grams": 2.0
+      }
+    },
+    {
+      "id": "cottage-cheese-half-cup",
+      "query": "1/2 cup low-fat (2%) cottage cheese (113g)",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #172179",
+      "ground_truth": {
+        "description": "1/2 cup low-fat cottage cheese",
+        "calories": 90,
+        "total_fat_grams": 2.5,
+        "saturated_fat_grams": 1.0,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 0.1,
+        "monounsaturated_fat_grams": 0.7,
+        "cholesterol_milligrams": 10,
+        "sodium_milligrams": 360,
+        "total_carbohydrate_grams": 5.0,
+        "dietary_fiber_grams": 0,
+        "total_sugars_grams": 4.0,
+        "added_sugars_grams": 0,
+        "protein_grams": 12.5
+      },
+      "tolerances": {
+        "calories": 15,
+        "total_fat_grams": 1.0,
+        "protein_grams": 2.0,
+        "total_carbohydrate_grams": 2.0
+      }
+    },
+    {
+      "id": "ground-beef-cooked",
+      "query": "100g cooked 80/20 ground beef (pan-fried, drained)",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #174032",
+      "ground_truth": {
+        "description": "100g cooked 80/20 ground beef",
+        "calories": 254,
+        "total_fat_grams": 17.6,
+        "saturated_fat_grams": 6.8,
+        "trans_fat_grams": 0.6,
+        "polyunsaturated_fat_grams": 0.6,
+        "monounsaturated_fat_grams": 7.7,
+        "cholesterol_milligrams": 88,
+        "sodium_milligrams": 82,
+        "total_carbohydrate_grams": 0,
+        "dietary_fiber_grams": 0,
+        "total_sugars_grams": 0,
+        "added_sugars_grams": 0,
+        "protein_grams": 23.2
+      },
+      "tolerances": {
+        "calories": 25,
+        "total_fat_grams": 2.5,
+        "protein_grams": 2.0,
+        "total_carbohydrate_grams": 1.0
+      }
+    },
+    {
+      "id": "pasta-cooked",
+      "query": "1 cup cooked spaghetti, no sauce (140g)",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #168901",
+      "ground_truth": {
+        "description": "1 cup cooked spaghetti",
+        "calories": 220,
+        "total_fat_grams": 1.3,
+        "saturated_fat_grams": 0.3,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 0.5,
+        "monounsaturated_fat_grams": 0.2,
+        "cholesterol_milligrams": 0,
+        "sodium_milligrams": 1,
+        "total_carbohydrate_grams": 43.2,
+        "dietary_fiber_grams": 2.5,
+        "total_sugars_grams": 0.6,
+        "added_sugars_grams": 0,
+        "protein_grams": 8.1
+      },
+      "tolerances": {
+        "calories": 25,
+        "total_fat_grams": 0.5,
+        "protein_grams": 1.5,
+        "total_carbohydrate_grams": 5.0
+      }
+    },
+    {
+      "id": "orange-medium",
+      "query": "1 medium orange (131g), peeled",
+      "category": "whole_food",
+      "source": "USDA FoodData Central #169097",
+      "ground_truth": {
+        "description": "1 medium orange",
+        "calories": 62,
+        "total_fat_grams": 0.2,
+        "saturated_fat_grams": 0.0,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 0.0,
+        "monounsaturated_fat_grams": 0.0,
+        "cholesterol_milligrams": 0,
+        "sodium_milligrams": 0,
+        "total_carbohydrate_grams": 15.4,
+        "dietary_fiber_grams": 3.1,
+        "total_sugars_grams": 12.2,
+        "added_sugars_grams": 0,
+        "protein_grams": 1.2
+      },
+      "tolerances": {
+        "calories": 10,
+        "total_fat_grams": 0.3,
+        "protein_grams": 0.5,
+        "total_carbohydrate_grams": 3.0
+      }
+    },
+    {
+      "id": "avocado-toast-simple",
+      "query": "1 slice whole wheat toast with 1/4 avocado and a pinch of salt",
+      "category": "composite_meal",
+      "source": "Computed: USDA #168012 (WW bread 43g) + USDA #171705 (avocado 34g)",
+      "ground_truth": {
+        "description": "Avocado toast on whole wheat bread",
+        "calories": 175,
+        "total_fat_grams": 7.4,
+        "saturated_fat_grams": 1.3,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 1.5,
+        "monounsaturated_fat_grams": 4.0,
+        "cholesterol_milligrams": 0,
+        "sodium_milligrams": 200,
+        "total_carbohydrate_grams": 24.0,
+        "dietary_fiber_grams": 5.2,
+        "total_sugars_grams": 3.5,
+        "added_sugars_grams": 0,
+        "protein_grams": 5.5
+      },
+      "tolerances": {
+        "calories": 30,
+        "total_fat_grams": 2.0,
+        "protein_grams": 1.5,
+        "total_carbohydrate_grams": 5.0
+      }
+    },
+    {
+      "id": "chicken-rice-bowl",
+      "query": "grilled chicken rice bowl: 150g cooked white rice, 120g grilled chicken breast, no sauce",
+      "category": "composite_meal",
+      "source": "Computed: USDA #168880 (rice 150g) + USDA #171477 (chicken 120g)",
+      "ground_truth": {
+        "description": "Grilled chicken and white rice bowl",
+        "calories": 393,
+        "total_fat_grams": 4.6,
+        "saturated_fat_grams": 1.3,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 1.1,
+        "monounsaturated_fat_grams": 1.6,
+        "cholesterol_milligrams": 102,
+        "sodium_milligrams": 90,
+        "total_carbohydrate_grams": 42.3,
+        "dietary_fiber_grams": 0.6,
+        "total_sugars_grams": 0,
+        "added_sugars_grams": 0,
+        "protein_grams": 37.9
+      },
+      "tolerances": {
+        "calories": 40,
+        "total_fat_grams": 2.0,
+        "protein_grams": 5.0,
+        "total_carbohydrate_grams": 6.0
+      }
+    },
+    {
+      "id": "quest-bar-chocolate-chip-cookie",
+      "query": "Quest Bar Chocolate Chip Cookie Dough (60g)",
+      "category": "branded",
+      "source": "Quest Nutrition label (product #888849000227)",
+      "ground_truth": {
+        "description": "Quest Bar Chocolate Chip Cookie Dough",
+        "calories": 190,
+        "total_fat_grams": 8.0,
+        "saturated_fat_grams": 3.0,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 0.0,
+        "monounsaturated_fat_grams": 0.0,
+        "cholesterol_milligrams": 10,
+        "sodium_milligrams": 260,
+        "total_carbohydrate_grams": 22.0,
+        "dietary_fiber_grams": 13.0,
+        "total_sugars_grams": 1.0,
+        "added_sugars_grams": 1.0,
+        "protein_grams": 21.0
+      },
+      "tolerances": {
+        "calories": 25,
+        "total_fat_grams": 2.0,
+        "protein_grams": 3.0,
+        "total_carbohydrate_grams": 5.0
+      }
+    },
+    {
+      "id": "starbucks-latte-grande",
+      "query": "Starbucks Grande latte with 2% milk (no syrup, 473ml)",
+      "category": "restaurant",
+      "source": "Starbucks US nutrition information (2024)",
+      "ground_truth": {
+        "description": "Starbucks Grande Latte, 2% milk",
+        "calories": 190,
+        "total_fat_grams": 7.0,
+        "saturated_fat_grams": 4.5,
+        "trans_fat_grams": 0,
+        "polyunsaturated_fat_grams": 0.3,
+        "monounsaturated_fat_grams": 2.0,
+        "cholesterol_milligrams": 25,
+        "sodium_milligrams": 170,
+        "total_carbohydrate_grams": 19.0,
+        "dietary_fiber_grams": 0,
+        "total_sugars_grams": 18.0,
+        "added_sugars_grams": 0,
+        "protein_grams": 13.0
+      },
+      "tolerances": {
+        "calories": 30,
+        "total_fat_grams": 2.0,
+        "protein_grams": 3.0,
+        "total_carbohydrate_grams": 4.0
+      }
     }
   ]
 }
