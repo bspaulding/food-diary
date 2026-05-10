@@ -6,6 +6,7 @@ import {
   createNutritionItem,
   updateNutritionItem,
   createRecipe,
+  lookupNutritionWithLLM,
   GraphQLError,
   registerLogoutHandler,
 } from "./Api";
@@ -260,6 +261,98 @@ describe("updateNutritionItem", () => {
     // Verify fields are in snake_case
     expect(vars.attrs.description).toBe("Updated Food");
     expect(vars.attrs.calories).toBe(150);
+  });
+});
+
+describe("lookupNutritionWithLLM", () => {
+  const snakeItem = {
+    description: "Grilled chicken breast",
+    calories: 165,
+    total_fat_grams: 3.6,
+    saturated_fat_grams: 1.0,
+    trans_fat_grams: 0,
+    polyunsaturated_fat_grams: 0.8,
+    monounsaturated_fat_grams: 1.2,
+    cholesterol_milligrams: 85,
+    sodium_milligrams: 74,
+    total_carbohydrate_grams: 0,
+    dietary_fiber_grams: 0,
+    total_sugars_grams: 0,
+    added_sugars_grams: 0,
+    protein_grams: 31,
+  };
+
+  it("maps snake_case response fields to camelCase NutritionItemAttrs", async () => {
+    server.use(
+      http.post("/llm/lookup", () => HttpResponse.json({ item: snakeItem })),
+    );
+
+    const result = await lookupNutritionWithLLM("100g grilled chicken breast");
+
+    expect(result.description).toBe("Grilled chicken breast");
+    expect(result.calories).toBe(165);
+    expect(result.totalFatGrams).toBe(3.6);
+    expect(result.saturatedFatGrams).toBe(1.0);
+    expect(result.transFatGrams).toBe(0);
+    expect(result.polyunsaturatedFatGrams).toBe(0.8);
+    expect(result.monounsaturatedFatGrams).toBe(1.2);
+    expect(result.cholesterolMilligrams).toBe(85);
+    expect(result.sodiumMilligrams).toBe(74);
+    expect(result.totalCarbohydrateGrams).toBe(0);
+    expect(result.dietaryFiberGrams).toBe(0);
+    expect(result.totalSugarsGrams).toBe(0);
+    expect(result.addedSugarsGrams).toBe(0);
+    expect(result.proteinGrams).toBe(31);
+  });
+
+  it("defaults numeric fields to 0 when response contains non-numeric values", async () => {
+    server.use(
+      http.post("/llm/lookup", () =>
+        HttpResponse.json({
+          item: {
+            description: "Unknown food",
+            calories: "not-a-number",
+            total_fat_grams: null,
+            saturated_fat_grams: undefined,
+          },
+        }),
+      ),
+    );
+
+    const result = await lookupNutritionWithLLM("unknown food");
+
+    expect(result.description).toBe("Unknown food");
+    expect(result.calories).toBe(0);
+    expect(result.totalFatGrams).toBe(0);
+    expect(result.saturatedFatGrams).toBe(0);
+  });
+
+  it("defaults description to empty string when response contains non-string description", async () => {
+    server.use(
+      http.post("/llm/lookup", () =>
+        HttpResponse.json({ item: { ...snakeItem, description: 42 } }),
+      ),
+    );
+
+    const result = await lookupNutritionWithLLM("some food");
+    expect(result.description).toBe("");
+  });
+
+  it("throws an error when the response is not ok", async () => {
+    server.use(
+      http.post(
+        "/llm/lookup",
+        () =>
+          new HttpResponse(null, {
+            status: 500,
+            statusText: "Internal Server Error",
+          }),
+      ),
+    );
+
+    await expect(lookupNutritionWithLLM("some food")).rejects.toThrow(
+      "Lookup failed: Internal Server Error",
+    );
   });
 });
 
