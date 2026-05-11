@@ -20,10 +20,37 @@ You have access to two tools. To call a tool, output ONLY a JSON object:
   Search the web:  {\"action\": \"search_web\", \"query\": \"your search query\"}
   Read a webpage:  {\"action\": \"read_webpage\", \"url\": \"https://...\"}
 
-Use tools for branded products or restaurant items where exact values matter.
-For common foods (e.g. \"1 egg\", \"100g chicken breast\"), estimate directly.
+RULES:
+- You MUST call search_web for any branded product (protein bars, cereals, snacks), \
+packaged food, chain restaurant item, or fast food. Do not guess these from memory.
+- For unbranded whole foods (e.g. \"1 egg\", \"100g chicken breast\", \"1 cup milk\"), \
+estimate directly — no tool call needed.
+- When a query says \"cooked\", \"baked\", \"boiled\", \"grilled\", or \"prepared\", \
+always use post-cooking nutritional values, not raw/dry values. \
+\"1 cup cooked oatmeal\" means cooked (water absorbed, ~166 kcal), not dry (~300 kcal).
+- Use the exact serving size stated in the query.
 
-When you have enough information, output ONLY this JSON (no markdown, no extra text):
+EXAMPLES:
+
+User: CLIF BAR Chocolate Chip (68g)
+Assistant: {\"action\": \"search_web\", \"query\": \"CLIF BAR Chocolate Chip 68g nutrition facts calories protein carbs fat\"}
+User: Search results for 'CLIF BAR Chocolate Chip 68g nutrition facts calories protein carbs fat':
+Title: CLIF BAR Chocolate Chip Energy Bar Nutrition Facts
+Snippet: Serving size 1 bar (68g). Calories 250. Total Fat 6g. Protein 10g. Total Carbohydrate 44g.
+Assistant: {\"description\": \"CLIF BAR Chocolate Chip\", \"calories\": 250, \"total_fat_grams\": 6, \
+\"saturated_fat_grams\": 1.5, \"trans_fat_grams\": 0, \"polyunsaturated_fat_grams\": 1.5, \
+\"monounsaturated_fat_grams\": 2.5, \"cholesterol_milligrams\": 0, \"sodium_milligrams\": 150, \
+\"total_carbohydrate_grams\": 44, \"dietary_fiber_grams\": 4, \"total_sugars_grams\": 17, \
+\"added_sugars_grams\": 17, \"protein_grams\": 10}
+
+User: 1 cup cooked oatmeal (234g)
+Assistant: {\"description\": \"1 cup cooked oatmeal\", \"calories\": 166, \"total_fat_grams\": 3.6, \
+\"saturated_fat_grams\": 0.7, \"trans_fat_grams\": 0, \"polyunsaturated_fat_grams\": 1.3, \
+\"monounsaturated_fat_grams\": 1.1, \"cholesterol_milligrams\": 0, \"sodium_milligrams\": 115, \
+\"total_carbohydrate_grams\": 28, \"dietary_fiber_grams\": 4, \"total_sugars_grams\": 0.6, \
+\"added_sugars_grams\": 0, \"protein_grams\": 5.9}
+
+When you have enough information, output ONLY the final JSON (no markdown, no extra text):
 {\"description\": \"...\", \"calories\": 0, \"total_fat_grams\": 0, \"saturated_fat_grams\": 0, \
 \"trans_fat_grams\": 0, \"polyunsaturated_fat_grams\": 0, \"monounsaturated_fat_grams\": 0, \
 \"cholesterol_milligrams\": 0, \"sodium_milligrams\": 0, \"total_carbohydrate_grams\": 0, \
@@ -183,22 +210,28 @@ pub async fn run_agent(
             match call.action.as_str() {
                 "search_web" if !call.query.is_empty() => {
                     log::info!("Tool call: search_web({:?})", call.query);
-                    let result = crate::tools::search_web(&call.query).await?;
+                    let result = match crate::tools::search_web(&call.query).await {
+                        Ok(r) => format!("Search results for '{}':\n{r}", call.query),
+                        Err(e) => {
+                            log::warn!("search_web failed: {e}");
+                            format!("Search failed: {e}. Estimate from nutritional knowledge instead.")
+                        }
+                    };
                     conversation.push(("assistant".to_string(), output));
-                    conversation.push((
-                        "tool".to_string(),
-                        format!("Search results for '{}':\n{result}", call.query),
-                    ));
+                    conversation.push(("tool".to_string(), result));
                     continue;
                 }
                 "read_webpage" if !call.url.is_empty() => {
                     log::info!("Tool call: read_webpage({:?})", call.url);
-                    let result = crate::tools::read_webpage(&call.url).await?;
+                    let result = match crate::tools::read_webpage(&call.url).await {
+                        Ok(r) => format!("Page content from {}:\n{r}", call.url),
+                        Err(e) => {
+                            log::warn!("read_webpage failed: {e}");
+                            format!("Page fetch failed: {e}. Estimate from nutritional knowledge instead.")
+                        }
+                    };
                     conversation.push(("assistant".to_string(), output));
-                    conversation.push((
-                        "tool".to_string(),
-                        format!("Page content from {}:\n{result}", call.url),
-                    ));
+                    conversation.push(("tool".to_string(), result));
                     continue;
                 }
                 _ => {}
