@@ -7,6 +7,7 @@ import { useAuth } from "./Auth0";
 import { accessorsToObject } from "./Util";
 import styles from "./NewNutritionItemForm.module.css";
 import CameraModal from "./CameraModal";
+import LLMLookupModal from "./LLMLookupModal";
 
 interface GraphQLResponse<T> {
   data?: T;
@@ -40,6 +41,7 @@ const NewNutritionItemForm: Component<Props> = ({
   const [{ accessToken }] = useAuth();
   const [disabled, setDisabled] = createSignal(false);
   const [showCameraModal, setShowCameraModal] = createSignal(false);
+  const [showLLMLookupModal, setShowLLMLookupModal] = createSignal(false);
   const navigate = useNavigate();
 
   const [id, _setId] = createSignal(initialItem?.id);
@@ -146,7 +148,34 @@ const NewNutritionItemForm: Component<Props> = ({
           accessToken={accessToken()}
         />
       </Show>
-      <div class="flex justify-end mb-2">
+      <Show when={showLLMLookupModal()}>
+        <LLMLookupModal
+          isOpen={showLLMLookupModal()}
+          onClose={() => setShowLLMLookupModal(false)}
+          onImport={handleImport}
+        />
+      </Show>
+      <div class="flex justify-end mb-2 gap-2">
+        <button
+          type="button"
+          class="bg-indigo-600 text-slate-50 py-2 px-4 rounded-md flex items-center gap-2"
+          onClick={() => setShowLLMLookupModal(true)}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="w-5 h-5"
+          >
+            <path d="M16.5 7.5h-9v9h9v-9Z" />
+            <path
+              fill-rule="evenodd"
+              d="M8.25 2.25A.75.75 0 0 1 9 3v.75h2.25V3a.75.75 0 0 1 1.5 0v.75H15V3a.75.75 0 0 1 1.5 0v.75h.75a3 3 0 0 1 3 3v.75H21A.75.75 0 0 1 21 9h-.75v2.25H21a.75.75 0 0 1 0 1.5h-.75V15H21a.75.75 0 0 1 0 1.5h-.75v.75a3 3 0 0 1-3 3h-.75V21a.75.75 0 0 1-1.5 0v-.75h-2.25V21a.75.75 0 0 1-1.5 0v-.75H9V21a.75.75 0 0 1-1.5 0v-.75h-.75a3 3 0 0 1-3-3v-.75H3A.75.75 0 0 1 3 15h.75v-2.25H3a.75.75 0 0 1 0-1.5h.75V9H3A.75.75 0 0 1 3 7.5h.75v-.75a3 3 0 0 1 3-3h.75V3a.75.75 0 0 1 .75-.75Z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          AI
+        </button>
         <button
           type="button"
           class="bg-indigo-600 text-slate-50 py-2 px-4 rounded-md flex items-center gap-2"

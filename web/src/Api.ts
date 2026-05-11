@@ -793,3 +793,59 @@ export async function fetchWeeklyTrends(
 ): Promise<GetWeeklyTrendsResponse> {
   return await fetchQuery(accessToken, getWeeklyTrendsQuery);
 }
+
+export async function lookupNutritionWithLLM(
+  description: string,
+): Promise<Partial<NutritionItemAttrs>> {
+  const response = await fetch("/llm/lookup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description }),
+  });
+  if (!response.ok) {
+    throw new Error(`Lookup failed: ${response.statusText}`);
+  }
+  const { item } = (await response.json()) as {
+    item: Record<string, unknown>;
+  };
+  return {
+    description: typeof item.description === "string" ? item.description : "",
+    calories: typeof item.calories === "number" ? item.calories : 0,
+    totalFatGrams:
+      typeof item.total_fat_grams === "number" ? item.total_fat_grams : 0,
+    saturatedFatGrams:
+      typeof item.saturated_fat_grams === "number"
+        ? item.saturated_fat_grams
+        : 0,
+    transFatGrams:
+      typeof item.trans_fat_grams === "number" ? item.trans_fat_grams : 0,
+    polyunsaturatedFatGrams:
+      typeof item.polyunsaturated_fat_grams === "number"
+        ? item.polyunsaturated_fat_grams
+        : 0,
+    monounsaturatedFatGrams:
+      typeof item.monounsaturated_fat_grams === "number"
+        ? item.monounsaturated_fat_grams
+        : 0,
+    cholesterolMilligrams:
+      typeof item.cholesterol_milligrams === "number"
+        ? item.cholesterol_milligrams
+        : 0,
+    sodiumMilligrams:
+      typeof item.sodium_milligrams === "number" ? item.sodium_milligrams : 0,
+    totalCarbohydrateGrams:
+      typeof item.total_carbohydrate_grams === "number"
+        ? item.total_carbohydrate_grams
+        : 0,
+    dietaryFiberGrams:
+      typeof item.dietary_fiber_grams === "number"
+        ? item.dietary_fiber_grams
+        : 0,
+    totalSugarsGrams:
+      typeof item.total_sugars_grams === "number" ? item.total_sugars_grams : 0,
+    addedSugarsGrams:
+      typeof item.added_sugars_grams === "number" ? item.added_sugars_grams : 0,
+    proteinGrams:
+      typeof item.protein_grams === "number" ? item.protein_grams : 0,
+  };
+}

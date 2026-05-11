@@ -7,7 +7,8 @@ const useLocalHasura: boolean =
   process.env.FOOD_DIARY_USE_LOCAL_HASURA === "true";
 const useLocalLabeller: boolean =
   process.env.FOOD_DIARY_USE_LOCAL_LABELLER === "true";
-console.log({ useLocalHasura, useLocalLabeller });
+const useLocalLLM: boolean = process.env.FOOD_DIARY_USE_LOCAL_LLM === "true";
+console.log({ useLocalHasura, useLocalLabeller, useLocalLLM });
 
 export default defineConfig({
   plugins: [tailwindcss(), solidPlugin(), basicSsl()],
@@ -29,6 +30,13 @@ export default defineConfig({
           : "https://food-diary.motingo.com/labeller/",
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/labeller/, ""),
+      },
+      "/llm": {
+        target: useLocalLLM
+          ? "http://localhost:3031"
+          : "https://food-diary.motingo.com/llm/",
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/llm/, ""),
       },
     },
   },
