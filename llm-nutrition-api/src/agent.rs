@@ -38,35 +38,6 @@ struct ToolCall {
     url: String,
 }
 
-fn nutrition_item_schema() -> serde_json::Value {
-    serde_json::json!({
-        "type": "object",
-        "properties": {
-            "description": {"type": "string"},
-            "calories": {"type": "number"},
-            "total_fat_grams": {"type": "number"},
-            "saturated_fat_grams": {"type": "number"},
-            "trans_fat_grams": {"type": "number"},
-            "polyunsaturated_fat_grams": {"type": "number"},
-            "monounsaturated_fat_grams": {"type": "number"},
-            "cholesterol_milligrams": {"type": "number"},
-            "sodium_milligrams": {"type": "number"},
-            "total_carbohydrate_grams": {"type": "number"},
-            "dietary_fiber_grams": {"type": "number"},
-            "total_sugars_grams": {"type": "number"},
-            "added_sugars_grams": {"type": "number"},
-            "protein_grams": {"type": "number"}
-        },
-        "required": [
-            "description", "calories", "total_fat_grams", "saturated_fat_grams",
-            "trans_fat_grams", "polyunsaturated_fat_grams", "monounsaturated_fat_grams",
-            "cholesterol_milligrams", "sodium_milligrams", "total_carbohydrate_grams",
-            "dietary_fiber_grams", "total_sugars_grams", "added_sugars_grams", "protein_grams"
-        ],
-        "additionalProperties": false
-    })
-}
-
 // Build a Gemma-formatted prompt from a message history.
 // In Gemma 4 the system message is prepended to the first user turn.
 fn build_prompt(conversation: &[(String, String)]) -> String {
@@ -119,15 +90,17 @@ fn run_inference(
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let prompt = build_prompt(conversation);
 
-    let ctx_params = LlamaContextParams::default()
-        .with_n_ctx(NonZeroU32::new(8192))
-        .with_n_batch(512);
-
-    let mut ctx = model.new_context(backend, ctx_params)?;
-
-    // Tokenize the prompt
+    // Tokenize before creating the context so n_batch covers the full prompt.
+    // n_batch < n_prompt triggers an assert inside llama.cpp.
     let tokens = model.str_to_token(&prompt, llama_cpp_2::model::AddBos::Always)?;
     let n_prompt = tokens.len();
+    let n_batch = (n_prompt as u32).max(512);
+
+    let ctx_params = LlamaContextParams::default()
+        .with_n_ctx(NonZeroU32::new(8192))
+        .with_n_batch(n_batch);
+
+    let mut ctx = model.new_context(backend, ctx_params)?;
 
     let mut batch = LlamaBatch::new(n_prompt.max(512), 1);
     let last_idx = (n_prompt - 1) as i32;
@@ -232,22 +205,20 @@ pub async fn run_agent(
             }
         }
 
-        // No tool call — run a final grammar-constrained pass for clean nutrition JSON
-        let schema = nutrition_item_schema().to_string();
-        let gbnf = llama_cpp_2::json_schema_to_grammar(&schema)
-            .map_err(|e| format!("Grammar conversion failed: {e}"))?;
-
+        // No tool call — do a focused final pass asking for pure JSON.
+        // Grammar-constrained sampling (json_schema_to_grammar) crashes with this
+        // version of llama.cpp; free-form output + extract_json is equally reliable.
         let backend_arc = Arc::clone(&backend);
         let model_arc = Arc::clone(&model);
         let mut final_conv = conversation.clone();
         final_conv.push(("assistant".to_string(), output));
         final_conv.push((
             "user".to_string(),
-            "Now output ONLY the JSON nutrition object for the food described above.".to_string(),
+            "Output ONLY the JSON nutrition object. No markdown, no explanation, just the JSON object with all 14 fields.".to_string(),
         ));
 
         let final_json = tokio::task::spawn_blocking(move || {
-            run_inference(&backend_arc, &model_arc, &final_conv, Some(gbnf))
+            run_inference(&backend_arc, &model_arc, &final_conv, None)
         })
         .await??;
 
