@@ -1,0 +1,32 @@
+name: CI (llm-nutrition-api)
+on:
+  push:
+    paths:
+      - "llm-nutrition-api/**"
+  pull_request:
+    paths:
+      - "llm-nutrition-api/**"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: llm-nutrition-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            llm-nutrition-api/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('llm-nutrition-api/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Run tests
+        run: cargo test
