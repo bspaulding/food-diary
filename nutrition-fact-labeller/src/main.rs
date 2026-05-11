@@ -1,4 +1,7 @@
 use std::time::Instant;
+use std::path::Path;
+use std::io::Write;
+use std::sync::Arc;
 use log::{info, debug};
 use std::collections::HashMap;
 use oar_ocr::prelude::*;
@@ -9,7 +12,8 @@ use bytes::BufMut;
 use oar_ocr::utils::image::dynamic_to_rgb;
 use oar_ocr::core::config::onnx::{OrtSessionConfig, OrtExecutionProvider, OrtGraphOptimizationLevel};
 use serde_derive::{Deserialize, Serialize};
-use nutrition_fact_labeller::ParsedNutritionFacts;
+use nutrition_fact_labeller::{ParsedNutritionFacts, VlmBackend};
+use nutrition_fact_labeller::vlm::llava::LlavaBackend;
 mod spellcheck;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -85,43 +89,101 @@ fn run_ocr_rgb(image: image::RgbImage) -> Result<Vec<MyTextRegion>, String> {
 async fn main() {
     env_logger::init();
 
-    // GET /hello/warp => 200 OK with body "Hello, warp!"
-    // let hello = warp::path!("hello" / String)
-    //     .map(|name| format!("Hello, {}!", name));
-
-    let upload = warp::multipart::form()
-        .and_then(|form: FormData| async move {
-        let field_names: Vec<_> = form
-            .and_then(|mut field| async move {
-                let mut bytes: Vec<u8> = Vec::new();
-
-                // field.data() only returns a piece of the content, you should call over it until it replies None
-                while let Some(content) = field.data().await {
-                    let content = content.unwrap();
-                    bytes.put(content);
-                }
-                let image = image::load_from_memory(&bytes).unwrap();
-                let rgb_image = dynamic_to_rgb(image);
-                let trs = run_ocr_rgb(rgb_image);
-                Ok((
-                    field.name().to_string(),
-                    OCRResult {
-                        filename: field.filename().unwrap().to_string(),
-                        regions: trs.unwrap()
+    // Optionally load VLM backend at startup. Requires VLM_MODEL_PATH and
+    // VLM_MMPROJ_PATH env vars pointing to GGUF files.
+    let vlm: Option<Arc<LlavaBackend>> = {
+        let model_path = std::env::var("VLM_MODEL_PATH").ok();
+        let mmproj_path = std::env::var("VLM_MMPROJ_PATH").ok();
+        match (model_path, mmproj_path) {
+            (Some(m), Some(p)) => {
+                info!("Loading VLM model from {m}");
+                match LlavaBackend::new("gemma-4-e2b", Path::new(&m), Path::new(&p), 4) {
+                    Ok(b) => {
+                        info!("VLM loaded");
+                        Some(Arc::new(b))
                     }
-                ))
-            })
-            .try_collect()
-            .await
-            .unwrap();
-
-        let mut map = HashMap::new();
-        for field in field_names {
-            map.insert(field.0, parse_facts_from_regions(field.1.regions));
+                    Err(e) => {
+                        eprintln!("Warning: failed to load VLM: {e}");
+                        None
+                    }
+                }
+            }
+            _ => {
+                info!("VLM disabled (set VLM_MODEL_PATH and VLM_MMPROJ_PATH to enable)");
+                None
+            }
         }
+    };
 
-        Ok::<_, warp::Rejection>(warp::reply::json(&map))
-    });
+    let vlm_filter = {
+        let vlm = vlm.clone();
+        warp::any().map(move || vlm.clone())
+    };
+
+    let upload = vlm_filter
+        .and(warp::multipart::form().max_length(50 * 1024 * 1024))
+        .and_then(|vlm: Option<Arc<LlavaBackend>>, form: FormData| async move {
+            // Drain all multipart parts into memory before dispatching.
+            let parts: Vec<(String, Vec<u8>)> = form
+                .and_then(|mut part| async move {
+                    let name = part.name().to_string();
+                    let mut bytes: Vec<u8> = Vec::new();
+                    while let Some(chunk) = part.data().await {
+                        bytes.put(chunk?);
+                    }
+                    Ok((name, bytes))
+                })
+                .try_collect()
+                .await
+                .map_err(|_| warp::reject::reject())?;
+
+            let mut backend = "paddleocr".to_string();
+            let mut image_bytes: Option<Vec<u8>> = None;
+            for (name, bytes) in parts {
+                match name.as_str() {
+                    "backend" => backend = String::from_utf8_lossy(&bytes).trim().to_string(),
+                    "image"   => image_bytes = Some(bytes),
+                    _         => {}
+                }
+            }
+            let image_bytes = image_bytes.ok_or_else(|| warp::reject::reject())?;
+
+            let facts: ParsedNutritionFacts = if backend == "vlm" {
+                let vlm_backend = vlm.ok_or_else(|| warp::reject::reject())?;
+                tokio::task::spawn_blocking(move || -> anyhow::Result<ParsedNutritionFacts> {
+                    // VLM infer() takes a path, so write to a temp file.
+                    let mut tmp_path = std::env::temp_dir();
+                    tmp_path.push(format!(
+                        "labeller_{}.jpg",
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_nanos()
+                    ));
+                    std::fs::File::create(&tmp_path)?.write_all(&image_bytes)?;
+                    let result = vlm_backend.infer(&tmp_path);
+                    std::fs::remove_file(&tmp_path).ok();
+                    result
+                })
+                .await
+                .map_err(|_| warp::reject::reject())?
+                .map_err(|e| { eprintln!("VLM inference failed: {e}"); warp::reject::reject() })?
+            } else {
+                tokio::task::spawn_blocking(move || -> Result<ParsedNutritionFacts, String> {
+                    let image = image::load_from_memory(&image_bytes).map_err(|e| e.to_string())?;
+                    let rgb = dynamic_to_rgb(image);
+                    let regions = run_ocr_rgb(rgb)?;
+                    Ok(parse_facts_from_regions(regions))
+                })
+                .await
+                .map_err(|_| warp::reject::reject())?
+                .map_err(|e| { eprintln!("OCR failed: {e}"); warp::reject::reject() })?
+            };
+
+            let mut map = HashMap::new();
+            map.insert("image", facts);
+            Ok::<_, warp::Rejection>(warp::reply::json(&map))
+        });
 
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse::<u16>().ok()).unwrap_or(3030);
     info!("running and listening on {port}");
