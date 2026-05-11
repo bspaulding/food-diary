@@ -26,6 +26,18 @@ cp .env.example .env
 # fill in HASURA_GRAPHQL_ADMIN_SECRET and HASURA_GRAPHQL_JWT_SECRET in .env
 ```
 
+`HASURA_GRAPHQL_ADMIN_SECRET` can be any strong random string. `HASURA_GRAPHQL_JWT_SECRET` must be a JSON object in the format Hasura expects. Generate both with:
+
+```bash
+# Admin secret — any random string works
+openssl rand -hex 32
+
+# JWT secret — HS256 key wrapped in Hasura's JSON format
+echo "{\"type\": \"HS256\", \"key\": \"$(openssl rand -hex 32)\"}"
+```
+
+Paste the `{"type": ...}` output as the value of `HASURA_GRAPHQL_JWT_SECRET` in `.env`.
+
 ### Run everything
 
 ```bash
