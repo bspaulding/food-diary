@@ -86,8 +86,17 @@ impl VlmBackend for LlavaBackend {
         // Build prompt: image marker + instruction
         let prompt = format!("{marker}{NUTRITION_PROMPT}");
 
+        // Try the model's built-in chat template; fall back to the Gemma 4 turn
+        // format if the embedded Jinja2 renderer can't handle it (e.g., Gemma 4's
+        // template uses features unsupported by llama.cpp's renderer).
         // Try the model's built-in chat template; fall back to raw prompt if the
-        // embedded Jinja2 renderer can't handle it (e.g., Gemma 4).
+        // embedded Jinja2 renderer can't handle it (e.g., Gemma 4's template uses
+        // features unsupported by llama.cpp's renderer).
+        //
+        // We tested the canonical Gemma 4 turn-marker format as a fallback but it
+        // scored 10/33 vs 14/33 for the raw prompt. For single-turn multimodal
+        // extraction the model behaves more like a caption-completion task, where
+        // the absence of turn markers outperforms instruction-following mode.
         let formatted = self.model.chat_template(None)
             .ok()
             .and_then(|tmpl| {
