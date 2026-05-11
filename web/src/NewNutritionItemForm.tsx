@@ -1,13 +1,16 @@
-import type { Component, Accessor, Setter } from "solid-js";
+import type { Component, Setter } from "solid-js";
 import { createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import type { NutritionItem, NutritionItemAttrs } from "./Api";
-import { createNutritionItem, updateNutritionItem } from "./Api";
+import {
+  createNutritionItem,
+  updateNutritionItem,
+  lookupNutritionWithLLM,
+} from "./Api";
 import { useAuth } from "./Auth0";
 import { accessorsToObject } from "./Util";
 import styles from "./NewNutritionItemForm.module.css";
 import CameraModal from "./CameraModal";
-import LLMLookupModal from "./LLMLookupModal";
 
 interface GraphQLResponse<T> {
   data?: T;
@@ -41,7 +44,8 @@ const NewNutritionItemForm: Component<Props> = ({
   const [{ accessToken }] = useAuth();
   const [disabled, setDisabled] = createSignal(false);
   const [showCameraModal, setShowCameraModal] = createSignal(false);
-  const [showLLMLookupModal, setShowLLMLookupModal] = createSignal(false);
+  const [isLookingUp, setIsLookingUp] = createSignal(false);
+  const [lookupError, setLookupError] = createSignal<string | null>(null);
   const navigate = useNavigate();
 
   const [id, _setId] = createSignal(initialItem?.id);
@@ -107,6 +111,19 @@ const NewNutritionItemForm: Component<Props> = ({
     return result as NutritionItem;
   };
 
+  const handleAILookup = async (): Promise<void> => {
+    setIsLookingUp(true);
+    setLookupError(null);
+    try {
+      const result = await lookupNutritionWithLLM(description().trim());
+      handleImport(result);
+    } catch (err: unknown) {
+      setLookupError(err instanceof Error ? err.message : "Lookup failed");
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
   const handleImport = (nutritionData: Partial<NutritionItemAttrs>): void => {
     if (nutritionData.description !== undefined)
       setDescription(nutritionData.description);
@@ -148,54 +165,53 @@ const NewNutritionItemForm: Component<Props> = ({
           accessToken={accessToken()}
         />
       </Show>
-      <Show when={showLLMLookupModal()}>
-        <LLMLookupModal
-          isOpen={showLLMLookupModal()}
-          onClose={() => setShowLLMLookupModal(false)}
-          onImport={handleImport}
-        />
-      </Show>
-      <div class="flex justify-end mb-2 gap-2">
-        <button
-          type="button"
-          class="bg-indigo-600 text-slate-50 py-2 px-4 rounded-md flex items-center gap-2"
-          onClick={() => setShowLLMLookupModal(true)}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            class="w-5 h-5"
+      <div class="flex justify-end mb-2 gap-2 flex-col items-end">
+        {lookupError() ? (
+          <p class="text-red-500 text-sm">{lookupError()}</p>
+        ) : null}
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="bg-indigo-600 text-slate-50 py-2 px-4 rounded-md flex items-center gap-2 disabled:opacity-50"
+            onClick={handleAILookup}
+            disabled={!description().trim() || isLookingUp()}
           >
-            <path d="M16.5 7.5h-9v9h9v-9Z" />
-            <path
-              fill-rule="evenodd"
-              d="M8.25 2.25A.75.75 0 0 1 9 3v.75h2.25V3a.75.75 0 0 1 1.5 0v.75H15V3a.75.75 0 0 1 1.5 0v.75h.75a3 3 0 0 1 3 3v.75H21A.75.75 0 0 1 21 9h-.75v2.25H21a.75.75 0 0 1 0 1.5h-.75V15H21a.75.75 0 0 1 0 1.5h-.75v.75a3 3 0 0 1-3 3h-.75V21a.75.75 0 0 1-1.5 0v-.75h-2.25V21a.75.75 0 0 1-1.5 0v-.75H9V21a.75.75 0 0 1-1.5 0v-.75h-.75a3 3 0 0 1-3-3v-.75H3A.75.75 0 0 1 3 15h.75v-2.25H3a.75.75 0 0 1 0-1.5h.75V9H3A.75.75 0 0 1 3 7.5h.75v-.75a3 3 0 0 1 3-3h.75V3a.75.75 0 0 1 .75-.75Z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          AI
-        </button>
-        <button
-          type="button"
-          class="bg-indigo-600 text-slate-50 py-2 px-4 rounded-md flex items-center gap-2"
-          onClick={() => setShowCameraModal(true)}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            class="w-5 h-5"
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              class="w-5 h-5"
+            >
+              <path d="M16.5 7.5h-9v9h9v-9Z" />
+              <path
+                fill-rule="evenodd"
+                d="M8.25 2.25A.75.75 0 0 1 9 3v.75h2.25V3a.75.75 0 0 1 1.5 0v.75H15V3a.75.75 0 0 1 1.5 0v.75h.75a3 3 0 0 1 3 3v.75H21A.75.75 0 0 1 21 9h-.75v2.25H21a.75.75 0 0 1 0 1.5h-.75V15H21a.75.75 0 0 1 0 1.5h-.75v.75a3 3 0 0 1-3 3h-.75V21a.75.75 0 0 1-1.5 0v-.75h-2.25V21a.75.75 0 0 1-1.5 0v-.75H9V21a.75.75 0 0 1-1.5 0v-.75h-.75a3 3 0 0 1-3-3v-.75H3A.75.75 0 0 1 3 15h.75v-2.25H3a.75.75 0 0 1 0-1.5h.75V9H3A.75.75 0 0 1 3 7.5h.75v-.75a3 3 0 0 1 3-3h.75V3a.75.75 0 0 1 .75-.75Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            {isLookingUp() ? "Looking up..." : "AI"}
+          </button>
+          <button
+            type="button"
+            class="bg-indigo-600 text-slate-50 py-2 px-4 rounded-md flex items-center gap-2"
+            onClick={() => setShowCameraModal(true)}
           >
-            <path d="M12 9a3.75 3.75 0 1 0 0 7.5A3.75 3.75 0 0 0 12 9Z" />
-            <path
-              fill-rule="evenodd"
-              d="M9.344 3.071a49.52 49.52 0 0 1 5.312 0c.967.052 1.83.585 2.332 1.39l.821 1.317c.24.383.645.643 1.11.71.386.054.77.113 1.152.177 1.432.239 2.429 1.493 2.429 2.909V18a3 3 0 0 1-3 3H4.5a3 3 0 0 1-3-3V9.574c0-1.416.997-2.67 2.429-2.909.382-.064.766-.123 1.151-.178a1.56 1.56 0 0 0 1.11-.71l.822-1.315a2.942 2.942 0 0 1 2.332-1.39ZM6.75 12.75a5.25 5.25 0 1 1 10.5 0 5.25 5.25 0 0 1-10.5 0Zm12-1.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          Scan
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              class="w-5 h-5"
+            >
+              <path d="M12 9a3.75 3.75 0 1 0 0 7.5A3.75 3.75 0 0 0 12 9Z" />
+              <path
+                fill-rule="evenodd"
+                d="M9.344 3.071a49.52 49.52 0 0 1 5.312 0c.967.052 1.83.585 2.332 1.39l.821 1.317c.24.383.645.643 1.11.71.386.054.77.113 1.152.177 1.432.239 2.429 1.493 2.429 2.909V18a3 3 0 0 1-3 3H4.5a3 3 0 0 1-3-3V9.574c0-1.416.997-2.67 2.429-2.909.382-.064.766-.123 1.151-.178a1.56 1.56 0 0 0 1.11-.71l.822-1.315a2.942 2.942 0 0 1 2.332-1.39ZM6.75 12.75a5.25 5.25 0 1 1 10.5 0 5.25 5.25 0 0 1-10.5 0Zm12-1.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Scan
+          </button>
+        </div>
       </div>
       <form class={styles.form}>
         <fieldset class="flex flex-col">
