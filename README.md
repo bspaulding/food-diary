@@ -9,6 +9,7 @@ This monorepo contains three components:
 | [`web/`](web/) | SolidJS frontend (TypeScript, Vite, Tailwind) |
 | [`graphql-engine/`](graphql-engine/) | Hasura GraphQL engine — migrations, metadata, and tests |
 | [`nutrition-fact-labeller/`](nutrition-fact-labeller/) | Rust/Warp OCR service — parses nutrition label images |
+| [`llm-nutrition-api/`](llm-nutrition-api/) | Rust/Warp LLM service — looks up / estimates nutrition info from text |
 
 ## Local Development
 
@@ -38,6 +39,7 @@ This starts all three services with proxies wired to local backends:
 | `web` | https://localhost:3000 |
 | `graphql` | http://localhost:8080 |
 | `labeller` | http://localhost:3030 |
+| `llm` | http://localhost:3031 |
 
 Vite proxies `/api/*` → Hasura and `/labeller/*` → the OCR service, mirroring the production ingress routing.
 
@@ -68,6 +70,8 @@ See each component's README for full details:
 
 - [web/README.md](web/README.md)
 - [graphql-engine/README.md](graphql-engine/README.md)
+- [nutrition-fact-labeller/README.md](nutrition-fact-labeller/README.md)
+- [llm-nutrition-api/README.md](llm-nutrition-api/README.md)
 
 ## Container Images
 
@@ -78,3 +82,4 @@ Images are published to GHCR on every push to `main` and on version tags:
 | `ghcr.io/bspaulding/food-diary/web` | `web-v1.2.3` → `:v1.2.3` |
 | `ghcr.io/bspaulding/food-diary/graphql-engine` | `graphql-engine-v1.2.3` → `:v1.2.3` |
 | `ghcr.io/bspaulding/food-diary/nutrition-fact-labeller` | `nutrition-fact-labeller-v1.2.3` → `:v1.2.3` |
+| `ghcr.io/bspaulding/food-diary/llm-nutrition-api` | `llm-nutrition-api-v1.2.3` → `:v1.2.3` |
