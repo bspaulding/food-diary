@@ -85,12 +85,16 @@ impl VlmBackend for LlavaBackend {
 
         // Build prompt: image marker + instruction
         let prompt = format!("{marker}{NUTRITION_PROMPT}");
-        let chat_template = self.model.chat_template(None)
-            .context("Failed to get chat template")?;
-        let msg = LlamaChatMessage::new("user".to_string(), prompt)?;
-        let formatted = self.model
-            .apply_chat_template(&chat_template, &[msg], true)
-            .context("Failed to apply chat template")?;
+
+        // Try the model's built-in chat template; fall back to raw prompt if the
+        // embedded Jinja2 renderer can't handle it (e.g., Gemma 4).
+        let formatted = self.model.chat_template(None)
+            .ok()
+            .and_then(|tmpl| {
+                let msg = LlamaChatMessage::new("user".to_string(), prompt.clone()).ok()?;
+                self.model.apply_chat_template(&tmpl, &[msg], true).ok()
+            })
+            .unwrap_or(prompt);
 
         // Tokenize text + image together
         let input = MtmdInputText {
