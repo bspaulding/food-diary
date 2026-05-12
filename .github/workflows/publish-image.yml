@@ -1,0 +1,53 @@
+name: Publish Image (Reusable)
+on:
+  workflow_call:
+    inputs:
+      component:
+        required: true
+        type: string
+      context:
+        required: true
+        type: string
+      file:
+        required: false
+        type: string
+        default: ""
+    secrets:
+      HF_TOKEN:
+        required: false
+jobs:
+  build-and-publish-image:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: ghcr.io/bspaulding/food-diary/${{ inputs.component }}
+          tags: |
+            type=match,pattern=${{ inputs.component }}-(v.*),group=1
+            type=ref,event=branch
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.file }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: HF_TOKEN=${{ secrets.HF_TOKEN }}

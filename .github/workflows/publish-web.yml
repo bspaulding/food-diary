@@ -5,11 +5,6 @@ on:
       - main
     tags:
       - "web-v*"
-    paths:
-      - "web/**"
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: bspaulding/food-diary/web
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -26,39 +21,10 @@ jobs:
         env:
           TZ: America/Los_Angeles
 
-  build-and-publish-image:
+  publish:
     needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: |
-            ghcr.io/bspaulding/food-diary/web
-          tags: |
-            type=match,pattern=web-(v.*),group=1
-            type=ref,event=branch
-
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
-        with:
-          context: web
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      component: web
+      context: web
+    secrets: inherit
