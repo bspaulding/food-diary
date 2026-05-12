@@ -1,7 +1,7 @@
 # =========================
 # 0. Builder stage
 # =========================
-FROM public.ecr.aws/docker/library/rust:1.93-bookworm AS builder
+FROM public.ecr.aws/docker/library/rust:1.95-bookworm AS builder
 
 # Install build dependencies for bindgen (llama-cpp-2) and cmake (llama.cpp C++ backend)
 RUN apt-get update && apt-get install -y \
