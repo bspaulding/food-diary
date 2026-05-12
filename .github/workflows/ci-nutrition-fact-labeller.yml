@@ -28,5 +28,23 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('nutrition-fact-labeller/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Cache paddleocr models
+        id: cache-paddleocr-models
+        uses: actions/cache@v4
+        with:
+          path: nutrition-fact-labeller/paddleocr-models
+          key: paddleocr-models-v0.1.0
+
+      - name: Download paddleocr models
+        if: steps.cache-paddleocr-models.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p paddleocr-models
+          curl -L --output paddleocr-models/ppocrv4_mobile_det.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/ppocrv4_mobile_det.onnx
+          curl -L --output paddleocr-models/en_ppocrv4_mobile_rec.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_ppocrv4_mobile_rec.onnx
+          curl -L --output paddleocr-models/en_dict.txt https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_dict.txt
+          curl -L --output paddleocr-models/pplcnet_x1_0_doc_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_doc_ori.onnx
+          curl -L --output paddleocr-models/pplcnet_x1_0_textline_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_textline_ori.onnx
+          curl -L --output paddleocr-models/uvdoc.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/uvdoc.onnx
+
       - name: Run tests
         run: cargo test
