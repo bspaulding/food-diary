@@ -28,5 +28,21 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('nutrition-fact-labeller/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Cache paddleocr models
+        uses: actions/cache@v4
+        with:
+          path: nutrition-fact-labeller/paddleocr-models
+          key: paddleocr-models-v0.1.0
+
+      - name: Download paddleocr models
+        run: |
+          mkdir -p paddleocr-models
+          BASE=https://github.com/GreatV/oar-ocr/releases/download/v0.1.0
+          for f in ppocrv4_mobile_det.onnx en_ppocrv4_mobile_rec.onnx en_dict.txt pplcnet_x1_0_doc_ori.onnx pplcnet_x1_0_textline_ori.onnx uvdoc.onnx; do
+            if [ ! -f "paddleocr-models/$f" ]; then
+              curl -fsSL --output "paddleocr-models/$f" "$BASE/$f"
+            fi
+          done
+
       - name: Run tests
         run: cargo test
