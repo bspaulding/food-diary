@@ -17,7 +17,7 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release && rm -rf src
 
 COPY src ./src
-RUN cargo install --path .
+RUN cargo install --path . --locked
 
 # =========================
 # 1. Model download stage

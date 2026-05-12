@@ -23,7 +23,7 @@ RUN cargo build --release && rm -rf src
 
 # Copy source and build actual binary
 COPY src ./src
-RUN cargo install --path .
+RUN cargo install --path . --locked
 
 # =========================
 # 1. Model Download stage
