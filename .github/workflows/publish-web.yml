@@ -5,6 +5,11 @@ on:
       - main
     tags:
       - "web-v*"
+permissions:
+  packages: write
+  contents: read
+  attestations: write
+  id-token: write
 jobs:
   test:
     runs-on: ubuntu-latest

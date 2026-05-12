@@ -5,6 +5,11 @@ on:
       - main
     tags:
       - "graphql-engine-v*"
+permissions:
+  packages: write
+  contents: read
+  attestations: write
+  id-token: write
 jobs:
   publish:
     uses: ./.github/workflows/publish-image.yml

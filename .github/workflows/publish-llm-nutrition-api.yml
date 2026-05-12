@@ -5,6 +5,11 @@ on:
       - main
     tags:
       - "llm-nutrition-api-v*"
+permissions:
+  packages: write
+  contents: read
+  attestations: write
+  id-token: write
 jobs:
   publish:
     uses: ./.github/workflows/publish-image.yml
