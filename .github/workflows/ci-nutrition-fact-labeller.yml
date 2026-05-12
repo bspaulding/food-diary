@@ -3,9 +3,12 @@ on:
   push:
     paths:
       - "nutrition-fact-labeller/**"
+      - ".github/workflows/ci-nutrition-fact-labeller.yml"
   pull_request:
     paths:
       - "nutrition-fact-labeller/**"
+      - ".github/workflows/ci-nutrition-fact-labeller.yml"
+  workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
