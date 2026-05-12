@@ -37,12 +37,12 @@ jobs:
       - name: Download paddleocr models
         run: |
           mkdir -p paddleocr-models
-          BASE=https://github.com/GreatV/oar-ocr/releases/download/v0.1.0
-          for f in ppocrv4_mobile_det.onnx en_ppocrv4_mobile_rec.onnx en_dict.txt pplcnet_x1_0_doc_ori.onnx pplcnet_x1_0_textline_ori.onnx uvdoc.onnx; do
-            if [ ! -f "paddleocr-models/$f" ]; then
-              curl -fsSL --output "paddleocr-models/$f" "$BASE/$f"
-            fi
-          done
+          curl -L --output paddleocr-models/ppocrv4_mobile_det.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/ppocrv4_mobile_det.onnx
+          curl -L --output paddleocr-models/en_ppocrv4_mobile_rec.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_ppocrv4_mobile_rec.onnx
+          curl -L --output paddleocr-models/en_dict.txt https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_dict.txt
+          curl -L --output paddleocr-models/pplcnet_x1_0_doc_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_doc_ori.onnx
+          curl -L --output paddleocr-models/pplcnet_x1_0_textline_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_textline_ori.onnx
+          curl -L --output paddleocr-models/uvdoc.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/uvdoc.onnx
 
       - name: Run tests
         run: cargo test
