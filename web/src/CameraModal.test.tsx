@@ -719,15 +719,17 @@ describe("CameraModal", () => {
     const user = userEvent.setup();
     mockGetUserMedia.mockResolvedValue(mockStream);
     let capturedFormData: FormData | null = null;
-    global.fetch = vi.fn().mockImplementation((_url, opts) => {
-      capturedFormData = opts.body as FormData;
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({ image: { calories: 100 } }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
-      );
-    });
+    global.fetch = vi
+      .fn()
+      .mockImplementation((_url: RequestInfo | URL, opts: RequestInit) => {
+        capturedFormData = opts.body as FormData;
+        return Promise.resolve(
+          new Response(JSON.stringify({ image: { calories: 100 } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      });
 
     render(() => (
       <CameraModal
@@ -758,15 +760,17 @@ describe("CameraModal", () => {
     const user = userEvent.setup();
     mockGetUserMedia.mockResolvedValue(mockStream);
     let capturedFormData: FormData | null = null;
-    global.fetch = vi.fn().mockImplementation((_url, opts) => {
-      capturedFormData = opts.body as FormData;
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({ image: { calories: 100 } }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
-      );
-    });
+    global.fetch = vi
+      .fn()
+      .mockImplementation((_url: RequestInfo | URL, opts: RequestInit) => {
+        capturedFormData = opts.body as FormData;
+        return Promise.resolve(
+          new Response(JSON.stringify({ image: { calories: 100 } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      });
 
     render(() => (
       <CameraModal
