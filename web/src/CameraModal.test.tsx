@@ -722,10 +722,10 @@ describe("CameraModal", () => {
     global.fetch = vi.fn().mockImplementation((_url, opts) => {
       capturedFormData = opts.body as FormData;
       return Promise.resolve(
-        new Response(
-          JSON.stringify({ image: { calories: 100 } }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+        new Response(JSON.stringify({ image: { calories: 100 } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
       );
     });
 
@@ -761,10 +761,10 @@ describe("CameraModal", () => {
     global.fetch = vi.fn().mockImplementation((_url, opts) => {
       capturedFormData = opts.body as FormData;
       return Promise.resolve(
-        new Response(
-          JSON.stringify({ image: { calories: 100 } }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+        new Response(JSON.stringify({ image: { calories: 100 } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
       );
     });
 
