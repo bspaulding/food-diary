@@ -9,17 +9,23 @@ const MAX_RETRIES: u32 = 4;
 
 pub const DEFAULT_MODEL: &str = "google/gemma-4-31b-it:free";
 
+const DEFAULT_BASE_URL: &str = "https://openrouter.ai";
+
 pub struct OpenRouterBackend {
     pub api_key: String,
     pub model: String,
+    pub base_url: String,
     pub client: reqwest::Client,
 }
 
 impl OpenRouterBackend {
     pub fn new(api_key: impl Into<String>, model: impl Into<String>) -> Self {
+        let base_url = std::env::var("OPENROUTER_BASE_URL")
+            .unwrap_or_else(|_| DEFAULT_BASE_URL.to_string());
         Self {
             api_key: api_key.into(),
             model: model.into(),
+            base_url,
             client: reqwest::Client::new(),
         }
     }
@@ -49,10 +55,11 @@ impl OpenRouterBackend {
             "max_tokens": MAX_TOKENS
         });
 
+        let endpoint = format!("{}/api/v1/chat/completions", self.base_url);
         let mut attempt = 0u32;
         loop {
             let response = self.client
-                .post("https://openrouter.ai/api/v1/chat/completions")
+                .post(&endpoint)
                 .header("Authorization", format!("Bearer {}", self.api_key))
                 .header("Content-Type", "application/json")
                 .json(&body)
