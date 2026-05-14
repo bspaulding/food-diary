@@ -170,31 +170,35 @@ async fn main() {
             }
             let image_bytes = image_bytes.ok_or_else(|| warp::reject::reject())?;
 
-            let facts: ParsedNutritionFacts = if backend == "openrouter" {
-                let or = or_backend.ok_or_else(|| warp::reject::reject())?;
-                or.infer(&image_bytes)
+            let facts: ParsedNutritionFacts = if backend == "vlm" {
+                // Prefer OpenRouter if configured, fall back to local llama.cpp.
+                if let Some(or) = or_backend {
+                    or.infer(&image_bytes)
+                        .await
+                        .map_err(|e| { eprintln!("OpenRouter VLM failed: {e}"); warp::reject::reject() })?
+                } else if let Some(vlm_backend) = vlm {
+                    tokio::task::spawn_blocking(move || -> anyhow::Result<ParsedNutritionFacts> {
+                        // VLM infer() takes a path, so write to a temp file.
+                        let mut tmp_path = std::env::temp_dir();
+                        tmp_path.push(format!(
+                            "labeller_{}.jpg",
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_nanos()
+                        ));
+                        std::fs::File::create(&tmp_path)?.write_all(&image_bytes)?;
+                        let result = vlm_backend.infer(&tmp_path);
+                        std::fs::remove_file(&tmp_path).ok();
+                        result
+                    })
                     .await
-                    .map_err(|e| { eprintln!("OpenRouter VLM failed: {e}"); warp::reject::reject() })?
-            } else if backend == "vlm" {
-                let vlm_backend = vlm.ok_or_else(|| warp::reject::reject())?;
-                tokio::task::spawn_blocking(move || -> anyhow::Result<ParsedNutritionFacts> {
-                    // VLM infer() takes a path, so write to a temp file.
-                    let mut tmp_path = std::env::temp_dir();
-                    tmp_path.push(format!(
-                        "labeller_{}.jpg",
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_nanos()
-                    ));
-                    std::fs::File::create(&tmp_path)?.write_all(&image_bytes)?;
-                    let result = vlm_backend.infer(&tmp_path);
-                    std::fs::remove_file(&tmp_path).ok();
-                    result
-                })
-                .await
-                .map_err(|_| warp::reject::reject())?
-                .map_err(|e| { eprintln!("VLM inference failed: {e}"); warp::reject::reject() })?
+                    .map_err(|_| warp::reject::reject())?
+                    .map_err(|e| { eprintln!("VLM inference failed: {e}"); warp::reject::reject() })?
+                } else {
+                    eprintln!("VLM requested but no backend configured (set OPENROUTER_API_KEY or VLM_MODEL_PATH+VLM_MMPROJ_PATH)");
+                    return Err(warp::reject::reject());
+                }
             } else {
                 tokio::task::spawn_blocking(move || -> Result<ParsedNutritionFacts, String> {
                     let image = image::load_from_memory(&image_bytes).map_err(|e| e.to_string())?;
