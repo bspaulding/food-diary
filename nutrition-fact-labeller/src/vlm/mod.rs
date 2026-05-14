@@ -1,4 +1,5 @@
 pub mod llava;
+pub mod openrouter;
 
 pub const NUTRITION_PROMPT: &str =
     "Analyze this nutrition facts label. Return ONLY a valid JSON object with these exact fields:\n\
