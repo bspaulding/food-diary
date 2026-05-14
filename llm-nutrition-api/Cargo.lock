@@ -1410,6 +1410,7 @@ dependencies = [
 name = "llm-nutrition-api"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "dom_smoothie",
  "encoding_rs",
  "env_logger",
