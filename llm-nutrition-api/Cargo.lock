@@ -1408,7 +1408,7 @@ dependencies = [
 
 [[package]]
 name = "llm-nutrition-api"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "dom_smoothie",
