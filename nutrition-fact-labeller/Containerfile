@@ -53,8 +53,10 @@ FROM public.ecr.aws/docker/library/debian:bookworm-slim AS runtime
 WORKDIR /app
 
 # Install minimal dependencies for Rust binary execution
+# libgomp1: OpenMP runtime required by llama.cpp and ONNX Runtime native backends
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy compiled binary from builder
