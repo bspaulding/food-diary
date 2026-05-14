@@ -20,28 +20,7 @@ COPY src ./src
 RUN cargo install --path . --locked
 
 # =========================
-# 1. Model download stage
-# =========================
-FROM public.ecr.aws/docker/library/debian:bookworm-slim AS downloader
-
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /models
-
-# HF_TOKEN is optional — the bartowski repo is public, but a token avoids
-# rate limiting on large downloads. Pass at build time:
-#   docker build --build-arg HF_TOKEN=hf_... .
-ARG HF_TOKEN=""
-RUN curl -L --progress-bar \
-    ${HF_TOKEN:+-H "Authorization: Bearer ${HF_TOKEN}"} \
-    --output gemma-4-e2b-it-q5_k_m.gguf \
-    "https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF/resolve/main/google_gemma-4-E2B-it-Q5_K_M.gguf"
-
-# =========================
-# 2. Runtime stage
+# 1. Runtime stage
 # =========================
 FROM public.ecr.aws/docker/library/debian:bookworm-slim AS runtime
 
@@ -56,9 +35,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/cargo/bin/llm-nutrition-api /usr/local/bin/llm-nutrition-api
-COPY --from=downloader /models/gemma-4-e2b-it-q5_k_m.gguf /models/gemma-4-e2b-it-q5_k_m.gguf
 
-ENV GEMMA_MODEL_PATH=/models/gemma-4-e2b-it-q5_k_m.gguf
 ENV PORT=3031
 
 ENTRYPOINT ["llm-nutrition-api"]

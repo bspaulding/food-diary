@@ -20,17 +20,13 @@ pip install huggingface_hub[cli]
 
 huggingface-cli download bartowski/google_gemma-4-E2B-it-GGUF \
   google_gemma-4-E2B-it-Q5_K_M.gguf \
-  --local-dir llm-nutrition-api \
+  --local-dir /path/to/models \
   --local-dir-use-symlinks False
 ```
 
-Then set `GEMMA_MODEL_PATH` in `.env`:
+Then set `GEMMA_MODEL_PATH` in `.env` to the downloaded file path. This env var is required — the service will not start without it.
 
-```
-GEMMA_MODEL_PATH=llm-nutrition-api/google_gemma-4-E2B-it-Q5_K_M.gguf
-```
-
-This env var is required — the service will not start without it.
+If you also run `nutrition-fact-labeller` locally, both services can share the same GGUF file — just point `GEMMA_MODEL_PATH` and `VLM_MODEL_PATH` at the same path.
 
 ### Run
 
