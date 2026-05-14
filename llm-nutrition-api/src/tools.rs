@@ -23,7 +23,11 @@ pub async fn search_web(query: &str) -> Result<String, Box<dyn std::error::Error
 }
 
 pub async fn read_webpage(url: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-    let html = reqwest::get(url).await?.text().await?;
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (compatible; food-diary-bot/1.0)")
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
+    let html = client.get(url).send().await?.text().await?;
     let mut reader = dom_smoothie::Readability::new(html, Some(url), None)?;
     let article = reader.parse()?;
     let text = article.text_content.to_string();
