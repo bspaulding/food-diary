@@ -12,6 +12,7 @@ use crate::NutritionItem;
 
 const MAX_ROUNDS: usize = 5;
 const MAX_NEW_TOKENS: usize = 1024;
+const OPENROUTER_MAX_RETRIES: u32 = 4;
 
 const SYSTEM_PROMPT: &str = "\
 You are a nutrition expert. Look up or estimate nutritional values for the food the user describes.
@@ -63,6 +64,18 @@ struct ToolCall {
     query: String,
     #[serde(default)]
     url: String,
+}
+
+pub enum BackendConfig {
+    Local {
+        backend: Arc<LlamaBackend>,
+        model: Arc<LlamaModel>,
+    },
+    OpenRouter {
+        api_key: String,
+        model: String,
+        client: reqwest::Client,
+    },
 }
 
 // Build a Gemma-formatted prompt from a message history.
@@ -180,7 +193,74 @@ fn extract_json(text: &str) -> Option<&str> {
     Some(&slice[..=end])
 }
 
-pub async fn run_agent(
+async fn call_openrouter(
+    client: &reqwest::Client,
+    api_key: &str,
+    model: &str,
+    conversation: &[(String, String)],
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let messages: Vec<serde_json::Value> = conversation
+        .iter()
+        .map(|(role, content)| {
+            // OpenAI format doesn't have a "tool" role in this simple usage; treat as user.
+            let api_role = if role == "tool" { "user" } else { role.as_str() };
+            serde_json::json!({ "role": api_role, "content": content })
+        })
+        .collect();
+
+    let body = serde_json::json!({
+        "model": model,
+        "messages": messages,
+        "temperature": 0.1,
+        "max_tokens": MAX_NEW_TOKENS
+    });
+
+    let mut attempt = 0u32;
+    loop {
+        let response = client
+            .post("https://openrouter.ai/api/v1/chat/completions")
+            .header("Authorization", format!("Bearer {api_key}"))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await?;
+
+        if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            if attempt >= OPENROUTER_MAX_RETRIES {
+                let text = response.text().await.unwrap_or_default();
+                return Err(format!("OpenRouter rate limit exceeded after {attempt} retries: {text}").into());
+            }
+            // Respect Retry-After if provided, otherwise exponential backoff (1s, 2s, 4s, 8s).
+            let delay_secs = response
+                .headers()
+                .get("retry-after")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(1u64 << attempt);
+            log::warn!("OpenRouter 429 on attempt {attempt}, retrying in {delay_secs}s");
+            tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+            attempt += 1;
+            continue;
+        }
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("OpenRouter API error {status}: {text}").into());
+        }
+
+        let json: serde_json::Value = response.json().await?;
+        let content = json["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or("Missing content in OpenRouter response")?
+            .trim()
+            .to_string();
+
+        return Ok(content);
+    }
+}
+
+async fn run_agent_local(
     backend: Arc<LlamaBackend>,
     model: Arc<LlamaModel>,
     description: String,
@@ -204,7 +284,6 @@ pub async fn run_agent(
 
         log::debug!("Model output: {output}");
 
-        // Try to parse as a tool call
         let json_str = extract_json(&output).unwrap_or(&output);
         if let Ok(call) = serde_json::from_str::<ToolCall>(json_str) {
             match call.action.as_str() {
@@ -263,4 +342,87 @@ pub async fn run_agent(
     }
 
     Err("Max agent rounds exceeded without a nutrition answer".into())
+}
+
+async fn run_agent_openrouter(
+    client: &reqwest::Client,
+    api_key: &str,
+    model: &str,
+    description: String,
+) -> Result<NutritionItem, Box<dyn std::error::Error + Send + Sync>> {
+    let mut conversation: Vec<(String, String)> = vec![
+        ("system".to_string(), SYSTEM_PROMPT.to_string()),
+        ("user".to_string(), description),
+    ];
+
+    for round in 0..MAX_ROUNDS {
+        log::debug!("Agent round {round}");
+
+        let output = call_openrouter(client, api_key, model, &conversation).await?;
+        log::debug!("Model output: {output}");
+
+        let json_str = extract_json(&output).unwrap_or(&output);
+        if let Ok(call) = serde_json::from_str::<ToolCall>(json_str) {
+            match call.action.as_str() {
+                "search_web" if !call.query.is_empty() => {
+                    log::info!("Tool call: search_web({:?})", call.query);
+                    let result = match crate::tools::search_web(&call.query).await {
+                        Ok(r) => format!("Search results for '{}':\n{r}", call.query),
+                        Err(e) => {
+                            log::warn!("search_web failed: {e}");
+                            format!("Search failed: {e}. Estimate from nutritional knowledge instead.")
+                        }
+                    };
+                    conversation.push(("assistant".to_string(), output));
+                    conversation.push(("tool".to_string(), result));
+                    continue;
+                }
+                "read_webpage" if !call.url.is_empty() => {
+                    log::info!("Tool call: read_webpage({:?})", call.url);
+                    let result = match crate::tools::read_webpage(&call.url).await {
+                        Ok(r) => format!("Page content from {}:\n{r}", call.url),
+                        Err(e) => {
+                            log::warn!("read_webpage failed: {e}");
+                            format!("Page fetch failed: {e}. Estimate from nutritional knowledge instead.")
+                        }
+                    };
+                    conversation.push(("assistant".to_string(), output));
+                    conversation.push(("tool".to_string(), result));
+                    continue;
+                }
+                _ => {}
+            }
+        }
+
+        // No tool call — final pass requesting pure JSON.
+        let mut final_conv = conversation.clone();
+        final_conv.push(("assistant".to_string(), output));
+        final_conv.push((
+            "user".to_string(),
+            "Output ONLY the JSON nutrition object. No markdown, no explanation, just the JSON object with all 14 fields.".to_string(),
+        ));
+
+        let final_json = call_openrouter(client, api_key, model, &final_conv).await?;
+        log::debug!("Final JSON: {final_json}");
+
+        let json_str = extract_json(&final_json).unwrap_or(&final_json);
+        let item: NutritionItem = serde_json::from_str(json_str)?;
+        return Ok(item);
+    }
+
+    Err("Max agent rounds exceeded without a nutrition answer".into())
+}
+
+pub async fn run_agent(
+    config: Arc<BackendConfig>,
+    description: String,
+) -> Result<NutritionItem, Box<dyn std::error::Error + Send + Sync>> {
+    match config.as_ref() {
+        BackendConfig::Local { backend, model } => {
+            run_agent_local(Arc::clone(backend), Arc::clone(model), description).await
+        }
+        BackendConfig::OpenRouter { api_key, model, client } => {
+            run_agent_openrouter(client, api_key, model, description).await
+        }
+    }
 }
