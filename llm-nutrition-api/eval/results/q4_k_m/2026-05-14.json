@@ -1,0 +1,2544 @@
+{
+  "date": "2026-05-14",
+  "base_url": "http://localhost:3031",
+  "results": [
+    {
+      "id": "egg-large-raw",
+      "query": "1 large egg (50g), raw",
+      "category": "whole_food",
+      "elapsed_seconds": 9.0,
+      "status": "ok",
+      "predicted_description": "1 large egg (50g), raw",
+      "errors": {
+        "calories": {
+          "predicted": 72.0,
+          "ground_truth": 72,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_fat_grams": {
+          "predicted": 5.0,
+          "ground_truth": 4.8,
+          "abs_error": 0.2,
+          "rel_error_pct": 4.2
+        },
+        "saturated_fat_grams": {
+          "predicted": 1.6,
+          "ground_truth": 1.6,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 1.6,
+          "ground_truth": 1.0,
+          "abs_error": 0.6,
+          "rel_error_pct": 60.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 1.6,
+          "ground_truth": 1.8,
+          "abs_error": 0.2,
+          "rel_error_pct": 11.1
+        },
+        "cholesterol_milligrams": {
+          "predicted": 186.0,
+          "ground_truth": 186,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 78.0,
+          "ground_truth": 71,
+          "abs_error": 7.0,
+          "rel_error_pct": 9.9
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 0.6,
+          "ground_truth": 0.4,
+          "abs_error": 0.2,
+          "rel_error_pct": 20.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.2,
+          "abs_error": 0.2,
+          "rel_error_pct": 20.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 6.0,
+          "ground_truth": 6.3,
+          "abs_error": 0.3,
+          "rel_error_pct": 4.8
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "chicken-breast-cooked",
+      "query": "100g grilled chicken breast, no skin",
+      "category": "whole_food",
+      "elapsed_seconds": 8.9,
+      "status": "ok",
+      "predicted_description": "100g grilled chicken breast, no skin",
+      "errors": {
+        "calories": {
+          "predicted": 165.0,
+          "ground_truth": 165,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_fat_grams": {
+          "predicted": 3.6,
+          "ground_truth": 3.6,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 1.2,
+          "ground_truth": 1.0,
+          "abs_error": 0.2,
+          "rel_error_pct": 20.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.6,
+          "ground_truth": 0.8,
+          "abs_error": 0.2,
+          "rel_error_pct": 20.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 3.6,
+          "ground_truth": 1.2,
+          "abs_error": 2.4,
+          "rel_error_pct": 200.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 77.0,
+          "ground_truth": 85,
+          "abs_error": 8.0,
+          "rel_error_pct": 9.4
+        },
+        "sodium_milligrams": {
+          "predicted": 74.0,
+          "ground_truth": 74,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 31.0,
+          "ground_truth": 31.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "oatmeal-cooked",
+      "query": "1 cup cooked plain oatmeal (234g)",
+      "category": "whole_food",
+      "elapsed_seconds": 9.0,
+      "status": "ok",
+      "predicted_description": "1 cup cooked plain oatmeal",
+      "errors": {
+        "calories": {
+          "predicted": 166.0,
+          "ground_truth": 166,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_fat_grams": {
+          "predicted": 3.6,
+          "ground_truth": 3.6,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.7,
+          "ground_truth": 0.7,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 1.3,
+          "ground_truth": 1.3,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 1.1,
+          "ground_truth": 1.1,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 115.0,
+          "ground_truth": 115,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 28.0,
+          "ground_truth": 28.1,
+          "abs_error": 0.1,
+          "rel_error_pct": 0.4
+        },
+        "dietary_fiber_grams": {
+          "predicted": 4.0,
+          "ground_truth": 4.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.6,
+          "ground_truth": 0.6,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 5.9,
+          "ground_truth": 5.9,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "banana-medium",
+      "query": "1 medium banana (118g)",
+      "category": "whole_food",
+      "elapsed_seconds": 9.6,
+      "status": "ok",
+      "predicted_description": "1 medium banana (118g)",
+      "errors": {
+        "calories": {
+          "predicted": 105.0,
+          "ground_truth": 105,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_fat_grams": {
+          "predicted": 0.4,
+          "ground_truth": 0.4,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.1,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.1,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.0,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 13.0,
+          "ground_truth": 1,
+          "abs_error": 12.0,
+          "rel_error_pct": 1200.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 30.5,
+          "ground_truth": 27.0,
+          "abs_error": 3.5,
+          "rel_error_pct": 13.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 3.1,
+          "ground_truth": 3.1,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 14.4,
+          "ground_truth": 14.4,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 1.3,
+          "ground_truth": 1.3,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "whole-milk-cup",
+      "query": "1 cup whole milk (244g)",
+      "category": "whole_food",
+      "elapsed_seconds": 9.1,
+      "status": "ok",
+      "predicted_description": "1 cup whole milk",
+      "errors": {
+        "calories": {
+          "predicted": 150.0,
+          "ground_truth": 149,
+          "abs_error": 1.0,
+          "rel_error_pct": 0.7
+        },
+        "total_fat_grams": {
+          "predicted": 8.0,
+          "ground_truth": 8.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 5.0,
+          "ground_truth": 4.6,
+          "abs_error": 0.4,
+          "rel_error_pct": 8.7
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 1.3,
+          "ground_truth": 0.3,
+          "abs_error": 1.0,
+          "rel_error_pct": 100.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 1.1,
+          "ground_truth": 2.0,
+          "abs_error": 0.9,
+          "rel_error_pct": 45.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 160.0,
+          "ground_truth": 24,
+          "abs_error": 136.0,
+          "rel_error_pct": 566.7
+        },
+        "sodium_milligrams": {
+          "predicted": 124.0,
+          "ground_truth": 105,
+          "abs_error": 19.0,
+          "rel_error_pct": 18.1
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 12.0,
+          "ground_truth": 11.7,
+          "abs_error": 0.3,
+          "rel_error_pct": 2.6
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 12.0,
+          "ground_truth": 12.3,
+          "abs_error": 0.3,
+          "rel_error_pct": 2.4
+        },
+        "added_sugars_grams": {
+          "predicted": 12.0,
+          "ground_truth": 0,
+          "abs_error": 12.0,
+          "rel_error_pct": 1200.0
+        },
+        "protein_grams": {
+          "predicted": 8.0,
+          "ground_truth": 7.7,
+          "abs_error": 0.3,
+          "rel_error_pct": 3.9
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "white-rice-cooked",
+      "query": "100g cooked white rice",
+      "category": "whole_food",
+      "elapsed_seconds": 9.6,
+      "status": "ok",
+      "predicted_description": "100g cooked white rice",
+      "errors": {
+        "calories": {
+          "predicted": 130.0,
+          "ground_truth": 130,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_fat_grams": {
+          "predicted": 0.3,
+          "ground_truth": 0.3,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.1,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.1,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.1,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 10.0,
+          "ground_truth": 1,
+          "abs_error": 9.0,
+          "rel_error_pct": 900.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 28.0,
+          "ground_truth": 28.2,
+          "abs_error": 0.2,
+          "rel_error_pct": 0.7
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.4,
+          "ground_truth": 0.4,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 2.7,
+          "ground_truth": 2.7,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "broccoli-raw",
+      "query": "100g raw broccoli",
+      "category": "whole_food",
+      "elapsed_seconds": 9.1,
+      "status": "ok",
+      "predicted_description": "100g raw broccoli",
+      "errors": {
+        "calories": {
+          "predicted": 34.0,
+          "ground_truth": 34,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_fat_grams": {
+          "predicted": 0.3,
+          "ground_truth": 0.4,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 36.0,
+          "ground_truth": 33,
+          "abs_error": 3.0,
+          "rel_error_pct": 9.1
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 6.6,
+          "ground_truth": 6.6,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 2.6,
+          "ground_truth": 2.6,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.6,
+          "ground_truth": 1.7,
+          "abs_error": 1.1,
+          "rel_error_pct": 64.7
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 2.8,
+          "ground_truth": 2.8,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "olive-oil-tbsp",
+      "query": "1 tablespoon olive oil (14g)",
+      "category": "whole_food",
+      "elapsed_seconds": 8.9,
+      "status": "ok",
+      "predicted_description": "1 tablespoon olive oil",
+      "errors": {
+        "calories": {
+          "predicted": 120.0,
+          "ground_truth": 119,
+          "abs_error": 1.0,
+          "rel_error_pct": 0.8
+        },
+        "total_fat_grams": {
+          "predicted": 14.0,
+          "ground_truth": 13.5,
+          "abs_error": 0.5,
+          "rel_error_pct": 3.7
+        },
+        "saturated_fat_grams": {
+          "predicted": 1.4,
+          "ground_truth": 1.9,
+          "abs_error": 0.5,
+          "rel_error_pct": 26.3
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 1.4,
+          "ground_truth": 1.4,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 14.0,
+          "ground_truth": 9.9,
+          "abs_error": 4.1,
+          "rel_error_pct": 41.4
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "scrambled-eggs-2",
+      "query": "2 scrambled eggs with butter",
+      "category": "composite_meal",
+      "elapsed_seconds": 9.4,
+      "status": "ok",
+      "predicted_description": "2 scrambled eggs with butter",
+      "errors": {
+        "calories": {
+          "predicted": 210.0,
+          "ground_truth": 200,
+          "abs_error": 10.0,
+          "rel_error_pct": 5.0
+        },
+        "total_fat_grams": {
+          "predicted": 15.0,
+          "ground_truth": 15.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 10.0,
+          "ground_truth": 5.5,
+          "abs_error": 4.5,
+          "rel_error_pct": 81.8
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 3.0,
+          "ground_truth": 2.0,
+          "abs_error": 1.0,
+          "rel_error_pct": 50.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 5.0,
+          "ground_truth": 5.5,
+          "abs_error": 0.5,
+          "rel_error_pct": 9.1
+        },
+        "cholesterol_milligrams": {
+          "predicted": 160.0,
+          "ground_truth": 378,
+          "abs_error": 218.0,
+          "rel_error_pct": 57.7
+        },
+        "sodium_milligrams": {
+          "predicted": 150.0,
+          "ground_truth": 170,
+          "abs_error": 20.0,
+          "rel_error_pct": 11.8
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 1.0,
+          "ground_truth": 1.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.5,
+          "abs_error": 0.5,
+          "rel_error_pct": 50.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 12.0,
+          "ground_truth": 13.0,
+          "abs_error": 1.0,
+          "rel_error_pct": 7.7
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "clif-bar-chocolate-chip",
+      "query": "CLIF BAR Chocolate Chip (68g bar)",
+      "category": "branded",
+      "elapsed_seconds": 9.4,
+      "status": "ok",
+      "predicted_description": "1 cup cooked oatmeal",
+      "errors": {
+        "calories": {
+          "predicted": 166.0,
+          "ground_truth": 250,
+          "abs_error": 84.0,
+          "rel_error_pct": 33.6
+        },
+        "total_fat_grams": {
+          "predicted": 3.6,
+          "ground_truth": 6.0,
+          "abs_error": 2.4,
+          "rel_error_pct": 40.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.7,
+          "ground_truth": 1.5,
+          "abs_error": 0.8,
+          "rel_error_pct": 53.3
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 1.3,
+          "ground_truth": 1.5,
+          "abs_error": 0.2,
+          "rel_error_pct": 13.3
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 1.1,
+          "ground_truth": 2.5,
+          "abs_error": 1.4,
+          "rel_error_pct": 56.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 115.0,
+          "ground_truth": 150,
+          "abs_error": 35.0,
+          "rel_error_pct": 23.3
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 28.0,
+          "ground_truth": 44.0,
+          "abs_error": 16.0,
+          "rel_error_pct": 36.4
+        },
+        "dietary_fiber_grams": {
+          "predicted": 4.0,
+          "ground_truth": 4.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.6,
+          "ground_truth": 17.0,
+          "abs_error": 16.4,
+          "rel_error_pct": 96.5
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 17.0,
+          "abs_error": 17.0,
+          "rel_error_pct": 100.0
+        },
+        "protein_grams": {
+          "predicted": 5.9,
+          "ground_truth": 10.0,
+          "abs_error": 4.1,
+          "rel_error_pct": 41.0
+        }
+      },
+      "within_tolerance": {
+        "calories": false,
+        "total_fat_grams": false,
+        "total_carbohydrate_grams": false,
+        "protein_grams": false
+      }
+    },
+    {
+      "id": "mcdonalds-big-mac",
+      "query": "McDonald's Big Mac burger",
+      "category": "restaurant",
+      "elapsed_seconds": 14.0,
+      "status": "ok",
+      "predicted_description": "McDonald's Big Mac burger",
+      "errors": {
+        "calories": {
+          "predicted": 590.0,
+          "ground_truth": 563,
+          "abs_error": 27.0,
+          "rel_error_pct": 4.8
+        },
+        "total_fat_grams": {
+          "predicted": 34.0,
+          "ground_truth": 33.0,
+          "abs_error": 1.0,
+          "rel_error_pct": 3.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 11.0,
+          "abs_error": 11.0,
+          "rel_error_pct": 100.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 1.5,
+          "abs_error": 1.5,
+          "rel_error_pct": 100.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 2.5,
+          "abs_error": 2.5,
+          "rel_error_pct": 100.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 14.0,
+          "abs_error": 14.0,
+          "rel_error_pct": 100.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 80,
+          "abs_error": 80.0,
+          "rel_error_pct": 100.0
+        },
+        "sodium_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 1040,
+          "abs_error": 1040.0,
+          "rel_error_pct": 100.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 46.0,
+          "ground_truth": 44.0,
+          "abs_error": 2.0,
+          "rel_error_pct": 4.5
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 3.0,
+          "abs_error": 3.0,
+          "rel_error_pct": 100.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 9.0,
+          "abs_error": 9.0,
+          "rel_error_pct": 100.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 7.0,
+          "abs_error": 7.0,
+          "rel_error_pct": 100.0
+        },
+        "protein_grams": {
+          "predicted": 25.0,
+          "ground_truth": 25.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "greek-yogurt-plain",
+      "query": "1 cup plain non-fat Greek yogurt (227g)",
+      "category": "whole_food",
+      "elapsed_seconds": 8.9,
+      "status": "ok",
+      "predicted_description": "1 cup plain non-fat Greek yogurt",
+      "errors": {
+        "calories": {
+          "predicted": 130.0,
+          "ground_truth": 130,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.7,
+          "abs_error": 0.7,
+          "rel_error_pct": 70.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.2,
+          "abs_error": 0.2,
+          "rel_error_pct": 20.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.1,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 7,
+          "abs_error": 7.0,
+          "rel_error_pct": 100.0
+        },
+        "sodium_milligrams": {
+          "predicted": 59.0,
+          "ground_truth": 77,
+          "abs_error": 18.0,
+          "rel_error_pct": 23.4
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 10.0,
+          "ground_truth": 9.0,
+          "abs_error": 1.0,
+          "rel_error_pct": 11.1
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 4.0,
+          "ground_truth": 9.0,
+          "abs_error": 5.0,
+          "rel_error_pct": 55.6
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 23.0,
+          "ground_truth": 22.0,
+          "abs_error": 1.0,
+          "rel_error_pct": 4.5
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "salmon-cooked",
+      "query": "100g cooked Atlantic salmon fillet",
+      "category": "whole_food",
+      "elapsed_seconds": 9.4,
+      "status": "ok",
+      "predicted_description": "100g cooked Atlantic salmon fillet",
+      "errors": {
+        "calories": {
+          "predicted": 208.0,
+          "ground_truth": 206,
+          "abs_error": 2.0,
+          "rel_error_pct": 1.0
+        },
+        "total_fat_grams": {
+          "predicted": 13.0,
+          "ground_truth": 12.4,
+          "abs_error": 0.6,
+          "rel_error_pct": 4.8
+        },
+        "saturated_fat_grams": {
+          "predicted": 2.5,
+          "ground_truth": 2.5,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 6.5,
+          "ground_truth": 3.9,
+          "abs_error": 2.6,
+          "rel_error_pct": 66.7
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 7.5,
+          "ground_truth": 4.4,
+          "abs_error": 3.1,
+          "rel_error_pct": 70.5
+        },
+        "cholesterol_milligrams": {
+          "predicted": 200.0,
+          "ground_truth": 63,
+          "abs_error": 137.0,
+          "rel_error_pct": 217.5
+        },
+        "sodium_milligrams": {
+          "predicted": 74.0,
+          "ground_truth": 59,
+          "abs_error": 15.0,
+          "rel_error_pct": 25.4
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 22.0,
+          "ground_truth": 22.1,
+          "abs_error": 0.1,
+          "rel_error_pct": 0.5
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "avocado-half",
+      "query": "half a medium avocado (68g)",
+      "category": "whole_food",
+      "elapsed_seconds": 9.7,
+      "status": "ok",
+      "predicted_description": "1 cup cooked oatmeal",
+      "errors": {
+        "calories": {
+          "predicted": 166.0,
+          "ground_truth": 114,
+          "abs_error": 52.0,
+          "rel_error_pct": 45.6
+        },
+        "total_fat_grams": {
+          "predicted": 3.6,
+          "ground_truth": 10.5,
+          "abs_error": 6.9,
+          "rel_error_pct": 65.7
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.7,
+          "ground_truth": 1.5,
+          "abs_error": 0.8,
+          "rel_error_pct": 53.3
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 1.3,
+          "ground_truth": 1.3,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 1.1,
+          "ground_truth": 7.1,
+          "abs_error": 6.0,
+          "rel_error_pct": 84.5
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 115.0,
+          "ground_truth": 5,
+          "abs_error": 110.0,
+          "rel_error_pct": 2200.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 28.0,
+          "ground_truth": 6.0,
+          "abs_error": 22.0,
+          "rel_error_pct": 366.7
+        },
+        "dietary_fiber_grams": {
+          "predicted": 4.0,
+          "ground_truth": 4.6,
+          "abs_error": 0.6,
+          "rel_error_pct": 13.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.6,
+          "ground_truth": 0.4,
+          "abs_error": 0.2,
+          "rel_error_pct": 20.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 5.9,
+          "ground_truth": 1.3,
+          "abs_error": 4.6,
+          "rel_error_pct": 353.8
+        }
+      },
+      "within_tolerance": {
+        "calories": false,
+        "total_fat_grams": false,
+        "total_carbohydrate_grams": false,
+        "protein_grams": false
+      }
+    },
+    {
+      "id": "sweet-potato-baked",
+      "query": "1 medium baked sweet potato with skin (150g)",
+      "category": "whole_food",
+      "elapsed_seconds": 10.2,
+      "status": "ok",
+      "predicted_description": "1 medium baked sweet potato with skin (150g)",
+      "errors": {
+        "calories": {
+          "predicted": 130.0,
+          "ground_truth": 129,
+          "abs_error": 1.0,
+          "rel_error_pct": 0.8
+        },
+        "total_fat_grams": {
+          "predicted": 0.2,
+          "ground_truth": 0.1,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 10.0,
+          "ground_truth": 82,
+          "abs_error": 72.0,
+          "rel_error_pct": 87.8
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 30.0,
+          "ground_truth": 30.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 4.0,
+          "ground_truth": 3.8,
+          "abs_error": 0.2,
+          "rel_error_pct": 5.3
+        },
+        "total_sugars_grams": {
+          "predicted": 6.0,
+          "ground_truth": 9.4,
+          "abs_error": 3.4,
+          "rel_error_pct": 36.2
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 2.0,
+          "ground_truth": 2.9,
+          "abs_error": 0.9,
+          "rel_error_pct": 31.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": false
+      }
+    },
+    {
+      "id": "almonds-1oz",
+      "query": "1 oz (28g) dry roasted almonds",
+      "category": "whole_food",
+      "elapsed_seconds": 9.8,
+      "status": "ok",
+      "predicted_description": "1 oz (28g) dry roasted almonds",
+      "errors": {
+        "calories": {
+          "predicted": 164.0,
+          "ground_truth": 170,
+          "abs_error": 6.0,
+          "rel_error_pct": 3.5
+        },
+        "total_fat_grams": {
+          "predicted": 14.5,
+          "ground_truth": 15.0,
+          "abs_error": 0.5,
+          "rel_error_pct": 3.3
+        },
+        "saturated_fat_grams": {
+          "predicted": 3.5,
+          "ground_truth": 1.1,
+          "abs_error": 2.4,
+          "rel_error_pct": 218.2
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 6.5,
+          "ground_truth": 3.7,
+          "abs_error": 2.8,
+          "rel_error_pct": 75.7
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 4.5,
+          "ground_truth": 9.6,
+          "abs_error": 5.1,
+          "rel_error_pct": 53.1
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 10.0,
+          "ground_truth": 97,
+          "abs_error": 87.0,
+          "rel_error_pct": 89.7
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 6.0,
+          "ground_truth": 6.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 3.0,
+          "ground_truth": 3.3,
+          "abs_error": 0.3,
+          "rel_error_pct": 9.1
+        },
+        "total_sugars_grams": {
+          "predicted": 1.0,
+          "ground_truth": 1.3,
+          "abs_error": 0.3,
+          "rel_error_pct": 23.1
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 6.0,
+          "ground_truth": 6.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "black-beans-cooked",
+      "query": "1/2 cup cooked black beans (86g)",
+      "category": "whole_food",
+      "elapsed_seconds": 9.4,
+      "status": "ok",
+      "predicted_description": "1/2 cup cooked black beans",
+      "errors": {
+        "calories": {
+          "predicted": 110.0,
+          "ground_truth": 114,
+          "abs_error": 4.0,
+          "rel_error_pct": 3.5
+        },
+        "total_fat_grams": {
+          "predicted": 0.5,
+          "ground_truth": 0.5,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.1,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.2,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.0,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 75.0,
+          "ground_truth": 1,
+          "abs_error": 74.0,
+          "rel_error_pct": 7400.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 20.0,
+          "ground_truth": 20.4,
+          "abs_error": 0.4,
+          "rel_error_pct": 2.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 7.0,
+          "ground_truth": 7.5,
+          "abs_error": 0.5,
+          "rel_error_pct": 6.7
+        },
+        "total_sugars_grams": {
+          "predicted": 1.0,
+          "ground_truth": 0.3,
+          "abs_error": 0.7,
+          "rel_error_pct": 70.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 7.0,
+          "ground_truth": 7.6,
+          "abs_error": 0.6,
+          "rel_error_pct": 7.9
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "cheddar-cheese-1oz",
+      "query": "1 oz (28g) sharp cheddar cheese",
+      "category": "whole_food",
+      "elapsed_seconds": 9.1,
+      "status": "ok",
+      "predicted_description": "1 oz (28g) sharp cheddar cheese",
+      "errors": {
+        "calories": {
+          "predicted": 85.0,
+          "ground_truth": 115,
+          "abs_error": 30.0,
+          "rel_error_pct": 26.1
+        },
+        "total_fat_grams": {
+          "predicted": 7.0,
+          "ground_truth": 9.5,
+          "abs_error": 2.5,
+          "rel_error_pct": 26.3
+        },
+        "saturated_fat_grams": {
+          "predicted": 5.0,
+          "ground_truth": 5.4,
+          "abs_error": 0.4,
+          "rel_error_pct": 7.4
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.3,
+          "abs_error": 0.3,
+          "rel_error_pct": 30.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 1.0,
+          "ground_truth": 0.3,
+          "abs_error": 0.7,
+          "rel_error_pct": 70.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 2.0,
+          "ground_truth": 2.7,
+          "abs_error": 0.7,
+          "rel_error_pct": 25.9
+        },
+        "cholesterol_milligrams": {
+          "predicted": 45.0,
+          "ground_truth": 30,
+          "abs_error": 15.0,
+          "rel_error_pct": 50.0
+        },
+        "sodium_milligrams": {
+          "predicted": 230.0,
+          "ground_truth": 185,
+          "abs_error": 45.0,
+          "rel_error_pct": 24.3
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.4,
+          "abs_error": 0.4,
+          "rel_error_pct": 40.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.1,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 7.0,
+          "ground_truth": 6.4,
+          "abs_error": 0.6,
+          "rel_error_pct": 9.4
+        }
+      },
+      "within_tolerance": {
+        "calories": false,
+        "total_fat_grams": false,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "peanut-butter-2tbsp",
+      "query": "2 tablespoons peanut butter (32g)",
+      "category": "whole_food",
+      "elapsed_seconds": 9.0,
+      "status": "ok",
+      "predicted_description": "2 tablespoons peanut butter (32g)",
+      "errors": {
+        "calories": {
+          "predicted": 196.0,
+          "ground_truth": 190,
+          "abs_error": 6.0,
+          "rel_error_pct": 3.2
+        },
+        "total_fat_grams": {
+          "predicted": 16.0,
+          "ground_truth": 16.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 8.0,
+          "ground_truth": 3.4,
+          "abs_error": 4.6,
+          "rel_error_pct": 135.3
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 10.0,
+          "ground_truth": 4.5,
+          "abs_error": 5.5,
+          "rel_error_pct": 122.2
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 8.0,
+          "ground_truth": 7.5,
+          "abs_error": 0.5,
+          "rel_error_pct": 6.7
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 160.0,
+          "ground_truth": 136,
+          "abs_error": 24.0,
+          "rel_error_pct": 17.6
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 8.0,
+          "ground_truth": 7.0,
+          "abs_error": 1.0,
+          "rel_error_pct": 14.3
+        },
+        "dietary_fiber_grams": {
+          "predicted": 1.0,
+          "ground_truth": 1.5,
+          "abs_error": 0.5,
+          "rel_error_pct": 33.3
+        },
+        "total_sugars_grams": {
+          "predicted": 3.0,
+          "ground_truth": 3.4,
+          "abs_error": 0.4,
+          "rel_error_pct": 11.8
+        },
+        "added_sugars_grams": {
+          "predicted": 3.0,
+          "ground_truth": 3.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 7.0,
+          "ground_truth": 7.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "cottage-cheese-half-cup",
+      "query": "1/2 cup low-fat (2%) cottage cheese (113g)",
+      "category": "whole_food",
+      "elapsed_seconds": 9.8,
+      "status": "ok",
+      "predicted_description": "1/2 cup low-fat (2%) cottage cheese (113g)",
+      "errors": {
+        "calories": {
+          "predicted": 113.0,
+          "ground_truth": 90,
+          "abs_error": 23.0,
+          "rel_error_pct": 25.6
+        },
+        "total_fat_grams": {
+          "predicted": 2.2,
+          "ground_truth": 2.5,
+          "abs_error": 0.3,
+          "rel_error_pct": 12.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.4,
+          "ground_truth": 1.0,
+          "abs_error": 0.6,
+          "rel_error_pct": 60.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.4,
+          "ground_truth": 0.1,
+          "abs_error": 0.3,
+          "rel_error_pct": 30.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.4,
+          "ground_truth": 0.7,
+          "abs_error": 0.3,
+          "rel_error_pct": 30.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 15.0,
+          "ground_truth": 10,
+          "abs_error": 5.0,
+          "rel_error_pct": 50.0
+        },
+        "sodium_milligrams": {
+          "predicted": 115.0,
+          "ground_truth": 360,
+          "abs_error": 245.0,
+          "rel_error_pct": 68.1
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 4.0,
+          "ground_truth": 5.0,
+          "abs_error": 1.0,
+          "rel_error_pct": 20.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 2.0,
+          "ground_truth": 4.0,
+          "abs_error": 2.0,
+          "rel_error_pct": 50.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 7.7,
+          "ground_truth": 12.5,
+          "abs_error": 4.8,
+          "rel_error_pct": 38.4
+        }
+      },
+      "within_tolerance": {
+        "calories": false,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": false
+      }
+    },
+    {
+      "id": "ground-beef-cooked",
+      "query": "100g cooked 80/20 ground beef (pan-fried, drained)",
+      "category": "whole_food",
+      "elapsed_seconds": 10.4,
+      "status": "ok",
+      "predicted_description": "100g cooked 80/20 ground beef (pan-fried, drained)",
+      "errors": {
+        "calories": {
+          "predicted": 210.0,
+          "ground_truth": 254,
+          "abs_error": 44.0,
+          "rel_error_pct": 17.3
+        },
+        "total_fat_grams": {
+          "predicted": 12.0,
+          "ground_truth": 17.6,
+          "abs_error": 5.6,
+          "rel_error_pct": 31.8
+        },
+        "saturated_fat_grams": {
+          "predicted": 6.0,
+          "ground_truth": 6.8,
+          "abs_error": 0.8,
+          "rel_error_pct": 11.8
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.6,
+          "abs_error": 0.6,
+          "rel_error_pct": 60.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 3.0,
+          "ground_truth": 0.6,
+          "abs_error": 2.4,
+          "rel_error_pct": 240.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 4.0,
+          "ground_truth": 7.7,
+          "abs_error": 3.7,
+          "rel_error_pct": 48.1
+        },
+        "cholesterol_milligrams": {
+          "predicted": 60.0,
+          "ground_truth": 88,
+          "abs_error": 28.0,
+          "rel_error_pct": 31.8
+        },
+        "sodium_milligrams": {
+          "predicted": 150.0,
+          "ground_truth": 82,
+          "abs_error": 68.0,
+          "rel_error_pct": 82.9
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 18.0,
+          "ground_truth": 23.2,
+          "abs_error": 5.2,
+          "rel_error_pct": 22.4
+        }
+      },
+      "within_tolerance": {
+        "calories": false,
+        "total_fat_grams": false,
+        "total_carbohydrate_grams": true,
+        "protein_grams": false
+      }
+    },
+    {
+      "id": "pasta-cooked",
+      "query": "1 cup cooked spaghetti, no sauce (140g)",
+      "category": "whole_food",
+      "elapsed_seconds": 9.5,
+      "status": "ok",
+      "predicted_description": "1 cup cooked spaghetti, no sauce (140g)",
+      "errors": {
+        "calories": {
+          "predicted": 210.0,
+          "ground_truth": 220,
+          "abs_error": 10.0,
+          "rel_error_pct": 4.5
+        },
+        "total_fat_grams": {
+          "predicted": 1.0,
+          "ground_truth": 1.3,
+          "abs_error": 0.3,
+          "rel_error_pct": 23.1
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.2,
+          "ground_truth": 0.3,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.5,
+          "abs_error": 0.4,
+          "rel_error_pct": 40.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.2,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 100.0,
+          "ground_truth": 1,
+          "abs_error": 99.0,
+          "rel_error_pct": 9900.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 44.0,
+          "ground_truth": 43.2,
+          "abs_error": 0.8,
+          "rel_error_pct": 1.9
+        },
+        "dietary_fiber_grams": {
+          "predicted": 1.0,
+          "ground_truth": 2.5,
+          "abs_error": 1.5,
+          "rel_error_pct": 60.0
+        },
+        "total_sugars_grams": {
+          "predicted": 1.0,
+          "ground_truth": 0.6,
+          "abs_error": 0.4,
+          "rel_error_pct": 40.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 6.0,
+          "ground_truth": 8.1,
+          "abs_error": 2.1,
+          "rel_error_pct": 25.9
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": false
+      }
+    },
+    {
+      "id": "orange-medium",
+      "query": "1 medium orange (131g), peeled",
+      "category": "whole_food",
+      "elapsed_seconds": 10.2,
+      "status": "ok",
+      "predicted_description": "1 medium orange (131g)",
+      "errors": {
+        "calories": {
+          "predicted": 62.0,
+          "ground_truth": 62,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.2,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.0,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.1,
+          "ground_truth": 0.0,
+          "abs_error": 0.1,
+          "rel_error_pct": 10.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "sodium_milligrams": {
+          "predicted": 13.0,
+          "ground_truth": 0,
+          "abs_error": 13.0,
+          "rel_error_pct": 1300.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 16.5,
+          "ground_truth": 15.4,
+          "abs_error": 1.1,
+          "rel_error_pct": 7.1
+        },
+        "dietary_fiber_grams": {
+          "predicted": 1.4,
+          "ground_truth": 3.1,
+          "abs_error": 1.7,
+          "rel_error_pct": 54.8
+        },
+        "total_sugars_grams": {
+          "predicted": 4.7,
+          "ground_truth": 12.2,
+          "abs_error": 7.5,
+          "rel_error_pct": 61.5
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 0.2,
+          "ground_truth": 1.2,
+          "abs_error": 1.0,
+          "rel_error_pct": 83.3
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": false
+      }
+    },
+    {
+      "id": "avocado-toast-simple",
+      "query": "1 slice whole wheat toast with 1/4 avocado and a pinch of salt",
+      "category": "composite_meal",
+      "elapsed_seconds": 10.3,
+      "status": "ok",
+      "predicted_description": "1 slice whole wheat toast with 1/4 avocado and a pinch of salt",
+      "errors": {
+        "calories": {
+          "predicted": 245.0,
+          "ground_truth": 175,
+          "abs_error": 70.0,
+          "rel_error_pct": 40.0
+        },
+        "total_fat_grams": {
+          "predicted": 11.5,
+          "ground_truth": 7.4,
+          "abs_error": 4.1,
+          "rel_error_pct": 55.4
+        },
+        "saturated_fat_grams": {
+          "predicted": 3.5,
+          "ground_truth": 1.3,
+          "abs_error": 2.2,
+          "rel_error_pct": 169.2
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 4.5,
+          "ground_truth": 1.5,
+          "abs_error": 3.0,
+          "rel_error_pct": 200.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 5.5,
+          "ground_truth": 4.0,
+          "abs_error": 1.5,
+          "rel_error_pct": 37.5
+        },
+        "cholesterol_milligrams": {
+          "predicted": 15.0,
+          "ground_truth": 0,
+          "abs_error": 15.0,
+          "rel_error_pct": 1500.0
+        },
+        "sodium_milligrams": {
+          "predicted": 150.0,
+          "ground_truth": 200,
+          "abs_error": 50.0,
+          "rel_error_pct": 25.0
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 28.0,
+          "ground_truth": 24.0,
+          "abs_error": 4.0,
+          "rel_error_pct": 16.7
+        },
+        "dietary_fiber_grams": {
+          "predicted": 6.0,
+          "ground_truth": 5.2,
+          "abs_error": 0.8,
+          "rel_error_pct": 15.4
+        },
+        "total_sugars_grams": {
+          "predicted": 1.0,
+          "ground_truth": 3.5,
+          "abs_error": 2.5,
+          "rel_error_pct": 71.4
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 4.0,
+          "ground_truth": 5.5,
+          "abs_error": 1.5,
+          "rel_error_pct": 27.3
+        }
+      },
+      "within_tolerance": {
+        "calories": false,
+        "total_fat_grams": false,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "chicken-rice-bowl",
+      "query": "grilled chicken rice bowl: 150g cooked white rice, 120g grilled chicken breast, no sauce",
+      "category": "composite_meal",
+      "elapsed_seconds": 10.1,
+      "status": "ok",
+      "predicted_description": "grilled chicken rice bowl: 150g cooked white rice, 120g grilled chicken breast, no sauce",
+      "errors": {
+        "calories": {
+          "predicted": 350.0,
+          "ground_truth": 393,
+          "abs_error": 43.0,
+          "rel_error_pct": 10.9
+        },
+        "total_fat_grams": {
+          "predicted": 4.0,
+          "ground_truth": 4.6,
+          "abs_error": 0.6,
+          "rel_error_pct": 13.0
+        },
+        "saturated_fat_grams": {
+          "predicted": 1.0,
+          "ground_truth": 1.3,
+          "abs_error": 0.3,
+          "rel_error_pct": 23.1
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 1.0,
+          "ground_truth": 1.1,
+          "abs_error": 0.1,
+          "rel_error_pct": 9.1
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 2.0,
+          "ground_truth": 1.6,
+          "abs_error": 0.4,
+          "rel_error_pct": 25.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 70.0,
+          "ground_truth": 102,
+          "abs_error": 32.0,
+          "rel_error_pct": 31.4
+        },
+        "sodium_milligrams": {
+          "predicted": 300.0,
+          "ground_truth": 90,
+          "abs_error": 210.0,
+          "rel_error_pct": 233.3
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 45.0,
+          "ground_truth": 42.3,
+          "abs_error": 2.7,
+          "rel_error_pct": 6.4
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0.6,
+          "abs_error": 0.6,
+          "rel_error_pct": 60.0
+        },
+        "total_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 35.0,
+          "ground_truth": 37.9,
+          "abs_error": 2.9,
+          "rel_error_pct": 7.7
+        }
+      },
+      "within_tolerance": {
+        "calories": false,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": true,
+        "protein_grams": true
+      }
+    },
+    {
+      "id": "quest-bar-chocolate-chip-cookie",
+      "query": "Quest Bar Chocolate Chip Cookie Dough (60g)",
+      "category": "branded",
+      "elapsed_seconds": 9.4,
+      "status": "ok",
+      "predicted_description": "Quest Bar Chocolate Chip Cookie Dough (60g)",
+      "errors": {
+        "calories": {
+          "predicted": 220.0,
+          "ground_truth": 190,
+          "abs_error": 30.0,
+          "rel_error_pct": 15.8
+        },
+        "total_fat_grams": {
+          "predicted": 7.0,
+          "ground_truth": 8.0,
+          "abs_error": 1.0,
+          "rel_error_pct": 12.5
+        },
+        "saturated_fat_grams": {
+          "predicted": 1.5,
+          "ground_truth": 3.0,
+          "abs_error": 1.5,
+          "rel_error_pct": 50.0
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 1.5,
+          "ground_truth": 0.0,
+          "abs_error": 1.5,
+          "rel_error_pct": 150.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 2.5,
+          "ground_truth": 0.0,
+          "abs_error": 2.5,
+          "rel_error_pct": 250.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 10,
+          "abs_error": 10.0,
+          "rel_error_pct": 100.0
+        },
+        "sodium_milligrams": {
+          "predicted": 150.0,
+          "ground_truth": 260,
+          "abs_error": 110.0,
+          "rel_error_pct": 42.3
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 34.0,
+          "ground_truth": 22.0,
+          "abs_error": 12.0,
+          "rel_error_pct": 54.5
+        },
+        "dietary_fiber_grams": {
+          "predicted": 2.0,
+          "ground_truth": 13.0,
+          "abs_error": 11.0,
+          "rel_error_pct": 84.6
+        },
+        "total_sugars_grams": {
+          "predicted": 12.0,
+          "ground_truth": 1.0,
+          "abs_error": 11.0,
+          "rel_error_pct": 1100.0
+        },
+        "added_sugars_grams": {
+          "predicted": 12.0,
+          "ground_truth": 1.0,
+          "abs_error": 11.0,
+          "rel_error_pct": 1100.0
+        },
+        "protein_grams": {
+          "predicted": 8.0,
+          "ground_truth": 21.0,
+          "abs_error": 13.0,
+          "rel_error_pct": 61.9
+        }
+      },
+      "within_tolerance": {
+        "calories": false,
+        "total_fat_grams": true,
+        "total_carbohydrate_grams": false,
+        "protein_grams": false
+      }
+    },
+    {
+      "id": "starbucks-latte-grande",
+      "query": "Starbucks Grande latte with 2% milk (no syrup, 473ml)",
+      "category": "restaurant",
+      "elapsed_seconds": 9.9,
+      "status": "ok",
+      "predicted_description": "Starbucks Grande latte with 2% milk (no syrup, 473ml)",
+      "errors": {
+        "calories": {
+          "predicted": 210.0,
+          "ground_truth": 190,
+          "abs_error": 20.0,
+          "rel_error_pct": 10.5
+        },
+        "total_fat_grams": {
+          "predicted": 2.3,
+          "ground_truth": 7.0,
+          "abs_error": 4.7,
+          "rel_error_pct": 67.1
+        },
+        "saturated_fat_grams": {
+          "predicted": 0.4,
+          "ground_truth": 4.5,
+          "abs_error": 4.1,
+          "rel_error_pct": 91.1
+        },
+        "trans_fat_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "polyunsaturated_fat_grams": {
+          "predicted": 0.5,
+          "ground_truth": 0.3,
+          "abs_error": 0.2,
+          "rel_error_pct": 20.0
+        },
+        "monounsaturated_fat_grams": {
+          "predicted": 0.5,
+          "ground_truth": 2.0,
+          "abs_error": 1.5,
+          "rel_error_pct": 75.0
+        },
+        "cholesterol_milligrams": {
+          "predicted": 0.0,
+          "ground_truth": 25,
+          "abs_error": 25.0,
+          "rel_error_pct": 100.0
+        },
+        "sodium_milligrams": {
+          "predicted": 30.0,
+          "ground_truth": 170,
+          "abs_error": 140.0,
+          "rel_error_pct": 82.4
+        },
+        "total_carbohydrate_grams": {
+          "predicted": 24.0,
+          "ground_truth": 19.0,
+          "abs_error": 5.0,
+          "rel_error_pct": 26.3
+        },
+        "dietary_fiber_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "total_sugars_grams": {
+          "predicted": 24.0,
+          "ground_truth": 18.0,
+          "abs_error": 6.0,
+          "rel_error_pct": 33.3
+        },
+        "added_sugars_grams": {
+          "predicted": 0.0,
+          "ground_truth": 0,
+          "abs_error": 0.0,
+          "rel_error_pct": 0.0
+        },
+        "protein_grams": {
+          "predicted": 4.0,
+          "ground_truth": 13.0,
+          "abs_error": 9.0,
+          "rel_error_pct": 69.2
+        }
+      },
+      "within_tolerance": {
+        "calories": true,
+        "total_fat_grams": false,
+        "total_carbohydrate_grams": false,
+        "protein_grams": false
+      }
+    }
+  ]
+}

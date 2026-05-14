@@ -42,6 +42,25 @@ The service listens on port 3031 by default (override with `PORT`).
 
 Accepts a JSON body with a `description` field. Returns estimated nutrition data as JSON.
 
+## Model Selection
+
+Q5_K_M is recommended for production. Q4_K_M is ~17% faster but meaningfully less accurate on calories and protein.
+
+Eval results across 27 cases (2026-05-13):
+
+| Macro | Q5_K_M MAE | Q4_K_M MAE |
+|---|---|---|
+| Calories | **11.9** | 17.2 |
+| Fat (g) | **0.9** | 1.2 |
+| Protein (g) | **0.8** | 2.0 |
+| Carbs (g) | 2.6 | 2.7 |
+
+| | Q5_K_M | Q4_K_M |
+|---|---|---|
+| Avg latency | 11.7s | 9.7s |
+
+Q4 shows a recurring pattern of hallucinating `166` kcal for unrelated items (avocado half, CLIF Bar, raw egg), suggesting it occasionally loses context between the query and the response format. Full results in `eval/results/`.
+
 ## Container Image
 
 Published to `ghcr.io/bspaulding/food-diary/llm-nutrition-api`. The model weights must be provided at runtime via `GEMMA_MODEL_PATH` — they are not baked into the image.
