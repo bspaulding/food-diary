@@ -3,7 +3,11 @@
 A Rust/Warp HTTP service that parses nutrition label images. It supports two backends:
 
 - **PaddleOCR** (default) — ONNX-based OCR pipeline; no extra setup required
-- **VLM** (optional) — [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) via llama.cpp; more accurate but requires downloading model weights
+- **VLM** (optional) — vision-language model inference; more accurate. Supports two VLM backends selected at runtime via env vars:
+  - **OpenRouter** — calls `google/gemma-4-31b-it:free` (or any vision model) via the [OpenRouter API](https://openrouter.ai); easiest to set up, no local GPU required
+  - **Local llama.cpp** — runs [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) locally via llama.cpp; requires downloading model weights
+
+When `backend=vlm` is requested, OpenRouter is preferred if `OPENROUTER_API_KEY` is set; otherwise the service falls back to local llama.cpp if `VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` are set. If neither is configured the request returns an error.
 
 ## Local Development
 
@@ -14,9 +18,23 @@ brew install rustup
 rustup install stable
 ```
 
-### VLM Model Setup (optional)
+### VLM Backend Setup (optional)
 
-If you want VLM inference locally, download the model weights into `vlm-models/gemma-4-e2b/`:
+#### Option A: OpenRouter (recommended)
+
+Set your API key in `.env`:
+
+```
+OPENROUTER_API_KEY=sk-or-v1-...
+# Optional: override the default model (google/gemma-4-31b-it:free)
+# OPENROUTER_MODEL=google/gemma-4-31b-it:free
+```
+
+No model weights to download. Get a free key at [openrouter.ai](https://openrouter.ai).
+
+#### Option B: Local llama.cpp
+
+Download the model weights into `vlm-models/gemma-4-e2b/`:
 
 ```bash
 pip install huggingface_hub[cli]
@@ -38,7 +56,7 @@ VLM_MODEL_PATH=nutrition-fact-labeller/vlm-models/gemma-4-e2b/gemma-4-E2B-it-Q4_
 VLM_MMPROJ_PATH=nutrition-fact-labeller/vlm-models/gemma-4-e2b/mmproj-F16.gguf
 ```
 
-If neither env var is set, the service starts in OCR-only mode.
+If no VLM env vars are set, the service starts in OCR-only mode.
 
 ### Run
 
