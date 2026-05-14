@@ -12,7 +12,6 @@ use crate::NutritionItem;
 
 const MAX_ROUNDS: usize = 5;
 const MAX_NEW_TOKENS: usize = 1024;
-const OPENROUTER_MODEL: &str = "google/gemma-4-31b-it:free";
 
 const SYSTEM_PROMPT: &str = "\
 You are a nutrition expert. Look up or estimate nutritional values for the food the user describes.
@@ -73,6 +72,7 @@ pub enum BackendConfig {
     },
     OpenRouter {
         api_key: String,
+        model: String,
         client: reqwest::Client,
     },
 }
@@ -195,6 +195,7 @@ fn extract_json(text: &str) -> Option<&str> {
 async fn call_openrouter(
     client: &reqwest::Client,
     api_key: &str,
+    model: &str,
     conversation: &[(String, String)],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let messages: Vec<serde_json::Value> = conversation
@@ -207,7 +208,7 @@ async fn call_openrouter(
         .collect();
 
     let body = serde_json::json!({
-        "model": OPENROUTER_MODEL,
+        "model": model,
         "messages": messages,
         "temperature": 0.1,
         "max_tokens": MAX_NEW_TOKENS
@@ -324,6 +325,7 @@ async fn run_agent_local(
 async fn run_agent_openrouter(
     client: &reqwest::Client,
     api_key: &str,
+    model: &str,
     description: String,
 ) -> Result<NutritionItem, Box<dyn std::error::Error + Send + Sync>> {
     let mut conversation: Vec<(String, String)> = vec![
@@ -334,7 +336,7 @@ async fn run_agent_openrouter(
     for round in 0..MAX_ROUNDS {
         log::debug!("Agent round {round}");
 
-        let output = call_openrouter(client, api_key, &conversation).await?;
+        let output = call_openrouter(client, api_key, model, &conversation).await?;
         log::debug!("Model output: {output}");
 
         let json_str = extract_json(&output).unwrap_or(&output);
@@ -378,7 +380,7 @@ async fn run_agent_openrouter(
             "Output ONLY the JSON nutrition object. No markdown, no explanation, just the JSON object with all 14 fields.".to_string(),
         ));
 
-        let final_json = call_openrouter(client, api_key, &final_conv).await?;
+        let final_json = call_openrouter(client, api_key, model, &final_conv).await?;
         log::debug!("Final JSON: {final_json}");
 
         let json_str = extract_json(&final_json).unwrap_or(&final_json);
@@ -397,8 +399,8 @@ pub async fn run_agent(
         BackendConfig::Local { backend, model } => {
             run_agent_local(Arc::clone(backend), Arc::clone(model), description).await
         }
-        BackendConfig::OpenRouter { api_key, client } => {
-            run_agent_openrouter(client, api_key, description).await
+        BackendConfig::OpenRouter { api_key, model, client } => {
+            run_agent_openrouter(client, api_key, model, description).await
         }
     }
 }

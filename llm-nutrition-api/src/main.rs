@@ -77,8 +77,12 @@ fn load_local_model(path: String) -> Arc<agent::BackendConfig> {
     })
 }
 
+const DEFAULT_OPENROUTER_MODEL: &str = "google/gemma-4-31b-it:free";
+
 fn build_config(mode: Option<CliMode>) -> Arc<agent::BackendConfig> {
     let openrouter_key = std::env::var("OPENROUTER_API_KEY").ok();
+    let openrouter_model = std::env::var("OPENROUTER_MODEL")
+        .unwrap_or_else(|_| DEFAULT_OPENROUTER_MODEL.to_string());
     let model_path = std::env::var("GEMMA_MODEL_PATH").ok();
 
     match mode {
@@ -87,9 +91,10 @@ fn build_config(mode: Option<CliMode>) -> Arc<agent::BackendConfig> {
                 eprintln!("--mode openrouter requires OPENROUTER_API_KEY to be set");
                 std::process::exit(1);
             });
-            info!("Using OpenRouter backend (google/gemma-4-31b-it:free)");
+            info!("Using OpenRouter backend ({openrouter_model})");
             Arc::new(agent::BackendConfig::OpenRouter {
                 api_key: key,
+                model: openrouter_model,
                 client: reqwest::Client::new(),
             })
         }
@@ -102,9 +107,10 @@ fn build_config(mode: Option<CliMode>) -> Arc<agent::BackendConfig> {
         }
         None => {
             if let Some(key) = openrouter_key {
-                info!("Auto-selected OpenRouter backend (OPENROUTER_API_KEY is set)");
+                info!("Auto-selected OpenRouter backend ({openrouter_model})");
                 Arc::new(agent::BackendConfig::OpenRouter {
                     api_key: key,
+                    model: openrouter_model,
                     client: reqwest::Client::new(),
                 })
             } else if let Some(path) = model_path {
@@ -113,9 +119,10 @@ fn build_config(mode: Option<CliMode>) -> Arc<agent::BackendConfig> {
             } else {
                 eprintln!(
                     "No backend configured. Either:\n  \
-                     - Set OPENROUTER_API_KEY to use OpenRouter (google/gemma-4-31b-it:free)\n  \
+                     - Set OPENROUTER_API_KEY to use OpenRouter (default: {DEFAULT_OPENROUTER_MODEL})\n  \
                      - Set GEMMA_MODEL_PATH to use the local Gemma model\n  \
-                     - Pass --mode local|openrouter to force a specific backend"
+                     - Pass --mode local|openrouter to force a specific backend\n  \
+                     - Set OPENROUTER_MODEL to override the OpenRouter model"
                 );
                 std::process::exit(1);
             }
