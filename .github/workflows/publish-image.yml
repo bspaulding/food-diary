@@ -39,7 +39,7 @@ jobs:
         with:
           images: ghcr.io/bspaulding/food-diary/${{ inputs.component }}
           tags: |
-            type=match,pattern=${{ inputs.component }}-(v.*),group=1
+            type=sha
             type=ref,event=branch
 
       - name: Build and push Docker image

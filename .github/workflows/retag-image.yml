@@ -1,0 +1,33 @@
+name: Retag Image (Reusable)
+on:
+  workflow_call:
+    inputs:
+      component:
+        required: true
+        type: string
+jobs:
+  retag:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Retag image
+        env:
+          COMPONENT: ${{ inputs.component }}
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG_NAME#${COMPONENT}-}"
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+          SOURCE="ghcr.io/bspaulding/food-diary/${COMPONENT}:sha-${SHORT_SHA}"
+          TARGET="ghcr.io/bspaulding/food-diary/${COMPONENT}:${VERSION}"
+          docker pull "$SOURCE"
+          docker tag  "$SOURCE" "$TARGET"
+          docker push "$TARGET"
