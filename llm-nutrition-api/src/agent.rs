@@ -12,6 +12,7 @@ use crate::NutritionItem;
 
 const MAX_ROUNDS: usize = 5;
 const MAX_NEW_TOKENS: usize = 1024;
+const OPENROUTER_MAX_RETRIES: u32 = 4;
 
 const SYSTEM_PROMPT: &str = "\
 You are a nutrition expert. Look up or estimate nutritional values for the food the user describes.
@@ -214,28 +215,49 @@ async fn call_openrouter(
         "max_tokens": MAX_NEW_TOKENS
     });
 
-    let response = client
-        .post("https://openrouter.ai/api/v1/chat/completions")
-        .header("Authorization", format!("Bearer {api_key}"))
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await?;
+    let mut attempt = 0u32;
+    loop {
+        let response = client
+            .post("https://openrouter.ai/api/v1/chat/completions")
+            .header("Authorization", format!("Bearer {api_key}"))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await?;
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        return Err(format!("OpenRouter API error {status}: {text}").into());
+        if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            if attempt >= OPENROUTER_MAX_RETRIES {
+                let text = response.text().await.unwrap_or_default();
+                return Err(format!("OpenRouter rate limit exceeded after {attempt} retries: {text}").into());
+            }
+            // Respect Retry-After if provided, otherwise exponential backoff (1s, 2s, 4s, 8s).
+            let delay_secs = response
+                .headers()
+                .get("retry-after")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(1u64 << attempt);
+            log::warn!("OpenRouter 429 on attempt {attempt}, retrying in {delay_secs}s");
+            tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+            attempt += 1;
+            continue;
+        }
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("OpenRouter API error {status}: {text}").into());
+        }
+
+        let json: serde_json::Value = response.json().await?;
+        let content = json["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or("Missing content in OpenRouter response")?
+            .trim()
+            .to_string();
+
+        return Ok(content);
     }
-
-    let json: serde_json::Value = response.json().await?;
-    let content = json["choices"][0]["message"]["content"]
-        .as_str()
-        .ok_or("Missing content in OpenRouter response")?
-        .trim()
-        .to_string();
-
-    Ok(content)
 }
 
 async fn run_agent_local(
