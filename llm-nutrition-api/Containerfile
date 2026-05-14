@@ -17,7 +17,7 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release && rm -rf src
 
 COPY src ./src
-RUN cargo install --path . --locked
+RUN touch src/main.rs && cargo build --release
 
 # =========================
 # 1. Runtime stage
@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/cargo/bin/llm-nutrition-api /usr/local/bin/llm-nutrition-api
+COPY --from=builder /app/target/release/llm-nutrition-api /usr/local/bin/llm-nutrition-api
 
 ENV PORT=3031
 
