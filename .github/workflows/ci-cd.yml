@@ -1,0 +1,307 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "web-v*"
+      - "graphql-engine-v*"
+      - "llm-nutrition-api-v*"
+      - "nutrition-fact-labeller-v*"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      graphql_engine: ${{ steps.filter.outputs.graphql_engine }}
+      llm_nutrition_api: ${{ steps.filter.outputs.llm_nutrition_api }}
+      nutrition_fact_labeller: ${{ steps.filter.outputs.nutrition_fact_labeller }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - "web/**"
+            graphql_engine:
+              - "graphql-engine/**"
+            llm_nutrition_api:
+              - "llm-nutrition-api/**"
+            nutrition_fact_labeller:
+              - "nutrition-fact-labeller/**"
+
+  test-web:
+    needs: changes
+    if: |
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
+      needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm ci
+
+      - name: Check formatting
+        run: npm run prettier:check
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Type coverage check
+        run: npm run type-coverage
+
+      - name: Unit tests
+        run: npm test
+        env:
+          TZ: America/Los_Angeles
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Acceptance tests
+        run: npm run test:acceptance
+        env:
+          TZ: America/Los_Angeles
+
+  test-graphql-engine:
+    needs: changes
+    if: |
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
+      needs.changes.outputs.graphql_engine == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Hasura image
+        run: docker build -t food-diary-hasura:ci ./graphql-engine
+
+      - name: Verify image exists
+        run: docker images food-diary-hasura:ci
+
+      - name: Start services
+        run: docker compose -f graphql-engine/docker-compose.test.yml up --no-build -d postgres graphql-engine
+
+      - name: Show early service logs
+        run: |
+          sleep 10
+          docker compose -f graphql-engine/docker-compose.test.yml ps
+          docker compose -f graphql-engine/docker-compose.test.yml logs
+
+      - name: Wait for Hasura to be healthy
+        run: |
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:8080/healthz 2>/dev/null | grep -qi ok; then
+              echo "Hasura is healthy after $((i * 3))s"
+              exit 0
+            fi
+            echo "[$i/40] not ready yet, retrying in 3s..."
+            sleep 3
+          done
+          echo "Hasura did not become healthy within 120s"
+          docker compose -f graphql-engine/docker-compose.test.yml logs
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install test dependencies
+        working-directory: graphql-engine/tests
+        run: npm install
+
+      - name: Run GraphQL tests
+        working-directory: graphql-engine/tests
+        env:
+          HASURA_ENDPOINT: http://localhost:8080/v1/graphql
+          HASURA_ADMIN_SECRET: testadminsecret
+        run: npm test
+
+      - name: Show service logs
+        if: always()
+        run: docker compose -f graphql-engine/docker-compose.test.yml logs
+
+  test-llm-nutrition-api:
+    needs: changes
+    if: |
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
+      needs.changes.outputs.llm_nutrition_api == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: llm-nutrition-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            llm-nutrition-api/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('llm-nutrition-api/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Run tests
+        run: cargo test
+
+  test-nutrition-fact-labeller:
+    needs: changes
+    if: |
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
+      needs.changes.outputs.nutrition_fact_labeller == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nutrition-fact-labeller
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            nutrition-fact-labeller/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('nutrition-fact-labeller/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Cache paddleocr models
+        id: cache-paddleocr-models
+        uses: actions/cache@v4
+        with:
+          path: nutrition-fact-labeller/paddleocr-models
+          key: paddleocr-models-v0.1.0
+
+      - name: Download paddleocr models
+        if: steps.cache-paddleocr-models.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p paddleocr-models
+          curl -L --output paddleocr-models/ppocrv4_mobile_det.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/ppocrv4_mobile_det.onnx
+          curl -L --output paddleocr-models/en_ppocrv4_mobile_rec.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_ppocrv4_mobile_rec.onnx
+          curl -L --output paddleocr-models/en_dict.txt https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_dict.txt
+          curl -L --output paddleocr-models/pplcnet_x1_0_doc_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_doc_ori.onnx
+          curl -L --output paddleocr-models/pplcnet_x1_0_textline_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_textline_ori.onnx
+          curl -L --output paddleocr-models/uvdoc.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/uvdoc.onnx
+
+      - name: Run tests
+        run: cargo test
+
+  publish-web:
+    needs: [changes, test-web]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.web == 'true'
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      component: web
+      context: web
+    secrets: inherit
+
+  publish-graphql-engine:
+    needs: [changes, test-graphql-engine]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.graphql_engine == 'true'
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      component: graphql-engine
+      context: graphql-engine
+    secrets: inherit
+
+  publish-llm-nutrition-api:
+    needs: [changes, test-llm-nutrition-api]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.llm_nutrition_api == 'true'
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      component: llm-nutrition-api
+      context: llm-nutrition-api
+      file: llm-nutrition-api/Containerfile
+    secrets: inherit
+
+  publish-nutrition-fact-labeller:
+    needs: [changes, test-nutrition-fact-labeller]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.nutrition_fact_labeller == 'true'
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      component: nutrition-fact-labeller
+      context: nutrition-fact-labeller
+      file: nutrition-fact-labeller/Containerfile
+    secrets: inherit
+
+  retag-web:
+    if: startsWith(github.ref, 'refs/tags/web-v')
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/retag-image.yml
+    with:
+      component: web
+    secrets: inherit
+
+  retag-graphql-engine:
+    if: startsWith(github.ref, 'refs/tags/graphql-engine-v')
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/retag-image.yml
+    with:
+      component: graphql-engine
+    secrets: inherit
+
+  retag-llm-nutrition-api:
+    if: startsWith(github.ref, 'refs/tags/llm-nutrition-api-v')
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/retag-image.yml
+    with:
+      component: llm-nutrition-api
+    secrets: inherit
+
+  retag-nutrition-fact-labeller:
+    if: startsWith(github.ref, 'refs/tags/nutrition-fact-labeller-v')
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/retag-image.yml
+    with:
+      component: nutrition-fact-labeller
+    secrets: inherit
