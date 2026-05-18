@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -293,6 +293,142 @@ describe("NewNutritionItemForm", () => {
       // Just ensure the button click works - full modal testing in CameraModal.test
       expect(scanButton).toBeTruthy();
     });
+  });
+
+  it("should show Estimating… label while AI lookup is in progress", async () => {
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    server.use(
+      http.post("/llm/lookup", async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        return HttpResponse.json({
+          item: { description: "Apple", calories: 95 },
+        });
+      }),
+    );
+
+    render(() => <NewNutritionItemForm />);
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    await user.type(descInput, "Apple");
+    await user.click(screen.getByText("AI"));
+
+    expect(screen.getByText("Estimating…")).toBeTruthy();
+
+    vi.useRealTimers();
+  });
+
+  it("should show flash error below buttons after all retries fail", async () => {
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    server.use(
+      http.post(
+        "/llm/lookup",
+        () =>
+          new HttpResponse(JSON.stringify({ error: "Service unavailable" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
+
+    render(() => <NewNutritionItemForm />);
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    await user.type(descInput, "Apple");
+    await user.click(screen.getByText("AI"));
+
+    await vi.runAllTimersAsync();
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeTruthy();
+      expect(screen.getByText("Service unavailable")).toBeTruthy();
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("should retry 3 times before showing error", async () => {
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    let callCount = 0;
+
+    server.use(
+      http.post("/llm/lookup", () => {
+        callCount++;
+        return new HttpResponse(JSON.stringify({ error: "Temporary error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+
+    render(() => <NewNutritionItemForm />);
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    await user.type(descInput, "Apple");
+    await user.click(screen.getByText("AI"));
+
+    await vi.runAllTimersAsync();
+
+    await waitFor(() => {
+      expect(callCount).toBe(3);
+      expect(screen.getByText("Temporary error")).toBeTruthy();
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("should clear error and hide Estimating… on successful AI lookup", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.post("/llm/lookup", () =>
+        HttpResponse.json({
+          item: {
+            description: "Apple",
+            calories: 95,
+            total_fat_grams: 0,
+            saturated_fat_grams: 0,
+            trans_fat_grams: 0,
+            polyunsaturated_fat_grams: 0,
+            monounsaturated_fat_grams: 0,
+            cholesterol_milligrams: 0,
+            sodium_milligrams: 1,
+            total_carbohydrate_grams: 25,
+            dietary_fiber_grams: 4,
+            total_sugars_grams: 19,
+            added_sugars_grams: 0,
+            protein_grams: 0.5,
+          },
+        }),
+      ),
+    );
+
+    render(() => <NewNutritionItemForm />);
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    await user.type(descInput, "Apple");
+    await user.click(screen.getByText("AI"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Estimating…")).toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("should update all nutrition fields correctly", async () => {

@@ -114,11 +114,25 @@ const NewNutritionItemForm: Component<Props> = ({
   const handleAILookup = async (): Promise<void> => {
     setIsLookingUp(true);
     setLookupError(null);
+    const maxRetries = 3;
+    const retryDelay = 1000;
+    let lastError: unknown;
     try {
-      const result = await lookupNutritionWithLLM(description().trim());
-      handleImport(result);
-    } catch (err: unknown) {
-      setLookupError(err instanceof Error ? err.message : "Lookup failed");
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const result = await lookupNutritionWithLLM(description().trim());
+          handleImport(result);
+          return;
+        } catch (err: unknown) {
+          lastError = err;
+          if (attempt < maxRetries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          }
+        }
+      }
+      setLookupError(
+        lastError instanceof Error ? lastError.message : "Lookup failed",
+      );
     } finally {
       setIsLookingUp(false);
     }
@@ -166,10 +180,10 @@ const NewNutritionItemForm: Component<Props> = ({
         />
       </Show>
       <div class="flex justify-end mb-2 gap-2 flex-col items-end">
-        {lookupError() ? (
-          <p class="text-red-500 text-sm">{lookupError()}</p>
-        ) : null}
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
+          <Show when={isLookingUp()}>
+            <span class="text-sm text-slate-500 italic">Estimating…</span>
+          </Show>
           <button
             type="button"
             class="bg-indigo-600 text-slate-50 py-2 px-4 rounded-md flex items-center gap-2 disabled:opacity-50"
@@ -189,7 +203,7 @@ const NewNutritionItemForm: Component<Props> = ({
                 clip-rule="evenodd"
               />
             </svg>
-            {isLookingUp() ? "Looking up..." : "AI"}
+            AI
           </button>
           <button
             type="button"
@@ -212,6 +226,14 @@ const NewNutritionItemForm: Component<Props> = ({
             Scan
           </button>
         </div>
+        <Show when={lookupError()}>
+          <div
+            role="alert"
+            class="bg-red-50 border border-red-300 text-red-700 px-3 py-2 rounded-md text-sm w-full text-center"
+          >
+            {lookupError()}
+          </div>
+        </Show>
       </div>
       <form class={styles.form}>
         <fieldset class="flex flex-col">

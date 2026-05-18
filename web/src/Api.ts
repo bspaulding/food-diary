@@ -803,7 +803,14 @@ export async function lookupNutritionWithLLM(
     body: JSON.stringify({ description }),
   });
   if (!response.ok) {
-    throw new Error(`Lookup failed: ${response.statusText}`);
+    let message = response.statusText;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (typeof body.error === "string" && body.error) message = body.error;
+    } catch {
+      // fall back to statusText
+    }
+    throw new Error(message);
   }
   const { item } = (await response.json()) as {
     item: Record<string, unknown>;
