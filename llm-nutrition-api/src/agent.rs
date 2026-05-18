@@ -193,6 +193,13 @@ fn extract_json(text: &str) -> Option<&str> {
     Some(&slice[..=end])
 }
 
+fn openrouter_error_message(text: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .and_then(|v| v["error"]["message"].as_str().map(String::from))
+        .unwrap_or_else(|| text.to_string())
+}
+
 async fn call_openrouter(
     client: &reqwest::Client,
     api_key: &str,
@@ -228,7 +235,8 @@ async fn call_openrouter(
         if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
             if attempt >= OPENROUTER_MAX_RETRIES {
                 let text = response.text().await.unwrap_or_default();
-                return Err(format!("OpenRouter rate limit exceeded after {attempt} retries: {text}").into());
+                let msg = openrouter_error_message(&text);
+                return Err(format!("OpenRouter rate limit exceeded after {attempt} retries: {msg}").into());
             }
             // Respect Retry-After if provided, otherwise exponential backoff (1s, 2s, 4s, 8s).
             let delay_secs = response
@@ -246,7 +254,8 @@ async fn call_openrouter(
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            return Err(format!("OpenRouter API error {status}: {text}").into());
+            let msg = openrouter_error_message(&text);
+            return Err(format!("OpenRouter API error {status}: {msg}").into());
         }
 
         let json: serde_json::Value = response.json().await?;

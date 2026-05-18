@@ -338,7 +338,7 @@ describe("lookupNutritionWithLLM", () => {
     expect(result.description).toBe("");
   });
 
-  it("throws an error when the response is not ok", async () => {
+  it("throws an error using statusText when response body has no error field", async () => {
     server.use(
       http.post(
         "/llm/lookup",
@@ -351,7 +351,25 @@ describe("lookupNutritionWithLLM", () => {
     );
 
     await expect(lookupNutritionWithLLM("some food")).rejects.toThrow(
-      "Lookup failed: Internal Server Error",
+      "Internal Server Error",
+    );
+  });
+
+  it("throws an error using the message from the JSON error body", async () => {
+    server.use(
+      http.post(
+        "/llm/lookup",
+        () =>
+          new HttpResponse(JSON.stringify({ error: "Model unavailable" }), {
+            status: 500,
+            statusText: "Internal Server Error",
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
+
+    await expect(lookupNutritionWithLLM("some food")).rejects.toThrow(
+      "Model unavailable",
     );
   });
 });
