@@ -11,8 +11,9 @@ use serde::Deserialize;
 use crate::NutritionItem;
 
 const MAX_ROUNDS: usize = 5;
-const MAX_NEW_TOKENS: usize = 1024;
-const API_MAX_RETRIES: u32 = 4;
+const MAX_NEW_TOKENS: usize = 1024;       // used for local llama.cpp inference
+const API_MAX_NEW_TOKENS: usize = 8192;   // higher budget for API models with thinking tokens
+const API_MAX_RETRIES: u32 = 8;
 
 const SYSTEM_PROMPT: &str = "\
 You are a nutrition expert. Look up or estimate nutritional values for the food the user describes.
@@ -221,7 +222,7 @@ async fn call_api(
         "model": model,
         "messages": messages,
         "temperature": 0.1,
-        "max_tokens": MAX_NEW_TOKENS
+        "max_tokens": API_MAX_NEW_TOKENS
     });
 
     let endpoint = format!("{base_url}/chat/completions");
@@ -241,13 +242,27 @@ async fn call_api(
                 let msg = api_error_message(&text);
                 return Err(format!("LLM API rate limit exceeded after {attempt} retries: {msg}").into());
             }
-            // Respect Retry-After if provided, otherwise exponential backoff (1s, 2s, 4s, 8s).
-            let delay_secs = response
+            // Prefer Retry-After header, then retryDelay in JSON body, then exponential backoff.
+            let header_secs = response
                 .headers()
                 .get("retry-after")
                 .and_then(|v| v.to_str().ok())
-                .and_then(|s| s.parse::<u64>().ok())
-                .unwrap_or(1u64 << attempt);
+                .and_then(|s| s.parse::<u64>().ok());
+            let text = response.text().await.unwrap_or_default();
+            let body_secs = serde_json::from_str::<serde_json::Value>(&text)
+                .ok()
+                .and_then(|v| {
+                    // Google returns e.g. "retryDelay": "38s" nested under details[].retryDelay
+                    v["error"]["details"]
+                        .as_array()?
+                        .iter()
+                        .find_map(|d| d["retryDelay"].as_str())
+                        .and_then(|s| s.trim_end_matches('s').parse::<u64>().ok())
+                });
+            let delay_secs = header_secs
+                .or(body_secs)
+                .unwrap_or(1u64 << attempt)
+                .max(1);
             log::warn!("LLM API 429 on attempt {attempt}, retrying in {delay_secs}s");
             tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
             attempt += 1;

@@ -5,7 +5,7 @@ use crate::ParsedNutritionFacts;
 use super::{extract_json, NUTRITION_PROMPT};
 
 const MAX_TOKENS: u32 = 512;
-const MAX_RETRIES: u32 = 4;
+const MAX_RETRIES: u32 = 8;
 
 pub const DEFAULT_MODEL: &str = "gemini-2.0-flash";
 
@@ -83,12 +83,22 @@ impl LlmApiBackend {
                         "LLM API rate limit exceeded after {attempt} retries: {text}"
                     ));
                 }
-                let delay_secs = response
+                let header_secs = response
                     .headers()
                     .get("retry-after")
                     .and_then(|v| v.to_str().ok())
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .unwrap_or(1u64 << attempt);
+                    .and_then(|s| s.parse::<u64>().ok());
+                let text = response.text().await.unwrap_or_default();
+                let body_secs = serde_json::from_str::<serde_json::Value>(&text)
+                    .ok()
+                    .and_then(|v| {
+                        v["error"]["details"]
+                            .as_array()?
+                            .iter()
+                            .find_map(|d| d["retryDelay"].as_str())
+                            .and_then(|s| s.trim_end_matches('s').parse::<u64>().ok())
+                    });
+                let delay_secs = header_secs.or(body_secs).unwrap_or(1u64 << attempt).max(1);
                 log::warn!("LLM API 429, retrying in {delay_secs}s");
                 tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
                 attempt += 1;
