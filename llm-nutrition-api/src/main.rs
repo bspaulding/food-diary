@@ -51,9 +51,9 @@ pub struct AppState {
 #[derive(Parser)]
 #[command(about = "LLM-powered nutrition lookup API")]
 struct Args {
-    /// Backend to use: 'local' (llama.cpp + GEMMA_MODEL_PATH) or 'openrouter'
-    /// (OPENROUTER_API_KEY). When omitted, defaults to openrouter if
-    /// OPENROUTER_API_KEY is set, then local if GEMMA_MODEL_PATH is set.
+    /// Backend to use: 'local' (llama.cpp + GEMMA_MODEL_PATH) or 'api'
+    /// (LLM_API_KEY). When omitted, defaults to api if LLM_API_KEY is set,
+    /// then local if GEMMA_MODEL_PATH is set.
     #[arg(long, value_enum)]
     mode: Option<CliMode>,
 }
@@ -61,7 +61,7 @@ struct Args {
 #[derive(Clone, clap::ValueEnum)]
 enum CliMode {
     Local,
-    Openrouter,
+    Api,
 }
 
 fn load_local_model(path: String) -> Arc<agent::BackendConfig> {
@@ -77,24 +77,32 @@ fn load_local_model(path: String) -> Arc<agent::BackendConfig> {
     })
 }
 
-const DEFAULT_OPENROUTER_MODEL: &str = "google/gemma-4-31b-it:free";
+const DEFAULT_LLM_MODEL: &str = "gemini-2.0-flash";
+const DEFAULT_LLM_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta/openai";
 
 fn build_config(mode: Option<CliMode>) -> Arc<agent::BackendConfig> {
-    let openrouter_key = std::env::var("OPENROUTER_API_KEY").ok();
-    let openrouter_model = std::env::var("OPENROUTER_MODEL")
-        .unwrap_or_else(|_| DEFAULT_OPENROUTER_MODEL.to_string());
+    let llm_key = std::env::var("LLM_API_KEY")
+        .or_else(|_| std::env::var("OPENROUTER_API_KEY"))
+        .ok();
+    let llm_model = std::env::var("LLM_MODEL")
+        .or_else(|_| std::env::var("OPENROUTER_MODEL"))
+        .unwrap_or_else(|_| DEFAULT_LLM_MODEL.to_string());
+    let llm_base_url = std::env::var("LLM_BASE_URL")
+        .or_else(|_| std::env::var("OPENROUTER_BASE_URL"))
+        .unwrap_or_else(|_| DEFAULT_LLM_BASE_URL.to_string());
     let model_path = std::env::var("GEMMA_MODEL_PATH").ok();
 
     match mode {
-        Some(CliMode::Openrouter) => {
-            let key = openrouter_key.unwrap_or_else(|| {
-                eprintln!("--mode openrouter requires OPENROUTER_API_KEY to be set");
+        Some(CliMode::Api) => {
+            let key = llm_key.unwrap_or_else(|| {
+                eprintln!("--mode api requires LLM_API_KEY to be set");
                 std::process::exit(1);
             });
-            info!("Using OpenRouter backend ({openrouter_model})");
-            Arc::new(agent::BackendConfig::OpenRouter {
+            info!("Using LLM API backend ({llm_model} at {llm_base_url})");
+            Arc::new(agent::BackendConfig::Api {
                 api_key: key,
-                model: openrouter_model,
+                model: llm_model,
+                base_url: llm_base_url,
                 client: reqwest::Client::new(),
             })
         }
@@ -106,11 +114,12 @@ fn build_config(mode: Option<CliMode>) -> Arc<agent::BackendConfig> {
             load_local_model(path)
         }
         None => {
-            if let Some(key) = openrouter_key {
-                info!("Auto-selected OpenRouter backend ({openrouter_model})");
-                Arc::new(agent::BackendConfig::OpenRouter {
+            if let Some(key) = llm_key {
+                info!("Auto-selected LLM API backend ({llm_model} at {llm_base_url})");
+                Arc::new(agent::BackendConfig::Api {
                     api_key: key,
-                    model: openrouter_model,
+                    model: llm_model,
+                    base_url: llm_base_url,
                     client: reqwest::Client::new(),
                 })
             } else if let Some(path) = model_path {
@@ -119,10 +128,11 @@ fn build_config(mode: Option<CliMode>) -> Arc<agent::BackendConfig> {
             } else {
                 eprintln!(
                     "No backend configured. Either:\n  \
-                     - Set OPENROUTER_API_KEY to use OpenRouter (default: {DEFAULT_OPENROUTER_MODEL})\n  \
+                     - Set LLM_API_KEY to use an OpenAI-compatible API (default model: {DEFAULT_LLM_MODEL})\n  \
                      - Set GEMMA_MODEL_PATH to use the local Gemma model\n  \
-                     - Pass --mode local|openrouter to force a specific backend\n  \
-                     - Set OPENROUTER_MODEL to override the OpenRouter model"
+                     - Pass --mode local|api to force a specific backend\n  \
+                     - Set LLM_MODEL to override the model name\n  \
+                     - Set LLM_BASE_URL to override the API endpoint (default: {DEFAULT_LLM_BASE_URL})"
                 );
                 std::process::exit(1);
             }

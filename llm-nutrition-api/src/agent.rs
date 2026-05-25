@@ -12,7 +12,7 @@ use crate::NutritionItem;
 
 const MAX_ROUNDS: usize = 5;
 const MAX_NEW_TOKENS: usize = 1024;
-const OPENROUTER_MAX_RETRIES: u32 = 4;
+const API_MAX_RETRIES: u32 = 4;
 
 const SYSTEM_PROMPT: &str = "\
 You are a nutrition expert. Look up or estimate nutritional values for the food the user describes.
@@ -71,9 +71,10 @@ pub enum BackendConfig {
         backend: Arc<LlamaBackend>,
         model: Arc<LlamaModel>,
     },
-    OpenRouter {
+    Api {
         api_key: String,
         model: String,
+        base_url: String,
         client: reqwest::Client,
     },
 }
@@ -193,17 +194,18 @@ fn extract_json(text: &str) -> Option<&str> {
     Some(&slice[..=end])
 }
 
-fn openrouter_error_message(text: &str) -> String {
+fn api_error_message(text: &str) -> String {
     serde_json::from_str::<serde_json::Value>(text)
         .ok()
         .and_then(|v| v["error"]["message"].as_str().map(String::from))
         .unwrap_or_else(|| text.to_string())
 }
 
-async fn call_openrouter(
+async fn call_api(
     client: &reqwest::Client,
     api_key: &str,
     model: &str,
+    base_url: &str,
     conversation: &[(String, String)],
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let messages: Vec<serde_json::Value> = conversation
@@ -222,10 +224,11 @@ async fn call_openrouter(
         "max_tokens": MAX_NEW_TOKENS
     });
 
+    let endpoint = format!("{base_url}/chat/completions");
     let mut attempt = 0u32;
     loop {
         let response = client
-            .post("https://openrouter.ai/api/v1/chat/completions")
+            .post(&endpoint)
             .header("Authorization", format!("Bearer {api_key}"))
             .header("Content-Type", "application/json")
             .json(&body)
@@ -233,10 +236,10 @@ async fn call_openrouter(
             .await?;
 
         if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
-            if attempt >= OPENROUTER_MAX_RETRIES {
+            if attempt >= API_MAX_RETRIES {
                 let text = response.text().await.unwrap_or_default();
-                let msg = openrouter_error_message(&text);
-                return Err(format!("OpenRouter rate limit exceeded after {attempt} retries: {msg}").into());
+                let msg = api_error_message(&text);
+                return Err(format!("LLM API rate limit exceeded after {attempt} retries: {msg}").into());
             }
             // Respect Retry-After if provided, otherwise exponential backoff (1s, 2s, 4s, 8s).
             let delay_secs = response
@@ -245,7 +248,7 @@ async fn call_openrouter(
                 .and_then(|v| v.to_str().ok())
                 .and_then(|s| s.parse::<u64>().ok())
                 .unwrap_or(1u64 << attempt);
-            log::warn!("OpenRouter 429 on attempt {attempt}, retrying in {delay_secs}s");
+            log::warn!("LLM API 429 on attempt {attempt}, retrying in {delay_secs}s");
             tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
             attempt += 1;
             continue;
@@ -254,14 +257,14 @@ async fn call_openrouter(
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            let msg = openrouter_error_message(&text);
-            return Err(format!("OpenRouter API error {status}: {msg}").into());
+            let msg = api_error_message(&text);
+            return Err(format!("LLM API error {status}: {msg}").into());
         }
 
         let json: serde_json::Value = response.json().await?;
         let content = json["choices"][0]["message"]["content"]
             .as_str()
-            .ok_or("Missing content in OpenRouter response")?
+            .ok_or("Missing content in LLM API response")?
             .trim()
             .to_string();
 
@@ -353,10 +356,11 @@ async fn run_agent_local(
     Err("Max agent rounds exceeded without a nutrition answer".into())
 }
 
-async fn run_agent_openrouter(
+async fn run_agent_api(
     client: &reqwest::Client,
     api_key: &str,
     model: &str,
+    base_url: &str,
     description: String,
 ) -> Result<NutritionItem, Box<dyn std::error::Error + Send + Sync>> {
     let mut conversation: Vec<(String, String)> = vec![
@@ -367,7 +371,7 @@ async fn run_agent_openrouter(
     for round in 0..MAX_ROUNDS {
         log::debug!("Agent round {round}");
 
-        let output = call_openrouter(client, api_key, model, &conversation).await?;
+        let output = call_api(client, api_key, model, base_url, &conversation).await?;
         log::debug!("Model output: {output}");
 
         let json_str = extract_json(&output).unwrap_or(&output);
@@ -411,7 +415,7 @@ async fn run_agent_openrouter(
             "Output ONLY the JSON nutrition object. No markdown, no explanation, just the JSON object with all 14 fields.".to_string(),
         ));
 
-        let final_json = call_openrouter(client, api_key, model, &final_conv).await?;
+        let final_json = call_api(client, api_key, model, base_url, &final_conv).await?;
         log::debug!("Final JSON: {final_json}");
 
         let json_str = extract_json(&final_json).unwrap_or(&final_json);
@@ -430,8 +434,8 @@ pub async fn run_agent(
         BackendConfig::Local { backend, model } => {
             run_agent_local(Arc::clone(backend), Arc::clone(model), description).await
         }
-        BackendConfig::OpenRouter { api_key, model, client } => {
-            run_agent_openrouter(client, api_key, model, description).await
+        BackendConfig::Api { api_key, model, base_url, client } => {
+            run_agent_api(client, api_key, model, base_url, description).await
         }
     }
 }
