@@ -14,7 +14,7 @@ use oar_ocr::core::config::onnx::{OrtSessionConfig, OrtExecutionProvider, OrtGra
 use serde_derive::{Deserialize, Serialize};
 use nutrition_fact_labeller::{ParsedNutritionFacts, VlmBackend};
 use nutrition_fact_labeller::vlm::llava::LlavaBackend;
-use nutrition_fact_labeller::vlm::openrouter::{OpenRouterBackend, DEFAULT_MODEL};
+use nutrition_fact_labeller::vlm::openrouter::{LlmApiBackend, DEFAULT_MODEL};
 mod spellcheck;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -116,17 +116,20 @@ async fn main() {
         }
     };
 
-    let or_backend: Option<Arc<OpenRouterBackend>> = {
-        let api_key = std::env::var("OPENROUTER_API_KEY").ok();
+    let api_backend: Option<Arc<LlmApiBackend>> = {
+        let api_key = std::env::var("LLM_API_KEY")
+            .or_else(|_| std::env::var("OPENROUTER_API_KEY"))
+            .ok();
         match api_key {
             Some(key) => {
-                let model = std::env::var("OPENROUTER_MODEL")
+                let model = std::env::var("LLM_MODEL")
+                    .or_else(|_| std::env::var("OPENROUTER_MODEL"))
                     .unwrap_or_else(|_| DEFAULT_MODEL.to_string());
-                info!("OpenRouter VLM backend enabled with model {model}");
-                Some(Arc::new(OpenRouterBackend::new(key, model)))
+                info!("LLM API VLM backend enabled with model {model}");
+                Some(Arc::new(LlmApiBackend::new(key, model)))
             }
             None => {
-                info!("OpenRouter disabled (set OPENROUTER_API_KEY to enable)");
+                info!("LLM API disabled (set LLM_API_KEY to enable)");
                 None
             }
         }
@@ -136,15 +139,15 @@ async fn main() {
         let vlm = vlm.clone();
         warp::any().map(move || vlm.clone())
     };
-    let or_filter = {
-        let or_backend = or_backend.clone();
-        warp::any().map(move || or_backend.clone())
+    let api_filter = {
+        let api_backend = api_backend.clone();
+        warp::any().map(move || api_backend.clone())
     };
 
     let upload = vlm_filter
-        .and(or_filter)
+        .and(api_filter)
         .and(warp::multipart::form().max_length(50 * 1024 * 1024))
-        .and_then(|vlm: Option<Arc<LlavaBackend>>, or_backend: Option<Arc<OpenRouterBackend>>, form: FormData| async move {
+        .and_then(|vlm: Option<Arc<LlavaBackend>>, api_backend: Option<Arc<LlmApiBackend>>, form: FormData| async move {
             // Drain all multipart parts into memory before dispatching.
             let parts: Vec<(String, Vec<u8>)> = form
                 .and_then(|mut part| async move {
@@ -171,11 +174,11 @@ async fn main() {
             let image_bytes = image_bytes.ok_or_else(|| warp::reject::reject())?;
 
             let facts: ParsedNutritionFacts = if backend == "vlm" {
-                // Prefer OpenRouter if configured, fall back to local llama.cpp.
-                if let Some(or) = or_backend {
-                    or.infer(&image_bytes)
+                // Prefer API backend if configured, fall back to local llama.cpp.
+                if let Some(api) = api_backend {
+                    api.infer(&image_bytes)
                         .await
-                        .map_err(|e| { eprintln!("OpenRouter VLM failed: {e}"); warp::reject::reject() })?
+                        .map_err(|e| { eprintln!("LLM API VLM failed: {e}"); warp::reject::reject() })?
                 } else if let Some(vlm_backend) = vlm {
                     tokio::task::spawn_blocking(move || -> anyhow::Result<ParsedNutritionFacts> {
                         // VLM infer() takes a path, so write to a temp file.

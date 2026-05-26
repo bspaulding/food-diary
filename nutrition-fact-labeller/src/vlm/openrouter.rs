@@ -5,22 +5,23 @@ use crate::ParsedNutritionFacts;
 use super::{extract_json, NUTRITION_PROMPT};
 
 const MAX_TOKENS: u32 = 512;
-const MAX_RETRIES: u32 = 4;
+const MAX_RETRIES: u32 = 8;
 
-pub const DEFAULT_MODEL: &str = "google/gemma-4-31b-it:free";
+pub const DEFAULT_MODEL: &str = "gemini-2.0-flash";
 
-const DEFAULT_BASE_URL: &str = "https://openrouter.ai";
+const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta/openai";
 
-pub struct OpenRouterBackend {
+pub struct LlmApiBackend {
     pub api_key: String,
     pub model: String,
     pub base_url: String,
     pub client: reqwest::Client,
 }
 
-impl OpenRouterBackend {
+impl LlmApiBackend {
     pub fn new(api_key: impl Into<String>, model: impl Into<String>) -> Self {
-        let base_url = std::env::var("OPENROUTER_BASE_URL")
+        let base_url = std::env::var("LLM_BASE_URL")
+            .or_else(|_| std::env::var("OPENROUTER_BASE_URL"))
             .unwrap_or_else(|_| DEFAULT_BASE_URL.to_string());
         Self::with_base_url(api_key, model, base_url)
     }
@@ -63,7 +64,7 @@ impl OpenRouterBackend {
             "max_tokens": MAX_TOKENS
         });
 
-        let endpoint = format!("{}/api/v1/chat/completions", self.base_url);
+        let endpoint = format!("{}/chat/completions", self.base_url);
         let mut attempt = 0u32;
         loop {
             let response = self.client
@@ -73,22 +74,32 @@ impl OpenRouterBackend {
                 .json(&body)
                 .send()
                 .await
-                .context("Failed to send OpenRouter request")?;
+                .context("Failed to send LLM API request")?;
 
             if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
                 if attempt >= MAX_RETRIES {
                     let text = response.text().await.unwrap_or_default();
                     return Err(anyhow::anyhow!(
-                        "OpenRouter rate limit exceeded after {attempt} retries: {text}"
+                        "LLM API rate limit exceeded after {attempt} retries: {text}"
                     ));
                 }
-                let delay_secs = response
+                let header_secs = response
                     .headers()
                     .get("retry-after")
                     .and_then(|v| v.to_str().ok())
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .unwrap_or(1u64 << attempt);
-                log::warn!("OpenRouter 429, retrying in {delay_secs}s");
+                    .and_then(|s| s.parse::<u64>().ok());
+                let text = response.text().await.unwrap_or_default();
+                let body_secs = serde_json::from_str::<serde_json::Value>(&text)
+                    .ok()
+                    .and_then(|v| {
+                        v["error"]["details"]
+                            .as_array()?
+                            .iter()
+                            .find_map(|d| d["retryDelay"].as_str())
+                            .and_then(|s| s.trim_end_matches('s').parse::<u64>().ok())
+                    });
+                let delay_secs = header_secs.or(body_secs).unwrap_or(1u64 << attempt).max(1);
+                log::warn!("LLM API 429, retrying in {delay_secs}s");
                 tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
                 attempt += 1;
                 continue;
@@ -97,16 +108,16 @@ impl OpenRouterBackend {
             if !response.status().is_success() {
                 let status = response.status();
                 let text = response.text().await.unwrap_or_default();
-                return Err(anyhow::anyhow!("OpenRouter API error {status}: {text}"));
+                return Err(anyhow::anyhow!("LLM API error {status}: {text}"));
             }
 
             let json: serde_json::Value = response
                 .json()
                 .await
-                .context("Failed to parse OpenRouter response")?;
+                .context("Failed to parse LLM API response")?;
             let output = json["choices"][0]["message"]["content"]
                 .as_str()
-                .ok_or_else(|| anyhow::anyhow!("Missing content in OpenRouter response"))?
+                .ok_or_else(|| anyhow::anyhow!("Missing content in LLM API response"))?
                 .trim()
                 .to_string();
 
@@ -234,7 +245,7 @@ mod tests {
                 .unwrap_or_else(|_| panic!("missing image: {filename}"));
 
             let (base_url, mock_rx) = spawn_mock(openrouter_response(&expected)).await;
-            let backend = OpenRouterBackend::with_base_url("test-key", "test-model", &base_url);
+            let backend = LlmApiBackend::with_base_url("test-key", "test-model", &base_url);
             let actual = backend.infer(&img_bytes).await
                 .unwrap_or_else(|e| panic!("infer failed for {filename}: {e}"));
 
