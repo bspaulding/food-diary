@@ -105,8 +105,8 @@ describe("Browser Acceptance Tests", () => {
       { timeout: 5000 },
     );
 
-    // Banana: 1 serving * 3.1g fiber
-    expect(screen.getByText(/3\.1g fiber/i)).toBeTruthy();
+    // Banana: 1 serving * 3.1g fiber, rounded to 3g
+    expect(screen.getByText(/3g fiber/i)).toBeTruthy();
   });
 
   it("should complete Add Item flow - create new item and log it", async () => {

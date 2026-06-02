@@ -625,8 +625,8 @@ describe("DiaryList", () => {
 
     await waitFor(() => {
       // Recipe has total_servings: 1. Per-serving protein = (1.3 + 5) / 1 = 6.3g.
-      // Diary entry logs 2 servings: 2 * 6.3 = 12.6g protein.
-      expect(screen.getByText(/12.6g protein/)).toBeTruthy();
+      // Diary entry logs 2 servings: 2 * 6.3 = 12.6g protein, rounded to 13g.
+      expect(screen.getByText(/13g protein/)).toBeTruthy();
     });
   });
 

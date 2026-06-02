@@ -213,10 +213,15 @@ const DiaryList: Component = () => {
                     {(entry: () => DiaryEntry, i: number) => (
                       <li class="mb-4">
                         <p class="font-semibold">
-                          {entry().calories} kcal,{" "}
-                          {entryTotalMacro("protein_grams", entry())}g protein,{" "}
-                          {entryTotalMacro("dietary_fiber_grams", entry())}g
-                          fiber
+                          {Math.round(entry().calories)} kcal,{" "}
+                          {Math.round(
+                            entryTotalMacro("protein_grams", entry()),
+                          )}
+                          g protein,{" "}
+                          {Math.round(
+                            entryTotalMacro("dietary_fiber_grams", entry()),
+                          )}
+                          g fiber
                         </p>
                         <p>
                           <a
