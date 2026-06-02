@@ -42,10 +42,13 @@ function recipeTotalForKey(
   recipe: RecipeWithItems | undefined,
 ): number {
   if (!recipe) return 0;
-  return (recipe.recipe_items || []).reduce(
-    (acc: number, recipe_item) =>
-      acc + recipe_item.servings * recipe_item.nutrition_item[key],
-    0,
+  const totalServings = recipe.total_servings > 0 ? recipe.total_servings : 1;
+  return (
+    (recipe.recipe_items || []).reduce(
+      (acc: number, recipe_item) =>
+        acc + recipe_item.servings * recipe_item.nutrition_item[key],
+      0,
+    ) / totalServings
   );
 }
 
