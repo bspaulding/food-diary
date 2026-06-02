@@ -584,6 +584,7 @@ describe("DiaryList", () => {
                 recipe: {
                   id: 1,
                   name: "Smoothie",
+                  total_servings: 1,
                   recipe_items: [
                     {
                       servings: 1,
@@ -623,8 +624,69 @@ describe("DiaryList", () => {
     render(() => <DiaryList />);
 
     await waitFor(() => {
-      // Should show protein from recipe items: 2 * (1.3 + 5) = 12.6
+      // Recipe has total_servings: 1. Per-serving protein = (1.3 + 5) / 1 = 6.3g.
+      // Diary entry logs 2 servings: 2 * 6.3 = 12.6g protein.
       expect(screen.getByText(/12.6g protein/)).toBeTruthy();
+    });
+  });
+
+  it("should divide recipe macros by total_servings before multiplying by diary entry servings", async () => {
+    server.use(
+      http.post("/api/v1/graphql", () => {
+        return HttpResponse.json({
+          data: {
+            food_diary_diary_entry: [
+              {
+                id: 1,
+                consumed_at: "2024-01-15T10:30:00Z",
+                servings: 2,
+                calories: 310,
+                nutrition_item: null,
+                recipe: {
+                  id: 1,
+                  name: "Chicken Bowl",
+                  total_servings: 4,
+                  recipe_items: [
+                    {
+                      servings: 1,
+                      nutrition_item: {
+                        id: 1,
+                        description: "Chicken",
+                        calories: 165,
+                        protein_grams: 31,
+                        added_sugars_grams: 0,
+                        total_fat_grams: 3.6,
+                        dietary_fiber_grams: 0,
+                      },
+                    },
+                    {
+                      servings: 1,
+                      nutrition_item: {
+                        id: 2,
+                        description: "Brown Rice",
+                        calories: 216,
+                        protein_grams: 5,
+                        added_sugars_grams: 0,
+                        total_fat_grams: 1.8,
+                        dietary_fiber_grams: 3.5,
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+            current_week: { aggregate: { sum: { calories: 310 } } },
+            past_four_weeks: { aggregate: { sum: { calories: 1240 } } },
+          },
+        });
+      }),
+    );
+
+    render(() => <DiaryList />);
+
+    await waitFor(() => {
+      // Per-serving protein = (31 + 5) / 4 = 9g. Diary logs 2 servings: 2 * 9 = 18g.
+      expect(screen.getByText(/18g protein/)).toBeTruthy();
     });
   });
 

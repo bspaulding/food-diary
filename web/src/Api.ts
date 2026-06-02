@@ -67,7 +67,7 @@ query GetEntries {
         calories
         servings
         nutrition_item { id, description, calories, ...Macros }
-        recipe { id, name, calories, recipe_items { servings, nutrition_item { ...Macros } } }
+        recipe { id, name, calories, total_servings, recipe_items { servings, nutrition_item { ...Macros } } }
     }
 }
 `;
@@ -158,6 +158,7 @@ export type RecipeWithItems = {
   id: number;
   name: string;
   calories: number;
+  total_servings: number;
   recipe_items: RecipeItem[];
 };
 
@@ -737,7 +738,7 @@ const getDiaryEntryQuery = `
       calories
       servings
       nutrition_item { id, description, calories, ...Macros }
-      recipe { id, name, calories, recipe_items { servings, nutrition_item { ...Macros } } }
+      recipe { id, name, calories, total_servings, recipe_items { servings, nutrition_item { ...Macros } } }
     }
   }
 `;
