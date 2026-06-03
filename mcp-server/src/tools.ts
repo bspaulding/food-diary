@@ -86,6 +86,145 @@ const UPDATE_RECIPE_ATTRS = `
   }
 `;
 
+type TextContent = { content: [{ type: "text"; text: string }] };
+
+export async function listDiaryEntries(
+  jwt: string,
+  args: { start_date: string; end_date: string }
+): Promise<TextContent> {
+  const data = await gql(jwt, LIST_DIARY_ENTRIES, { start_date: args.start_date, end_date: args.end_date });
+  return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+}
+
+export async function searchFood(jwt: string, args: { query: string }): Promise<TextContent> {
+  const data = await gql(jwt, SEARCH_FOOD, { search: args.query });
+  return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+}
+
+export async function createDiaryEntry(
+  jwt: string,
+  args: { consumed_at: string; servings: number; nutrition_item_id?: number; recipe_id?: number }
+): Promise<TextContent> {
+  const entry: Record<string, unknown> = { consumed_at: args.consumed_at, servings: args.servings };
+  if (args.nutrition_item_id !== undefined) entry.nutrition_item_id = args.nutrition_item_id;
+  if (args.recipe_id !== undefined) entry.recipe_id = args.recipe_id;
+  const data = await gql<{ insert_food_diary_diary_entry_one: { id: number } }>(
+    jwt,
+    CREATE_DIARY_ENTRY,
+    { entry }
+  );
+  return {
+    content: [{ type: "text", text: `Created diary entry with id: ${data.insert_food_diary_diary_entry_one.id}` }],
+  };
+}
+
+export async function updateDiaryEntry(
+  jwt: string,
+  args: { id: number; servings?: number; consumed_at?: string }
+): Promise<TextContent> {
+  const attrs: Record<string, unknown> = {};
+  if (args.servings !== undefined) attrs.servings = args.servings;
+  if (args.consumed_at !== undefined) attrs.consumed_at = args.consumed_at;
+  await gql(jwt, UPDATE_DIARY_ENTRY, { id: args.id, attrs });
+  return { content: [{ type: "text", text: `Updated diary entry ${args.id}` }] };
+}
+
+export async function deleteDiaryEntry(jwt: string, args: { id: number }): Promise<TextContent> {
+  await gql(jwt, DELETE_DIARY_ENTRY, { id: args.id });
+  return { content: [{ type: "text", text: `Deleted diary entry ${args.id}` }] };
+}
+
+export async function createNutritionItem(
+  jwt: string,
+  args: {
+    description: string;
+    calories: number;
+    total_fat_grams: number;
+    saturated_fat_grams: number;
+    trans_fat_grams: number;
+    polyunsaturated_fat_grams: number;
+    monounsaturated_fat_grams: number;
+    cholesterol_milligrams: number;
+    sodium_milligrams: number;
+    total_carbohydrate_grams: number;
+    dietary_fiber_grams: number;
+    total_sugars_grams: number;
+    added_sugars_grams: number;
+    protein_grams: number;
+  }
+): Promise<TextContent> {
+  const data = await gql<{ insert_food_diary_nutrition_item_one: { id: number; description: string } }>(
+    jwt,
+    CREATE_NUTRITION_ITEM,
+    { item: args }
+  );
+  const item = data.insert_food_diary_nutrition_item_one;
+  return { content: [{ type: "text", text: `Created nutrition item '${item.description}' with id: ${item.id}` }] };
+}
+
+export async function updateNutritionItem(
+  jwt: string,
+  args: {
+    id: number;
+    description?: string;
+    calories?: number;
+    total_fat_grams?: number;
+    saturated_fat_grams?: number;
+    trans_fat_grams?: number;
+    polyunsaturated_fat_grams?: number;
+    monounsaturated_fat_grams?: number;
+    cholesterol_milligrams?: number;
+    sodium_milligrams?: number;
+    total_carbohydrate_grams?: number;
+    dietary_fiber_grams?: number;
+    total_sugars_grams?: number;
+    added_sugars_grams?: number;
+    protein_grams?: number;
+  }
+): Promise<TextContent> {
+  const { id, ...rest } = args;
+  const attrs = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
+  await gql(jwt, UPDATE_NUTRITION_ITEM, { id, attrs });
+  return { content: [{ type: "text", text: `Updated nutrition item ${id}` }] };
+}
+
+export async function createRecipe(
+  jwt: string,
+  args: { name: string; total_servings: number; items: Array<{ nutrition_item_id: number; servings: number }> }
+): Promise<TextContent> {
+  const input = { name: args.name, total_servings: args.total_servings, recipe_items: { data: args.items } };
+  const data = await gql<{ insert_food_diary_recipe_one: { id: number; name: string } }>(
+    jwt,
+    CREATE_RECIPE,
+    { input }
+  );
+  const recipe = data.insert_food_diary_recipe_one;
+  return { content: [{ type: "text", text: `Created recipe '${recipe.name}' with id: ${recipe.id}` }] };
+}
+
+export async function updateRecipe(
+  jwt: string,
+  args: {
+    id: number;
+    name?: string;
+    total_servings?: number;
+    items?: Array<{ nutrition_item_id: number; servings: number }>;
+  }
+): Promise<TextContent> {
+  const attrs: Record<string, unknown> = {};
+  if (args.name !== undefined) attrs.name = args.name;
+  if (args.total_servings !== undefined) attrs.total_servings = args.total_servings;
+
+  if (args.items !== undefined) {
+    const mappedItems = args.items.map((item) => ({ ...item, recipe_id: args.id }));
+    await gql(jwt, UPDATE_RECIPE, { id: args.id, attrs, items: mappedItems });
+  } else {
+    await gql(jwt, UPDATE_RECIPE_ATTRS, { id: args.id, attrs });
+  }
+
+  return { content: [{ type: "text", text: `Updated recipe ${args.id}` }] };
+}
+
 export function registerTools(server: McpServer, jwt: string): void {
   server.tool(
     "list_diary_entries",
@@ -94,22 +233,14 @@ export function registerTools(server: McpServer, jwt: string): void {
       start_date: z.string().describe("Start of range, ISO 8601 (e.g. 2024-01-01T00:00:00Z)"),
       end_date: z.string().describe("End of range, ISO 8601 (e.g. 2024-01-31T23:59:59Z)"),
     },
-    async ({ start_date, end_date }) => {
-      const data = await gql(jwt, LIST_DIARY_ENTRIES, { start_date, end_date });
-      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-    }
+    (args) => listDiaryEntries(jwt, args)
   );
 
   server.tool(
     "search_food",
     "Search nutrition items and recipes by name (fuzzy). Returns IDs to use in create/update tools.",
-    {
-      query: z.string().describe("Search term"),
-    },
-    async ({ query }) => {
-      const data = await gql(jwt, SEARCH_FOOD, { search: query });
-      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-    }
+    { query: z.string().describe("Search term") },
+    (args) => searchFood(jwt, args)
   );
 
   server.tool(
@@ -121,24 +252,7 @@ export function registerTools(server: McpServer, jwt: string): void {
       nutrition_item_id: z.number().optional().describe("ID from search_food"),
       recipe_id: z.number().optional().describe("ID from search_food"),
     },
-    async ({ consumed_at, servings, nutrition_item_id, recipe_id }) => {
-      const entry: Record<string, unknown> = { consumed_at, servings };
-      if (nutrition_item_id !== undefined) entry.nutrition_item_id = nutrition_item_id;
-      if (recipe_id !== undefined) entry.recipe_id = recipe_id;
-      const data = await gql<{ insert_food_diary_diary_entry_one: { id: number } }>(
-        jwt,
-        CREATE_DIARY_ENTRY,
-        { entry }
-      );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Created diary entry with id: ${data.insert_food_diary_diary_entry_one.id}`,
-          },
-        ],
-      };
-    }
+    (args) => createDiaryEntry(jwt, args)
   );
 
   server.tool(
@@ -149,25 +263,14 @@ export function registerTools(server: McpServer, jwt: string): void {
       servings: z.number().optional().describe("New serving count"),
       consumed_at: z.string().optional().describe("New datetime ISO 8601"),
     },
-    async ({ id, servings, consumed_at }) => {
-      const attrs: Record<string, unknown> = {};
-      if (servings !== undefined) attrs.servings = servings;
-      if (consumed_at !== undefined) attrs.consumed_at = consumed_at;
-      await gql(jwt, UPDATE_DIARY_ENTRY, { id, attrs });
-      return { content: [{ type: "text" as const, text: `Updated diary entry ${id}` }] };
-    }
+    (args) => updateDiaryEntry(jwt, args)
   );
 
   server.tool(
     "delete_diary_entry",
     "Remove a diary entry by ID.",
-    {
-      id: z.number().describe("Diary entry ID to delete"),
-    },
-    async ({ id }) => {
-      await gql(jwt, DELETE_DIARY_ENTRY, { id });
-      return { content: [{ type: "text" as const, text: `Deleted diary entry ${id}` }] };
-    }
+    { id: z.number().describe("Diary entry ID to delete") },
+    (args) => deleteDiaryEntry(jwt, args)
   );
 
   server.tool(
@@ -189,20 +292,7 @@ export function registerTools(server: McpServer, jwt: string): void {
       added_sugars_grams: z.number().default(0),
       protein_grams: z.number().default(0),
     },
-    async (args) => {
-      const data = await gql<{
-        insert_food_diary_nutrition_item_one: { id: number; description: string };
-      }>(jwt, CREATE_NUTRITION_ITEM, { item: args });
-      const item = data.insert_food_diary_nutrition_item_one;
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Created nutrition item '${item.description}' with id: ${item.id}`,
-          },
-        ],
-      };
-    }
+    (args) => createNutritionItem(jwt, args)
   );
 
   server.tool(
@@ -225,13 +315,7 @@ export function registerTools(server: McpServer, jwt: string): void {
       added_sugars_grams: z.number().optional(),
       protein_grams: z.number().optional(),
     },
-    async ({ id, ...rest }) => {
-      const attrs = Object.fromEntries(
-        Object.entries(rest).filter(([, v]) => v !== undefined)
-      );
-      await gql(jwt, UPDATE_NUTRITION_ITEM, { id, attrs });
-      return { content: [{ type: "text" as const, text: `Updated nutrition item ${id}` }] };
-    }
+    (args) => updateNutritionItem(jwt, args)
   );
 
   server.tool(
@@ -249,27 +333,7 @@ export function registerTools(server: McpServer, jwt: string): void {
         )
         .describe("Ingredient list"),
     },
-    async ({ name, total_servings, items }) => {
-      const input = {
-        name,
-        total_servings,
-        recipe_items: { data: items },
-      };
-      const data = await gql<{ insert_food_diary_recipe_one: { id: number; name: string } }>(
-        jwt,
-        CREATE_RECIPE,
-        { input }
-      );
-      const recipe = data.insert_food_diary_recipe_one;
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Created recipe '${recipe.name}' with id: ${recipe.id}`,
-          },
-        ],
-      };
-    }
+    (args) => createRecipe(jwt, args)
   );
 
   server.tool(
@@ -280,28 +344,10 @@ export function registerTools(server: McpServer, jwt: string): void {
       name: z.string().optional().describe("New name"),
       total_servings: z.number().optional().describe("New total servings"),
       items: z
-        .array(
-          z.object({
-            nutrition_item_id: z.number(),
-            servings: z.number(),
-          })
-        )
+        .array(z.object({ nutrition_item_id: z.number(), servings: z.number() }))
         .optional()
         .describe("New ingredient list (replaces existing)"),
     },
-    async ({ id, name, total_servings, items }) => {
-      const attrs: Record<string, unknown> = {};
-      if (name !== undefined) attrs.name = name;
-      if (total_servings !== undefined) attrs.total_servings = total_servings;
-
-      if (items !== undefined) {
-        const mappedItems = items.map((item) => ({ ...item, recipe_id: id }));
-        await gql(jwt, UPDATE_RECIPE, { id, attrs, items: mappedItems });
-      } else {
-        await gql(jwt, UPDATE_RECIPE_ATTRS, { id, attrs });
-      }
-
-      return { content: [{ type: "text" as const, text: `Updated recipe ${id}` }] };
-    }
+    (args) => updateRecipe(jwt, args)
   );
 }
