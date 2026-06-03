@@ -8,6 +8,7 @@ on:
       - "graphql-engine-v*"
       - "llm-nutrition-api-v*"
       - "nutrition-fact-labeller-v*"
+      - "mcp-server-v*"
   pull_request:
 
 permissions:
@@ -21,6 +22,7 @@ jobs:
       graphql_engine: ${{ steps.filter.outputs.graphql_engine }}
       llm_nutrition_api: ${{ steps.filter.outputs.llm_nutrition_api }}
       nutrition_fact_labeller: ${{ steps.filter.outputs.nutrition_fact_labeller }}
+      mcp_server: ${{ steps.filter.outputs.mcp_server }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +38,8 @@ jobs:
               - "llm-nutrition-api/**"
             nutrition_fact_labeller:
               - "nutrition-fact-labeller/**"
+            mcp_server:
+              - "mcp-server/**"
 
   test-web:
     needs: changes
@@ -208,6 +212,27 @@ jobs:
       - name: Run tests
         run: cargo test
 
+  test-mcp-server:
+    needs: changes
+    if: |
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
+      needs.changes.outputs.mcp_server == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm ci
+
+      - name: TypeScript build
+        run: npm run build
+
   publish-web:
     needs: [changes, test-web]
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.web == 'true'
@@ -264,6 +289,30 @@ jobs:
       component: nutrition-fact-labeller
       context: nutrition-fact-labeller
       file: nutrition-fact-labeller/Containerfile
+    secrets: inherit
+
+  publish-mcp-server:
+    needs: [changes, test-mcp-server]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.mcp_server == 'true'
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      component: mcp-server
+      context: mcp-server
+    secrets: inherit
+
+  retag-mcp-server:
+    if: startsWith(github.ref, 'refs/tags/mcp-server-v')
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/retag-image.yml
+    with:
+      component: mcp-server
     secrets: inherit
 
   retag-web:
