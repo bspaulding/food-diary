@@ -5,10 +5,10 @@ import { validateJWT } from "./auth.js";
 const SECRET = "test-secret-key";
 const AUDIENCE = "https://direct-satyr-14.hasura.app/v1/graphql";
 
-function makeToken(opts: { secret?: string; audience?: string; expiresIn?: string } = {}) {
+function makeToken(opts: { secret?: string; audience?: string } = {}) {
   return sign({ sub: "user-123" }, opts.secret ?? SECRET, {
     audience: opts.audience ?? AUDIENCE,
-    expiresIn: opts.expiresIn ?? "1h",
+    expiresIn: "1h",
   });
 }
 
@@ -42,7 +42,9 @@ describe("validateJWT", () => {
   });
 
   it("throws for an expired token", () => {
-    expect(() => validateJWT(makeToken({ expiresIn: "-1s" }))).toThrow();
+    // expiresIn: -1 means the token expired 1 second ago
+    const token = sign({ sub: "user-123" }, SECRET, { audience: AUDIENCE, expiresIn: -1 });
+    expect(() => validateJWT(token)).toThrow();
   });
 
   it("falls back to the default audience when AUTH0_AUDIENCE is not set", () => {

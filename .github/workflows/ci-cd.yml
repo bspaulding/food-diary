@@ -233,6 +233,9 @@ jobs:
       - name: TypeScript build
         run: npm run build
 
+      - name: Tests
+        run: npm test
+
   publish-web:
     needs: [changes, test-web]
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.web == 'true'
