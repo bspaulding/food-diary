@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { createSecretKey } from "crypto";
 
 export function issueAccessToken(sub: string): string {
   const secret = process.env.HASURA_GRAPHQL_JWT_SECRET;
@@ -16,7 +17,7 @@ export function issueAccessToken(sub: string): string {
         "x-hasura-user-id": sub,
       },
     },
-    Buffer.from(key, "utf8"),
+    createSecretKey(Buffer.from(key, "utf8")),
     { algorithm: "HS256", audience, issuer, expiresIn: "1h" }
   );
 }
