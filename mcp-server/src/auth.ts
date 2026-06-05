@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import jwt from "jsonwebtoken";
 import { compactDecrypt } from "jose";
 
@@ -20,7 +21,7 @@ export async function validateJWT(token: string): Promise<DecodedToken> {
   if (token.split(".").length === 5) {
     const clientSecret = process.env.AUTH0_CLIENT_SECRET;
     if (!clientSecret) throw new Error("AUTH0_CLIENT_SECRET is not set");
-    const keyBytes = Buffer.from(clientSecret, "base64url").subarray(0, 32);
+    const keyBytes = createHash("sha256").update(Buffer.from(clientSecret, "base64url")).digest();
     const { plaintext } = await compactDecrypt(token, keyBytes);
     const innerToken = Buffer.from(plaintext).toString();
     return jwt.verify(innerToken, parsed.key, { algorithms: ["HS256"], audience }) as DecodedToken;

@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { sign } from "jsonwebtoken";
 import { CompactEncrypt } from "jose";
@@ -22,7 +23,7 @@ async function makeJweToken(opts: { audience?: string } = {}) {
     audience: opts.audience ?? AUDIENCE,
     expiresIn: "1h",
   });
-  const keyBytes = Buffer.from(JWE_KEY_BASE64URL, "base64url");
+  const keyBytes = createHash("sha256").update(Buffer.from(JWE_KEY_BASE64URL, "base64url")).digest();
   return new CompactEncrypt(new TextEncoder().encode(innerJwt))
     .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .encrypt(keyBytes);
@@ -92,9 +93,10 @@ describe("validateJWT", () => {
 
     it("throws for a JWE token encrypted with the wrong key", async () => {
       const wrongKey = Buffer.alloc(32, "x").toString("base64url");
+      const wrongKeyBytes = createHash("sha256").update(Buffer.from(wrongKey, "base64url")).digest();
       const jweToken = await new CompactEncrypt(new TextEncoder().encode("inner"))
         .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
-        .encrypt(Buffer.from(wrongKey, "base64url"));
+        .encrypt(wrongKeyBytes);
       await expect(validateJWT(jweToken)).rejects.toThrow();
     });
   });
