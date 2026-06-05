@@ -69,10 +69,10 @@ describe("GET /.well-known/oauth-authorization-server", () => {
   });
 });
 
-describe("GET /authorize", () => {
+describe("GET /mcp/authorize", () => {
   it("redirects to Auth0 authorize endpoint forwarding all query params", async () => {
     const res = await supertest(app).get(
-      "/authorize?response_type=code&client_id=test123&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&code_challenge=abc&code_challenge_method=S256&state=xyz"
+      "/mcp/authorize?response_type=code&client_id=test123&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&code_challenge=abc&code_challenge_method=S256&state=xyz"
     );
     expect(res.status).toBe(302);
     const location = res.headers.location as string;

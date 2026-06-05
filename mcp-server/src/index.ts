@@ -7,7 +7,7 @@ import { registerTools } from "./tools.js";
 import { logger } from "./logger.js";
 
 const PORT = parseInt(process.env.PORT ?? "3032", 10);
-const SERVER_URL = process.env.MCP_SERVER_URL ?? `http://localhost:${PORT}`;
+const SERVER_URL = process.env.MCP_SERVER_URL ?? `http://localhost:${PORT}/mcp`;
 const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN ?? "motingo.auth0.com";
 const AUTHORIZATION_ENDPOINT = `${SERVER_URL}/authorize`;
 
@@ -17,7 +17,7 @@ app.use(express.json());
 
 app.get("/.well-known/oauth-protected-resource", (_req, res) => {
   res.json({
-    resource: `${SERVER_URL}/mcp`,
+    resource: SERVER_URL,
     authorization_servers: [`https://${AUTH0_DOMAIN}/`],
     bearer_methods_supported: ["header"],
   });
@@ -34,7 +34,7 @@ app.get("/.well-known/oauth-authorization-server", (_req, res) => {
   });
 });
 
-app.get(AUTHORIZATION_ENDPOINT, (req, res) => {
+app.get(new URL(AUTHORIZATION_ENDPOINT).pathname, (req, res) => {
   logger.info("authorize redirect", { client_id: req.query.client_id });
   const params = new URLSearchParams(req.query as Record<string, string>);
   res.redirect(`https://${AUTH0_DOMAIN}/authorize?${params.toString()}`);
