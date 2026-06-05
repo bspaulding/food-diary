@@ -58,6 +58,31 @@ describe("GET /.well-known/oauth-protected-resource", () => {
   });
 });
 
+describe("GET /.well-known/oauth-authorization-server", () => {
+  it("returns OAuth authorization server metadata pointing to Auth0 token endpoint", async () => {
+    const res = await supertest(app).get("/.well-known/oauth-authorization-server");
+    expect(res.status).toBe(200);
+    expect(res.body.authorization_endpoint).toMatch(/\/authorize$/);
+    expect(res.body.token_endpoint).toBe("https://motingo.auth0.com/oauth/token");
+    expect(res.body.code_challenge_methods_supported).toContain("S256");
+    expect(res.body.grant_types_supported).toContain("authorization_code");
+  });
+});
+
+describe("GET /authorize", () => {
+  it("redirects to Auth0 authorize endpoint forwarding all query params", async () => {
+    const res = await supertest(app).get(
+      "/authorize?response_type=code&client_id=test123&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&code_challenge=abc&code_challenge_method=S256&state=xyz"
+    );
+    expect(res.status).toBe(302);
+    const location = res.headers.location as string;
+    expect(location).toContain("motingo.auth0.com/authorize");
+    expect(location).toContain("client_id=test123");
+    expect(location).toContain("code_challenge=abc");
+    expect(location).toContain("state=xyz");
+  });
+});
+
 describe("POST /mcp", () => {
   it("returns 401 when Authorization header is absent", async () => {
     const res = await supertest(app).post("/mcp").send({});

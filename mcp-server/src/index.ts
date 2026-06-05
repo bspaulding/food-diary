@@ -21,6 +21,23 @@ app.get("/.well-known/oauth-protected-resource", (_req, res) => {
   });
 });
 
+app.get("/.well-known/oauth-authorization-server", (_req, res) => {
+  res.json({
+    issuer: `https://${AUTH0_DOMAIN}/`,
+    authorization_endpoint: `${SERVER_URL}/authorize`,
+    token_endpoint: `https://${AUTH0_DOMAIN}/oauth/token`,
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    code_challenge_methods_supported: ["S256"],
+  });
+});
+
+app.get("/authorize", (req, res) => {
+  logger.info("authorize redirect", { client_id: req.query.client_id });
+  const params = new URLSearchParams(req.query as Record<string, string>);
+  res.redirect(`https://${AUTH0_DOMAIN}/authorize?${params.toString()}`);
+});
+
 export function extractBearerToken(req: express.Request): string | null {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return null;
