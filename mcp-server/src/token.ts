@@ -16,7 +16,7 @@ export function issueAccessToken(sub: string): string {
         "x-hasura-user-id": sub,
       },
     },
-    key,
+    Buffer.from(key, "utf8"),
     { algorithm: "HS256", audience, issuer, expiresIn: "1h" }
   );
 }
