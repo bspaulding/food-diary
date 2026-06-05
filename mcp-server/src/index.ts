@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { validateJWT } from "./auth.js";
 import { registerTools } from "./tools.js";
+import { logger } from "./logger.js";
 
 const PORT = parseInt(process.env.PORT ?? "3032", 10);
 const SERVER_URL = process.env.MCP_SERVER_URL ?? `http://localhost:${PORT}`;
@@ -27,18 +28,26 @@ export function extractBearerToken(req: express.Request): string | null {
 }
 
 async function handleMcp(req: express.Request, res: express.Response): Promise<void> {
+  logger.info("request", { method: req.method, path: req.path });
+
   const token = extractBearerToken(req);
   if (!token) {
+    logger.warn("auth rejected: missing token", { method: req.method, path: req.path });
     res.status(401).json({ error: "Missing Authorization header" });
     return;
   }
 
+  let sub: string;
   try {
-    validateJWT(token);
-  } catch {
+    const decoded = validateJWT(token);
+    sub = decoded.sub;
+  } catch (e) {
+    logger.warn("auth rejected: invalid token", { error: (e as Error).message });
     res.status(401).json({ error: "Invalid or expired token" });
     return;
   }
+
+  logger.info("authenticated", { method: req.method, path: req.path, sub });
 
   const server = new McpServer({ name: "food-diary", version: "1.0.0" });
   registerTools(server, token);
@@ -64,6 +73,6 @@ app.delete("/mcp", handleMcp);
 /* v8 ignore next 5 */
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   app.listen(PORT, () => {
-    console.log(`MCP server listening on port ${PORT}`);
+    logger.info("server started", { port: PORT });
   });
 }
