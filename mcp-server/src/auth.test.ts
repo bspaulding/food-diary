@@ -17,7 +17,8 @@ function makeToken(opts: { secret?: string; audience?: string } = {}) {
 }
 
 async function makeJweToken(opts: { audience?: string } = {}) {
-  const innerJwt = sign({ sub: "user-123" }, JWE_KEY_BASE64URL, {
+  // Inner JWT is signed with the Hasura secret (SECRET); outer JWE is encrypted with the client secret key
+  const innerJwt = sign({ sub: "user-123" }, SECRET, {
     audience: opts.audience ?? AUDIENCE,
     expiresIn: "1h",
   });
@@ -70,13 +71,23 @@ describe("validateJWT", () => {
 
   describe("JWE tokens (Auth0 encrypted tokens)", () => {
     beforeEach(() => {
-      process.env.HASURA_GRAPHQL_JWT_SECRET = JSON.stringify({ type: "HS256", key: JWE_KEY_BASE64URL });
+      process.env.AUTH0_CLIENT_SECRET = JWE_KEY_BASE64URL;
+    });
+
+    afterEach(() => {
+      delete process.env.AUTH0_CLIENT_SECRET;
     });
 
     it("decrypts a JWE token and returns the decoded payload", async () => {
       const jweToken = await makeJweToken();
       const decoded = await validateJWT(jweToken);
       expect(decoded.sub).toBe("user-123");
+    });
+
+    it("throws when AUTH0_CLIENT_SECRET is not set", async () => {
+      delete process.env.AUTH0_CLIENT_SECRET;
+      const jweToken = await makeJweToken();
+      await expect(validateJWT(jweToken)).rejects.toThrow("AUTH0_CLIENT_SECRET is not set");
     });
 
     it("throws for a JWE token encrypted with the wrong key", async () => {
