@@ -92,6 +92,26 @@ describe("GET /.well-known/oauth-authorization-server", () => {
 // ─── GET /mcp/authorize ───────────────────────────────────────────────────────
 
 describe("GET /mcp/authorize", () => {
+  it("returns 400 for an unregistered redirect_uri without redirecting", async () => {
+    const res = await supertest(app).get(
+      "/mcp/authorize?response_type=code&client_id=claude&redirect_uri=https%3A%2F%2Fattacker.com%2Fsteal&code_challenge=abc&code_challenge_method=S256&state=s"
+    );
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_request");
+    // Must not redirect to the attacker URI
+    expect(res.headers.location).toBeUndefined();
+  });
+
+  it("allows redirect_uris configured via ALLOWED_REDIRECT_URIS env var", async () => {
+    process.env.ALLOWED_REDIRECT_URIS = "https://custom.example.com/callback";
+    const res = await supertest(app).get(
+      "/mcp/authorize?response_type=code&client_id=claude&redirect_uri=https%3A%2F%2Fcustom.example.com%2Fcallback&code_challenge=abc&code_challenge_method=S256&state=s"
+    );
+    delete process.env.ALLOWED_REDIRECT_URIS;
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain(AUTH0_DOMAIN);
+  });
+
   it("redirects to Auth0 even when no state param is provided", async () => {
     const res = await supertest(app).get(
       "/mcp/authorize?response_type=code&client_id=claude&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&code_challenge=abc&code_challenge_method=S256"
@@ -311,7 +331,7 @@ describe("full OAuth flow (authorize → callback → token → mcp)", () => {
     const verifier = generateRandom();
     const challenge = generateCodeChallenge(verifier);
 
-    // 1. Claude initiates authorization
+    // 1. Claude initiates authorization (uses the allowlisted claude.ai callback URL)
     const authorizeRes = await supertest(app).get(
       `/mcp/authorize?response_type=code&client_id=claude&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&code_challenge=${challenge}&code_challenge_method=S256&state=original-state`
     );

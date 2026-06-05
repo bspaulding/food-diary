@@ -30,6 +30,14 @@ const TOKEN_ENDPOINT = `${SERVER_URL}/token`;
 const auth0ClientId = () => process.env.AUTH0_CLIENT_ID ?? "";
 const auth0ClientSecret = () => process.env.AUTH0_CLIENT_SECRET ?? "";
 
+// Allowlist of permitted redirect_uris. Must be exact matches.
+// Set ALLOWED_REDIRECT_URIS as a comma-separated list to override.
+const allowedRedirectUris = (): string[] =>
+  (process.env.ALLOWED_REDIRECT_URIS ?? "https://claude.ai/api/mcp/auth_callback")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 export const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -56,6 +64,14 @@ app.get("/.well-known/oauth-authorization-server", (_req, res) => {
 // Step 1: Claude.ai initiates OAuth. We store their redirect_uri + PKCE, then redirect to Auth0.
 app.get(new URL(AUTHORIZATION_ENDPOINT).pathname, (req, res) => {
   const q = req.query as Record<string, string>;
+
+  if (!allowedRedirectUris().includes(q.redirect_uri)) {
+    logger.warn("authorize: rejected unregistered redirect_uri", { redirect_uri: q.redirect_uri });
+    // Do NOT redirect — redirecting to an unvalidated URI is the vulnerability itself.
+    res.status(400).json({ error: "invalid_request", error_description: "redirect_uri not allowed" });
+    return;
+  }
+
   const ourState = generateRandom();
 
   storePendingAuthorization(ourState, {
