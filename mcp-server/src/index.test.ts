@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import supertest from "supertest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
-import { sign } from "jsonwebtoken";
+import { sign, decode } from "jsonwebtoken";
 import { app, extractBearerToken } from "./index.js";
 import { generateCodeChallenge, generateRandom, storePendingAuthorization, storePendingCode } from "./oauth.js";
 import { issueAccessToken } from "./token.js";
@@ -327,29 +327,29 @@ describe("POST /mcp/token", () => {
 // ─── Full OAuth flow ──────────────────────────────────────────────────────────
 
 describe("full OAuth flow (authorize → callback → token → mcp)", () => {
-  it("results in a working MCP Bearer token", async () => {
+  async function runFullOAuthFlow() {
     const verifier = generateRandom();
     const challenge = generateCodeChallenge(verifier);
 
-    // 1. Claude initiates authorization (uses the allowlisted claude.ai callback URL)
     const authorizeRes = await supertest(app).get(
       `/mcp/authorize?response_type=code&client_id=claude&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&code_challenge=${challenge}&code_challenge_method=S256&state=original-state`
     );
     const ourState = new URL(authorizeRes.headers.location as string).searchParams.get("state")!;
 
-    // 2. Auth0 redirects back to our callback
     const callbackRes = await supertest(app).get(`/mcp/callback?code=auth0-code&state=${ourState}`);
     const ourCode = new URL(callbackRes.headers.location as string).searchParams.get("code")!;
 
-    // 3. Claude exchanges our code for a token
     const tokenRes = await supertest(app)
       .post("/mcp/token")
       .send(`grant_type=authorization_code&code=${ourCode}&code_verifier=${verifier}`)
       .set("Content-Type", "application/x-www-form-urlencoded");
     expect(tokenRes.status).toBe(200);
-    const { access_token } = tokenRes.body as { access_token: string };
+    return tokenRes.body as { access_token: string };
+  }
 
-    // 4. Claude calls /mcp with our token
+  it("results in a working MCP Bearer token", async () => {
+    const { access_token } = await runFullOAuthFlow();
+
     const mcpRes = await supertest(app)
       .post("/mcp")
       .set("Authorization", `Bearer ${access_token}`)
@@ -366,6 +366,14 @@ describe("full OAuth flow (authorize → callback → token → mcp)", () => {
       result?: { serverInfo?: { name?: string } };
     };
     expect(payload.result?.serverInfo?.name).toBe("food-diary");
+  });
+
+  it("embeds the Auth0 access token as the a0t claim for Hasura forwarding", async () => {
+    const { access_token } = await runFullOAuthFlow();
+
+    // The MCP JWT must contain Auth0's access token so handleMcp can forward it to Hasura
+    const claims = decode(access_token) as { a0t?: string };
+    expect(claims?.a0t).toBe("opaque-at");
   });
 });
 

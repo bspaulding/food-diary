@@ -3,6 +3,7 @@ import { createSecretKey } from "crypto";
 
 export interface DecodedToken {
   sub: string;
+  a0t?: string;
   "https://hasura.io/jwt/claims"?: {
     "x-hasura-user-id"?: string;
     [key: string]: unknown;

@@ -51,6 +51,18 @@ describe("issueAccessToken", () => {
     expect(decoded.sub).toBe("auth0|user-123");
   });
 
+  it("embeds the auth0 access token as the a0t claim when provided", () => {
+    const token = issueAccessToken("auth0|user-123", "some-auth0-opaque-token");
+    const decoded = verify(token, SECRET, { audience: AUDIENCE }) as Record<string, unknown>;
+    expect(decoded.a0t).toBe("some-auth0-opaque-token");
+  });
+
+  it("omits the a0t claim when auth0AccessToken is empty", () => {
+    const token = issueAccessToken("auth0|user-123", "");
+    const decoded = verify(token, SECRET, { audience: AUDIENCE }) as Record<string, unknown>;
+    expect(decoded.a0t).toBeUndefined();
+  });
+
   it("throws when HASURA_GRAPHQL_JWT_SECRET is not set", () => {
     delete process.env.HASURA_GRAPHQL_JWT_SECRET;
     expect(() => issueAccessToken("sub")).toThrow("HASURA_GRAPHQL_JWT_SECRET is not set");

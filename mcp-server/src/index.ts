@@ -115,6 +115,7 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
   }
 
   let sub: string;
+  let auth0AccessToken = "";
   try {
     const tokenRes = await fetch(`https://${AUTH0_DOMAIN}/oauth/token`, {
       method: "POST",
@@ -130,8 +131,10 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
 
     if (!tokenRes.ok) throw new Error(`Auth0 token exchange failed: ${tokenRes.status}`);
 
-    const tokenData = (await tokenRes.json()) as { id_token?: string };
+    const tokenData = (await tokenRes.json()) as { id_token?: string; access_token?: string };
     if (!tokenData.id_token) throw new Error("No id_token in Auth0 response");
+
+    auth0AccessToken = tokenData.access_token ?? "";
 
     // Decode without re-verifying — we received this directly from Auth0 over HTTPS
     const decoded = jwt.decode(tokenData.id_token) as { sub?: string } | null;
@@ -145,7 +148,7 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
     return;
   }
 
-  const accessToken = issueAccessToken(sub);
+  const accessToken = issueAccessToken(sub, auth0AccessToken);
   const ourCode = generateRandom();
   storePendingCode(ourCode, { accessToken, codeChallenge: pending.clientCodeChallenge });
 
@@ -198,20 +201,24 @@ async function handleMcp(req: express.Request, res: express.Response): Promise<v
     return;
   }
 
-  let sub: string;
+  let decoded: ReturnType<typeof validateJWT>;
   try {
-    const decoded = validateJWT(token);
-    sub = decoded.sub;
+    decoded = validateJWT(token);
   } catch (e) {
     logger.warn("auth rejected: invalid token", { error: (e as Error).message });
     res.status(401).json({ error: "Invalid or expired token" });
     return;
   }
 
+  const sub = decoded.sub;
   logger.info("authenticated", { method: req.method, path: req.path, sub });
 
+  // Use the Auth0 access token for Hasura (Hasura verifies it via JWKS/RS256).
+  // Fall back to the MCP token itself for local dev/test scenarios without a0t.
+  const hasuraToken = decoded.a0t || token;
+
   const server = new McpServer({ name: "food-diary", version: "1.0.0" });
-  registerTools(server, token);
+  registerTools(server, hasuraToken);
 
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   await server.connect(transport);
