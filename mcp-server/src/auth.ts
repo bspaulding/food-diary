@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { compactDecrypt } from "jose";
 
 export interface DecodedToken {
   sub: string;
@@ -8,7 +9,7 @@ export interface DecodedToken {
   };
 }
 
-export function validateJWT(token: string): DecodedToken {
+export async function validateJWT(token: string): Promise<DecodedToken> {
   const secret = process.env.HASURA_GRAPHQL_JWT_SECRET;
   if (!secret) throw new Error("HASURA_GRAPHQL_JWT_SECRET is not set");
 
@@ -16,10 +17,12 @@ export function validateJWT(token: string): DecodedToken {
   const audience =
     process.env.AUTH0_AUDIENCE ?? "https://direct-satyr-14.hasura.app/v1/graphql";
 
-  const decoded = jwt.verify(token, parsed.key, {
-    algorithms: ["HS256"],
-    audience,
-  });
+  if (token.split(".").length === 5) {
+    const keyBytes = Buffer.from(parsed.key, "base64url");
+    const { plaintext } = await compactDecrypt(token, keyBytes);
+    const innerToken = Buffer.from(plaintext).toString();
+    return jwt.verify(innerToken, parsed.key, { algorithms: ["HS256"], audience }) as DecodedToken;
+  }
 
-  return decoded as DecodedToken;
+  return jwt.verify(token, parsed.key, { algorithms: ["HS256"], audience }) as DecodedToken;
 }

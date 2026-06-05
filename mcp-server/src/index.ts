@@ -60,10 +60,10 @@ async function handleMcp(req: express.Request, res: express.Response): Promise<v
 
   let sub: string;
   try {
-    const decoded = validateJWT(token);
+    const decoded = await validateJWT(token);
     sub = decoded.sub;
   } catch (e) {
-    logger.warn("auth rejected: invalid token", { error: (e as Error).message, token });
+    logger.warn("auth rejected: invalid token", { error: (e as Error).message });
     res.status(401).json({ error: "Invalid or expired token" });
     return;
   }
