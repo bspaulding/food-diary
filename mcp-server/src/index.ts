@@ -9,6 +9,8 @@ import { logger } from "./logger.js";
 const PORT = parseInt(process.env.PORT ?? "3032", 10);
 const SERVER_URL = process.env.MCP_SERVER_URL ?? `http://localhost:${PORT}`;
 const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN ?? "motingo.auth0.com";
+const AUTHORIZATION_ENDPOINT = `${SERVER_URL}/authorize`;
+
 
 export const app = express();
 app.use(express.json());
@@ -24,7 +26,7 @@ app.get("/.well-known/oauth-protected-resource", (_req, res) => {
 app.get("/.well-known/oauth-authorization-server", (_req, res) => {
   res.json({
     issuer: `https://${AUTH0_DOMAIN}/`,
-    authorization_endpoint: `${SERVER_URL}/authorize`,
+    authorization_endpoint: AUTHORIZATION_ENDPOINT,
     token_endpoint: `https://${AUTH0_DOMAIN}/oauth/token`,
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
@@ -32,7 +34,7 @@ app.get("/.well-known/oauth-authorization-server", (_req, res) => {
   });
 });
 
-app.get("/authorize", (req, res) => {
+app.get(AUTHORIZATION_ENDPOINT, (req, res) => {
   logger.info("authorize redirect", { client_id: req.query.client_id });
   const params = new URLSearchParams(req.query as Record<string, string>);
   res.redirect(`https://${AUTH0_DOMAIN}/authorize?${params.toString()}`);
