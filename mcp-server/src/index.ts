@@ -9,6 +9,7 @@ import { logger } from "./logger.js";
 const PORT = parseInt(process.env.PORT ?? "3032", 10);
 const SERVER_URL = process.env.MCP_SERVER_URL ?? `http://localhost:${PORT}/mcp`;
 const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN ?? "motingo.auth0.com";
+const AUTH0_AUDIENCE = process.env.AUTH0_AUDIENCE ?? "https://direct-satyr-14.hasura.app/v1/graphql";
 const AUTHORIZATION_ENDPOINT = `${SERVER_URL}/authorize`;
 
 
@@ -37,6 +38,7 @@ app.get("/.well-known/oauth-authorization-server", (_req, res) => {
 app.get(new URL(AUTHORIZATION_ENDPOINT).pathname, (req, res) => {
   logger.info("authorize redirect", { client_id: req.query.client_id });
   const params = new URLSearchParams(req.query as Record<string, string>);
+  params.set("audience", AUTH0_AUDIENCE);
   res.redirect(`https://${AUTH0_DOMAIN}/authorize?${params.toString()}`);
 });
 

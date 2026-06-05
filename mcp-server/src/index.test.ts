@@ -80,6 +80,7 @@ describe("GET /mcp/authorize", () => {
     expect(location).toContain("client_id=test123");
     expect(location).toContain("code_challenge=abc");
     expect(location).toContain("state=xyz");
+    expect(location).toContain("audience=");
   });
 });
 
