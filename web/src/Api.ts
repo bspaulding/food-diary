@@ -53,21 +53,48 @@ export class GraphQLError extends Error {
   }
 }
 
-const getEntriesQuery = `
+const macrosFragment = `
 fragment Macros on food_diary_nutrition_item {
   added_sugars_grams
 	protein_grams
 	dietary_fiber_grams
 }
+`;
 
-query GetEntries {
-    food_diary_diary_entry(order_by: { day: desc, consumed_at: asc }) {
+const diaryEntryFields = `
         id
         consumed_at
         calories
         servings
         nutrition_item { id, description, calories, ...Macros }
-        recipe { id, name, calories, total_servings, recipe_items { servings, nutrition_item { ...Macros } } }
+        recipe { id, name, calories, total_servings, recipe_items { servings, nutrition_item { ...Macros } } }`;
+
+const getEntriesQuery = `
+${macrosFragment}
+query GetEntries {
+    food_diary_diary_entry(order_by: { day: desc, consumed_at: asc }) {${diaryEntryFields}
+    }
+}
+`;
+
+const getEntriesFromDateQuery = `
+${macrosFragment}
+query GetEntries($startDate: timestamptz!) {
+    food_diary_diary_entry(
+        where: { consumed_at: { _gte: $startDate } }
+        order_by: { day: desc, consumed_at: asc }
+    ) {${diaryEntryFields}
+    }
+}
+`;
+
+const getEntriesDateRangeQuery = `
+${macrosFragment}
+query GetEntries($startDate: timestamptz!, $endDate: timestamptz!) {
+    food_diary_diary_entry(
+        where: { consumed_at: { _gte: $startDate, _lt: $endDate } }
+        order_by: { day: desc, consumed_at: asc }
+    ) {${diaryEntryFields}
     }
 }
 `;
@@ -180,7 +207,20 @@ export type GetEntriesQueryResponse = {
 
 export async function fetchEntries(
   accessToken: string,
+  startDate?: string,
+  endDate?: string,
 ): Promise<GetEntriesQueryResponse> {
+  if (startDate && endDate) {
+    return await fetchQuery(accessToken, getEntriesDateRangeQuery, {
+      startDate,
+      endDate,
+    });
+  }
+  if (startDate) {
+    return await fetchQuery(accessToken, getEntriesFromDateQuery, {
+      startDate,
+    });
+  }
   return await fetchQuery(accessToken, getEntriesQuery);
 }
 

@@ -1,5 +1,5 @@
 import type { Accessor, Component, Setter } from "solid-js";
-import { Index, Show, createMemo } from "solid-js";
+import { Index, Show, createMemo, createSignal, untrack } from "solid-js";
 import type {
   DiaryEntry,
   GetEntriesQueryResponse,
@@ -78,15 +78,42 @@ const EntryMacro: Component<{
   </div>
 );
 
+// Entries are paginated by date, one week per page. Page 0 is the most
+// recent week (today plus the previous six days), page 1 the week before, etc.
+const PAGE_DAYS = 7;
+
 const DiaryList: Component = () => {
   const [{ accessToken }] = useAuth();
   const [targets] = useNutritionTargets();
+  const now = new Date();
+  const pageStart = (page: number) =>
+    formatISO(startOfDay(subDays(now, PAGE_DAYS - 1 + page * PAGE_DAYS)));
+
+  const [page, setPage] = createSignal(0);
   const [getEntriesQuery, { mutate }] = createAuthorizedResource(
-    (token: string) => fetchEntries(token),
+    page,
+    async (token: string, pageNumber: number) => {
+      const response = await fetchEntries(
+        token,
+        pageStart(pageNumber),
+        pageNumber > 0 ? pageStart(pageNumber - 1) : undefined,
+      );
+      const fetched = response?.data?.food_diary_diary_entry || [];
+      const fetchedIds = new Set(fetched.map((entry) => entry.id));
+      const previous = (
+        untrack(getEntriesQuery)?.data?.food_diary_diary_entry || []
+      ).filter((entry) => !fetchedIds.has(entry.id));
+      return {
+        ...response,
+        data: {
+          ...response.data,
+          food_diary_diary_entry: [...previous, ...fetched],
+        },
+      };
+    },
   );
 
   // Fetch weekly stats from the backend
-  const now = new Date();
   const todayStart = formatISO(startOfDay(now));
   const sevenDaysAgoStart = formatISO(startOfDay(subDays(now, 7)));
   const fourWeeksAgoStart = formatISO(startOfDay(subWeeks(now, 4)));
@@ -276,6 +303,15 @@ const DiaryList: Component = () => {
           }}
         </Index>
       </ul>
+      <div class="text-center mb-8">
+        <button
+          class="text-indigo-600 hover:text-indigo-800 underline disabled:text-slate-400"
+          disabled={getEntriesQuery.loading}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          {getEntriesQuery.loading ? "Loading..." : "Load Previous Week"}
+        </button>
+      </div>
     </>
   );
 };

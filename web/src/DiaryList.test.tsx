@@ -690,6 +690,126 @@ describe("DiaryList", () => {
     });
   });
 
+  it("should request only the most recent week on initial load", async () => {
+    let entriesVariables: { startDate?: string; endDate?: string } | undefined;
+
+    server.use(
+      http.post("/api/v1/graphql", async ({ request }) => {
+        const body = (await request.json()) as {
+          query?: string;
+          variables?: { startDate?: string; endDate?: string };
+        };
+        if (body.query?.includes("GetEntries")) {
+          entriesVariables = body.variables;
+          return HttpResponse.json({
+            data: { food_diary_diary_entry: [] },
+          });
+        }
+        return HttpResponse.json({
+          data: {
+            current_week: { aggregate: { sum: { calories: 0 } } },
+            past_four_weeks: { aggregate: { sum: { calories: 0 } } },
+          },
+        });
+      }),
+    );
+
+    render(() => <DiaryList />);
+
+    await waitFor(() => {
+      expect(entriesVariables?.startDate).toBeTruthy();
+    });
+    // First page covers today plus the previous six days, with no end date
+    const expectedStart = new Date();
+    expectedStart.setDate(expectedStart.getDate() - 6);
+    expectedStart.setHours(0, 0, 0, 0);
+    expect(new Date(entriesVariables!.startDate!).getTime()).toBe(
+      expectedStart.getTime(),
+    );
+    expect(entriesVariables?.endDate).toBeUndefined();
+  });
+
+  it("should load the previous week of entries when Load Previous Week is clicked", async () => {
+    const user = userEvent.setup();
+    const requestedRanges: { startDate?: string; endDate?: string }[] = [];
+
+    const makeEntry = (id: number, description: string, daysAgo: number) => {
+      const consumedAt = new Date();
+      consumedAt.setDate(consumedAt.getDate() - daysAgo);
+      return {
+        id,
+        consumed_at: consumedAt.toISOString(),
+        servings: 1,
+        calories: 100,
+        nutrition_item: {
+          id,
+          description,
+          calories: 100,
+          protein_grams: 1,
+          added_sugars_grams: 0,
+          total_fat_grams: 1,
+          dietary_fiber_grams: 1,
+        },
+        recipe: null,
+      };
+    };
+
+    server.use(
+      http.post("/api/v1/graphql", async ({ request }) => {
+        const body = (await request.json()) as {
+          query?: string;
+          variables?: { startDate?: string; endDate?: string };
+        };
+        if (body.query?.includes("GetEntries")) {
+          requestedRanges.push(body.variables || {});
+          // Second page (has an end date) returns last week's entry
+          if (body.variables?.endDate) {
+            return HttpResponse.json({
+              data: {
+                food_diary_diary_entry: [makeEntry(2, "Older Meal", 8)],
+              },
+            });
+          }
+          return HttpResponse.json({
+            data: {
+              food_diary_diary_entry: [makeEntry(1, "Recent Meal", 1)],
+            },
+          });
+        }
+        return HttpResponse.json({
+          data: {
+            current_week: { aggregate: { sum: { calories: 0 } } },
+            past_four_weeks: { aggregate: { sum: { calories: 0 } } },
+          },
+        });
+      }),
+    );
+
+    render(() => <DiaryList />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Recent Meal")).toBeTruthy();
+    });
+
+    await user.click(screen.getByText("Load Previous Week"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Older Meal")).toBeTruthy();
+    });
+    // Entries from the first week stay visible alongside the older week
+    expect(screen.getByText("Recent Meal")).toBeTruthy();
+
+    // Second request covers exactly the week before the first request
+    const secondRange = requestedRanges[requestedRanges.length - 1];
+    expect(secondRange.endDate).toBe(requestedRanges[0].startDate);
+    const expectedStart = new Date();
+    expectedStart.setDate(expectedStart.getDate() - 13);
+    expectedStart.setHours(0, 0, 0, 0);
+    expect(new Date(secondRange.startDate!).getTime()).toBe(
+      expectedStart.getTime(),
+    );
+  });
+
   it("should sort entries by time within a day", async () => {
     server.use(
       http.post("/api/v1/graphql", () => {
