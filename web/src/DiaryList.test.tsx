@@ -729,7 +729,7 @@ describe("DiaryList", () => {
     expect(entriesVariables?.endDate).toBeUndefined();
   });
 
-  it("should load the previous week of entries when Load Previous Week is clicked", async () => {
+  it("should navigate between weeks with Previous Week and Next Week", async () => {
     const user = userEvent.setup();
     const requestedRanges: { startDate?: string; endDate?: string }[] = [];
 
@@ -790,14 +790,16 @@ describe("DiaryList", () => {
     await waitFor(() => {
       expect(screen.getByText("Recent Meal")).toBeTruthy();
     });
+    // The most recent week has no newer week to navigate to
+    expect(screen.queryByText(/Next Week/)).toBeFalsy();
 
-    await user.click(screen.getByText("Load Previous Week"));
+    await user.click(screen.getByText(/Previous Week/));
 
     await waitFor(() => {
       expect(screen.getByText("Older Meal")).toBeTruthy();
     });
-    // Entries from the first week stay visible alongside the older week
-    expect(screen.getByText("Recent Meal")).toBeTruthy();
+    // The view shows one week at a time
+    expect(screen.queryByText("Recent Meal")).toBeFalsy();
 
     // Second request covers exactly the week before the first request,
     // bounded by local start-of-day sent as UTC
@@ -807,6 +809,15 @@ describe("DiaryList", () => {
     expectedStart.setDate(expectedStart.getDate() - 13);
     expectedStart.setHours(0, 0, 0, 0);
     expect(secondRange.startDate).toBe(expectedStart.toISOString());
+
+    // Navigating forward returns to the most recent week
+    await user.click(screen.getByText(/Next Week/));
+
+    await waitFor(() => {
+      expect(screen.getByText("Recent Meal")).toBeTruthy();
+    });
+    expect(screen.queryByText("Older Meal")).toBeFalsy();
+    expect(screen.queryByText(/Next Week/)).toBeFalsy();
   });
 
   it("should sort entries by time within a day", async () => {

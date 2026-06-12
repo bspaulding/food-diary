@@ -1,5 +1,5 @@
 import type { Accessor, Component, Setter } from "solid-js";
-import { Index, Show, createMemo, createSignal, untrack } from "solid-js";
+import { Index, Show, createMemo, createSignal } from "solid-js";
 import type {
   DiaryEntry,
   GetEntriesQueryResponse,
@@ -95,25 +95,12 @@ const DiaryList: Component = () => {
   const [page, setPage] = createSignal(0);
   const [getEntriesQuery, { mutate }] = createAuthorizedResource(
     page,
-    async (token: string, pageNumber: number) => {
-      const response = await fetchEntries(
+    (token: string, pageNumber: number) =>
+      fetchEntries(
         token,
         pageStart(pageNumber),
         pageNumber > 0 ? pageStart(pageNumber - 1) : undefined,
-      );
-      const fetched = response?.data?.food_diary_diary_entry || [];
-      const fetchedIds = new Set(fetched.map((entry) => entry.id));
-      const previous = (
-        untrack(getEntriesQuery)?.data?.food_diary_diary_entry || []
-      ).filter((entry) => !fetchedIds.has(entry.id));
-      return {
-        ...response,
-        data: {
-          ...response.data,
-          food_diary_diary_entry: [...previous, ...fetched],
-        },
-      };
-    },
+      ),
   );
 
   // Fetch weekly stats from the backend
@@ -306,14 +293,23 @@ const DiaryList: Component = () => {
           }}
         </Index>
       </ul>
-      <div class="text-center mb-8">
+      <div class="flex justify-center space-x-8 mb-8">
         <button
           class="text-indigo-600 hover:text-indigo-800 underline disabled:text-slate-400"
           disabled={getEntriesQuery.loading}
           onClick={() => setPage((p) => p + 1)}
         >
-          {getEntriesQuery.loading ? "Loading..." : "Load Previous Week"}
+          ← Previous Week
         </button>
+        <Show when={page() > 0}>
+          <button
+            class="text-indigo-600 hover:text-indigo-800 underline disabled:text-slate-400"
+            disabled={getEntriesQuery.loading}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Next Week →
+          </button>
+        </Show>
       </div>
     </>
   );
