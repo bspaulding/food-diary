@@ -719,13 +719,13 @@ describe("DiaryList", () => {
     await waitFor(() => {
       expect(entriesVariables?.startDate).toBeTruthy();
     });
-    // First page covers today plus the previous six days, with no end date
+    // First page covers today plus the previous six days, with no end date.
+    // The boundary is the start of the day in local time, sent to the server
+    // as UTC.
     const expectedStart = new Date();
     expectedStart.setDate(expectedStart.getDate() - 6);
     expectedStart.setHours(0, 0, 0, 0);
-    expect(new Date(entriesVariables!.startDate!).getTime()).toBe(
-      expectedStart.getTime(),
-    );
+    expect(entriesVariables!.startDate).toBe(expectedStart.toISOString());
     expect(entriesVariables?.endDate).toBeUndefined();
   });
 
@@ -799,15 +799,14 @@ describe("DiaryList", () => {
     // Entries from the first week stay visible alongside the older week
     expect(screen.getByText("Recent Meal")).toBeTruthy();
 
-    // Second request covers exactly the week before the first request
+    // Second request covers exactly the week before the first request,
+    // bounded by local start-of-day sent as UTC
     const secondRange = requestedRanges[requestedRanges.length - 1];
     expect(secondRange.endDate).toBe(requestedRanges[0].startDate);
     const expectedStart = new Date();
     expectedStart.setDate(expectedStart.getDate() - 13);
     expectedStart.setHours(0, 0, 0, 0);
-    expect(new Date(secondRange.startDate!).getTime()).toBe(
-      expectedStart.getTime(),
-    );
+    expect(secondRange.startDate).toBe(expectedStart.toISOString());
   });
 
   it("should sort entries by time within a day", async () => {

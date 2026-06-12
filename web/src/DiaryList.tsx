@@ -86,8 +86,11 @@ const DiaryList: Component = () => {
   const [{ accessToken }] = useAuth();
   const [targets] = useNutritionTargets();
   const now = new Date();
+  // Page boundaries are the start of the day in the user's local timezone,
+  // converted to UTC for the server, so each page covers whole days as the
+  // list displays them.
   const pageStart = (page: number) =>
-    formatISO(startOfDay(subDays(now, PAGE_DAYS - 1 + page * PAGE_DAYS)));
+    startOfDay(subDays(now, PAGE_DAYS - 1 + page * PAGE_DAYS)).toISOString();
 
   const [page, setPage] = createSignal(0);
   const [getEntriesQuery, { mutate }] = createAuthorizedResource(
@@ -114,9 +117,9 @@ const DiaryList: Component = () => {
   );
 
   // Fetch weekly stats from the backend
-  const todayStart = formatISO(startOfDay(now));
-  const sevenDaysAgoStart = formatISO(startOfDay(subDays(now, 7)));
-  const fourWeeksAgoStart = formatISO(startOfDay(subWeeks(now, 4)));
+  const todayStart = startOfDay(now).toISOString();
+  const sevenDaysAgoStart = startOfDay(subDays(now, 7)).toISOString();
+  const fourWeeksAgoStart = startOfDay(subWeeks(now, 4)).toISOString();
 
   const [weeklyStatsQuery] = createAuthorizedResource((token: string) =>
     fetchWeeklyStats(token, sevenDaysAgoStart, todayStart, fourWeeksAgoStart),
