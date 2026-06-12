@@ -1,5 +1,5 @@
 import type { Accessor, Component, Setter } from "solid-js";
-import { Index, Show, createMemo } from "solid-js";
+import { Index, Show, createMemo, createSignal } from "solid-js";
 import type {
   DiaryEntry,
   GetEntriesQueryResponse,
@@ -78,18 +78,35 @@ const EntryMacro: Component<{
   </div>
 );
 
+// Entries are paginated by date, one week per page. Page 0 is the most
+// recent week (today plus the previous six days), page 1 the week before, etc.
+const PAGE_DAYS = 7;
+
 const DiaryList: Component = () => {
   const [{ accessToken }] = useAuth();
   const [targets] = useNutritionTargets();
+  const now = new Date();
+  // Page boundaries are the start of the day in the user's local timezone,
+  // converted to UTC for the server, so each page covers whole days as the
+  // list displays them.
+  const pageStart = (page: number) =>
+    startOfDay(subDays(now, PAGE_DAYS - 1 + page * PAGE_DAYS)).toISOString();
+
+  const [page, setPage] = createSignal(0);
   const [getEntriesQuery, { mutate }] = createAuthorizedResource(
-    (token: string) => fetchEntries(token),
+    page,
+    (token: string, pageNumber: number) =>
+      fetchEntries(
+        token,
+        pageStart(pageNumber),
+        pageNumber > 0 ? pageStart(pageNumber - 1) : undefined,
+      ),
   );
 
   // Fetch weekly stats from the backend
-  const now = new Date();
-  const todayStart = formatISO(startOfDay(now));
-  const sevenDaysAgoStart = formatISO(startOfDay(subDays(now, 7)));
-  const fourWeeksAgoStart = formatISO(startOfDay(subWeeks(now, 4)));
+  const todayStart = startOfDay(now).toISOString();
+  const sevenDaysAgoStart = startOfDay(subDays(now, 7)).toISOString();
+  const fourWeeksAgoStart = startOfDay(subWeeks(now, 4)).toISOString();
 
   const [weeklyStatsQuery] = createAuthorizedResource((token: string) =>
     fetchWeeklyStats(token, sevenDaysAgoStart, todayStart, fourWeeksAgoStart),
@@ -161,7 +178,7 @@ const DiaryList: Component = () => {
       </Show>
       <ul class="mt-4">
         <Show when={entries().length === 0}>
-          <p class="text-slate-400 text-center">No entries, yet...</p>
+          <p class="text-slate-400 text-center">No entries this week.</p>
         </Show>
         <Index each={entriesByDay()}>
           {(dayEntries: () => [string, DiaryEntry[]], i: number) => {
@@ -276,6 +293,24 @@ const DiaryList: Component = () => {
           }}
         </Index>
       </ul>
+      <div class="flex justify-center space-x-8 mb-8">
+        <button
+          class="text-indigo-600 hover:text-indigo-800 underline disabled:text-slate-400"
+          disabled={getEntriesQuery.loading}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          ← Previous Week
+        </button>
+        <Show when={page() > 0}>
+          <button
+            class="text-indigo-600 hover:text-indigo-800 underline disabled:text-slate-400"
+            disabled={getEntriesQuery.loading}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Next Week →
+          </button>
+        </Show>
+      </div>
     </>
   );
 };

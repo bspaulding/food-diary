@@ -59,7 +59,7 @@ describe("DiaryList", () => {
     render(() => <DiaryList />);
 
     await waitFor(() => {
-      expect(screen.getByText("No entries, yet...")).toBeTruthy();
+      expect(screen.getByText("No entries this week.")).toBeTruthy();
     });
   });
 
@@ -688,6 +688,136 @@ describe("DiaryList", () => {
       // Per-serving protein = (31 + 5) / 4 = 9g. Diary logs 2 servings: 2 * 9 = 18g.
       expect(screen.getByText(/18g protein/)).toBeTruthy();
     });
+  });
+
+  it("should request only the most recent week on initial load", async () => {
+    let entriesVariables: { startDate?: string; endDate?: string } | undefined;
+
+    server.use(
+      http.post("/api/v1/graphql", async ({ request }) => {
+        const body = (await request.json()) as {
+          query?: string;
+          variables?: { startDate?: string; endDate?: string };
+        };
+        if (body.query?.includes("GetEntries")) {
+          entriesVariables = body.variables;
+          return HttpResponse.json({
+            data: { food_diary_diary_entry: [] },
+          });
+        }
+        return HttpResponse.json({
+          data: {
+            current_week: { aggregate: { sum: { calories: 0 } } },
+            past_four_weeks: { aggregate: { sum: { calories: 0 } } },
+          },
+        });
+      }),
+    );
+
+    render(() => <DiaryList />);
+
+    await waitFor(() => {
+      expect(entriesVariables?.startDate).toBeTruthy();
+    });
+    // First page covers today plus the previous six days, with no end date.
+    // The boundary is the start of the day in local time, sent to the server
+    // as UTC.
+    const expectedStart = new Date();
+    expectedStart.setDate(expectedStart.getDate() - 6);
+    expectedStart.setHours(0, 0, 0, 0);
+    expect(entriesVariables?.startDate).toBe(expectedStart.toISOString());
+    expect(entriesVariables?.endDate).toBeUndefined();
+  });
+
+  it("should navigate between weeks with Previous Week and Next Week", async () => {
+    const user = userEvent.setup();
+    const requestedRanges: { startDate?: string; endDate?: string }[] = [];
+
+    const makeEntry = (id: number, description: string, daysAgo: number) => {
+      const consumedAt = new Date();
+      consumedAt.setDate(consumedAt.getDate() - daysAgo);
+      return {
+        id,
+        consumed_at: consumedAt.toISOString(),
+        servings: 1,
+        calories: 100,
+        nutrition_item: {
+          id,
+          description,
+          calories: 100,
+          protein_grams: 1,
+          added_sugars_grams: 0,
+          total_fat_grams: 1,
+          dietary_fiber_grams: 1,
+        },
+        recipe: null,
+      };
+    };
+
+    server.use(
+      http.post("/api/v1/graphql", async ({ request }) => {
+        const body = (await request.json()) as {
+          query?: string;
+          variables?: { startDate?: string; endDate?: string };
+        };
+        if (body.query?.includes("GetEntries")) {
+          requestedRanges.push(body.variables || {});
+          // Second page (has an end date) returns last week's entry
+          if (body.variables?.endDate) {
+            return HttpResponse.json({
+              data: {
+                food_diary_diary_entry: [makeEntry(2, "Older Meal", 8)],
+              },
+            });
+          }
+          return HttpResponse.json({
+            data: {
+              food_diary_diary_entry: [makeEntry(1, "Recent Meal", 1)],
+            },
+          });
+        }
+        return HttpResponse.json({
+          data: {
+            current_week: { aggregate: { sum: { calories: 0 } } },
+            past_four_weeks: { aggregate: { sum: { calories: 0 } } },
+          },
+        });
+      }),
+    );
+
+    render(() => <DiaryList />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Recent Meal")).toBeTruthy();
+    });
+    // The most recent week has no newer week to navigate to
+    expect(screen.queryByText(/Next Week/)).toBeFalsy();
+
+    await user.click(screen.getByText(/Previous Week/));
+
+    await waitFor(() => {
+      expect(screen.getByText("Older Meal")).toBeTruthy();
+    });
+    // The view shows one week at a time
+    expect(screen.queryByText("Recent Meal")).toBeFalsy();
+
+    // Second request covers exactly the week before the first request,
+    // bounded by local start-of-day sent as UTC
+    const secondRange = requestedRanges[requestedRanges.length - 1];
+    expect(secondRange.endDate).toBe(requestedRanges[0].startDate);
+    const expectedStart = new Date();
+    expectedStart.setDate(expectedStart.getDate() - 13);
+    expectedStart.setHours(0, 0, 0, 0);
+    expect(secondRange.startDate).toBe(expectedStart.toISOString());
+
+    // Navigating forward returns to the most recent week
+    await user.click(screen.getByText(/Next Week/));
+
+    await waitFor(() => {
+      expect(screen.getByText("Recent Meal")).toBeTruthy();
+    });
+    expect(screen.queryByText("Older Meal")).toBeFalsy();
+    expect(screen.queryByText(/Next Week/)).toBeFalsy();
   });
 
   it("should sort entries by time within a day", async () => {
