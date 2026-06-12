@@ -725,7 +725,7 @@ describe("DiaryList", () => {
     const expectedStart = new Date();
     expectedStart.setDate(expectedStart.getDate() - 6);
     expectedStart.setHours(0, 0, 0, 0);
-    expect(entriesVariables!.startDate).toBe(expectedStart.toISOString());
+    expect(entriesVariables?.startDate).toBe(expectedStart.toISOString());
     expect(entriesVariables?.endDate).toBeUndefined();
   });
 
