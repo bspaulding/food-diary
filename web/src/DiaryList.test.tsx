@@ -59,7 +59,7 @@ describe("DiaryList", () => {
     render(() => <DiaryList />);
 
     await waitFor(() => {
-      expect(screen.getByText("No entries, yet...")).toBeTruthy();
+      expect(screen.getByText("No entries this week.")).toBeTruthy();
     });
   });
 

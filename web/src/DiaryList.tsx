@@ -178,7 +178,7 @@ const DiaryList: Component = () => {
       </Show>
       <ul class="mt-4">
         <Show when={entries().length === 0}>
-          <p class="text-slate-400 text-center">No entries, yet...</p>
+          <p class="text-slate-400 text-center">No entries this week.</p>
         </Show>
         <Index each={entriesByDay()}>
           {(dayEntries: () => [string, DiaryEntry[]], i: number) => {
