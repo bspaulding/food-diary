@@ -468,11 +468,11 @@ table for true cross-platform sync. Tracked as a separate task in `web/`.
     and sidecar endpoints.
 - **Auth0 config** (`domain`, `clientId`, `audience`, `redirectUri`) supplied via
   `.xcconfig` / `Info.plist` keys, not hard-coded in source. Audience matches the
-  web app. A native Auth0 **Application** (type: Native) must be created in the
-  tenant with a custom-scheme callback URL registered both in Auth0 (Allowed
-  Callback/Logout URLs) and in the app's `Info.plist` (`CFBundleURLTypes`), e.g.
-  `com.<bundle>.fooddiary://<AUTH0_DOMAIN>/ios/<BUNDLE_ID>/callback`. Refresh
-  token rotation must be enabled (Auth0 default for native apps).
+  web app. This requires a **manual, one-time setup in the Auth0 dashboard** —
+  full step-by-step instructions are in **§16**, and the post-build reminder
+  checklist is in **§17**. In short: a Native Auth0 application with a
+  custom-scheme callback registered in both Auth0 and `Info.plist`, and refresh
+  token rotation enabled.
 - **Secrets:** no API keys or client secret ship in the app — a Native app is a
   *public* client (no secret), which is exactly why PKCE is used. The labeller/LLM
   services authorize via the user's JWT.
@@ -483,7 +483,7 @@ table for true cross-platform sync. Tracked as a separate task in `web/`.
 
 | Phase | Theme | Contents |
 |---|---|---|
-| **0** | Foundation | Xcode project, SPM deps (Auth0), CI, `GraphQLClient`, `AuthService`, models, DI, login gate, base navigation. |
+| **0** | Foundation | Xcode project, CI, `GraphQLClient`, custom `OIDCClient`/`AuthService` (§6.5), models, DI, login gate, base navigation. (No third-party deps.) **Requires the manual Auth0 setup in §16 before login works — see §17.** |
 | **1 (v1)** | Core logging | Diary list + rings + paging + weekly averages; add/edit/delete entry with search & suggestions; item create/view/edit; recipe create/view/edit; targets (server); profile/logout. |
 | **2** | Insights | Trends screen with **Swift Charts** (`GetWeeklyTrends`). |
 | **3** | Native capture | Camera nutrition-label scan via `/labeller/upload` (+ optional on-device Vision pre-pass); LLM autofill via `/llm/lookup` on item form. |
@@ -547,5 +547,102 @@ table for true cross-platform sync. Tracked as a separate task in `web/`.
   create/edit recipes, with search and suggestions working.
 - Nutrition targets persist on the server and drive the rings.
 - Mandatory unit tests pass in CI; CI builds the app on PRs touching `ios/`.
-</content>
-</invoke>
+- **Auth0 tenant + backend manual setup completed (§16 / §17 checklist).**
+
+---
+
+## 16. Appendix: Manual Auth0 Tenant Configuration
+
+> ⚠️ **These steps are done by hand in the Auth0 dashboard — they are not code and
+> cannot be created by the build.** Login will not work until they're complete.
+> See the reminder checklist in §17.
+
+The iOS app reuses the **existing Auth0 tenant** that backs the web app, but it
+needs its **own Native application** registered (the web app is a SPA app; a Native
+app is a separate, secret-less public client that uses PKCE).
+
+### 16.1 Create the Native application
+1. Auth0 Dashboard → **Applications → Applications → Create Application**.
+2. Name: `Food Diary iOS`. Type: **Native**. Create.
+3. From the **Settings** tab, copy the **Domain** and **Client ID** — these go
+   into the app's `.xcconfig` (`AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`). A Native app
+   has **no client secret** (correct — it's a public client).
+
+### 16.2 Configure callback / logout URLs
+Pick a custom URL scheme tied to the bundle id, e.g. bundle id
+`com.bspaulding.fooddiary` → scheme `com.bspaulding.fooddiary`. The callback URL
+format is `{SCHEME}://{AUTH0_DOMAIN}/ios/{BUNDLE_ID}/callback`.
+
+In the Native app's **Settings**:
+- **Allowed Callback URLs:**
+  `com.bspaulding.fooddiary://<YOUR_AUTH0_DOMAIN>/ios/com.bspaulding.fooddiary/callback`
+- **Allowed Logout URLs:** same value (used by the `/v2/logout` return).
+- Save changes.
+
+### 16.3 Enable refresh tokens with rotation
+In the Native app's settings:
+- **Settings → Refresh Token Rotation:** enable **Rotation**.
+- **Refresh Token Expiration:** enable **Absolute** (and optionally Inline/Idle)
+  expiration per your preference.
+- Ensure **Grant Types** (Settings → Advanced → Grant Types) include
+  **Authorization Code** and **Refresh Token**.
+- The app must request the `offline_access` scope (handled in code, §6.5) for a
+  refresh token to be issued.
+
+### 16.4 Confirm the API (audience) authorizes the Native app
+The access token must be a JWT for the Hasura API
+(`https://direct-satyr-14.hasura.app/v1/graphql`):
+- Auth0 Dashboard → **Applications → APIs** → the Hasura API → **Settings**:
+  ensure **Allow Offline Access** is enabled (so refresh tokens are issued for
+  this audience).
+- No per-application authorization toggle is needed for SPA/Native against a
+  standard API, but verify the audience identifier exactly matches the value the
+  app sends.
+
+### 16.5 Values that land in the app config
+Populate `ios/FoodDiary/Config/*.xcconfig` (not committed with real values if you
+prefer; the client id/domain are not secrets but keep the file out of source if
+desired):
+
+```
+AUTH0_DOMAIN     = <your-tenant>.us.auth0.com   # or custom domain
+AUTH0_CLIENT_ID  = <native app client id>
+AUTH0_AUDIENCE   = https://direct-satyr-14.hasura.app/v1/graphql
+AUTH0_SCHEME     = com.bspaulding.fooddiary
+AUTH0_REDIRECT   = $(AUTH0_SCHEME)://$(AUTH0_DOMAIN)/ios/$(PRODUCT_BUNDLE_IDENTIFIER)/callback
+```
+
+And register the scheme in `Info.plist` under `CFBundleURLTypes` so the OS routes
+the callback back to the app.
+
+### 16.6 Quick verification
+- Run the app, tap Log In → the Auth0 universal-login page appears in the
+  in-app browser sheet → after login it returns to the app.
+- Decode the returned `access_token` at jwt.io (or in a debug log of claims) and
+  confirm it contains `https://hasura.io/jwt/claims` with `x-hasura-user-id`. If
+  the token is opaque (not a JWT) the `audience` param is missing/wrong (§6.5).
+- Confirm a GraphQL query returns the signed-in user's data.
+
+---
+
+## 17. ⏰ Post-Build Reminder Checklist (do this when the project is complete)
+
+> **Reminder for Brad:** the app cannot authenticate or persist targets until the
+> following manual, out-of-band setup is done. None of this is created by building
+> the Xcode project — schedule it as the final step before first run / TestFlight.
+
+- [ ] **Auth0:** create the **Native** application in the existing tenant (§16.1).
+- [ ] **Auth0:** set Allowed **Callback** and **Logout** URLs to the custom scheme
+      (§16.2).
+- [ ] **Auth0:** enable **Refresh Token Rotation** + ensure Authorization Code &
+      Refresh Token grants (§16.3).
+- [ ] **Auth0:** confirm the Hasura **API audience** allows offline access and the
+      identifier matches (§16.4).
+- [ ] **App config:** put Domain / Client ID / Audience / Scheme into `.xcconfig`
+      and register `CFBundleURLTypes` in `Info.plist` (§16.5).
+- [ ] **Verify:** complete a login round-trip and confirm the access token is a
+      Hasura-claims JWT (§16.6).
+- [ ] **Backend:** apply the `nutrition_target` migration + Hasura metadata
+      permissions (§9), then `hasura migrate apply` / `hasura metadata apply`.
+- [ ] **TestFlight:** App Store Connect app record, signing/provisioning, and
+      upload the first build.
