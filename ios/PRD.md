@@ -49,7 +49,7 @@ These were settled during the planning interview and drive the rest of the doc.
 | 3 | v1 feature scope | **Core logging first** | Diary list, entries, items, recipes, search, suggestions, targets. |
 | 4 | App architecture | **MVVM + `@Observable`** | Views → `@Observable` view models → service/repository layer. |
 | 5 | GraphQL transport | **URLSession + Codable** | Hand-written query strings (mirrors web), no codegen, zero deps. |
-| 6 | Authentication | **Auth0.swift SDK** | Native login, token refresh, Keychain storage; reuses existing tenant. |
+| 6 | Authentication | **Custom OIDC client (zero deps)** | Hand-rolled Authorization Code + PKCE via `ASWebAuthenticationSession`; own Keychain wrapper. Reuses existing Auth0 tenant. See §6.5. |
 | 7 | Persistence / offline | **Online-only** | Fetch on demand, no local store (matches current web behavior). |
 | 8 | Nutrition targets storage | **Store on server** | New additive Hasura table keyed by `user_id` (see §9). |
 | 9 | Repo location | **`ios/` in this monorepo** | Alongside `web/`, `graphql-engine/`, etc. |
@@ -70,18 +70,22 @@ These were settled during the planning interview and drive the rest of the doc.
 │   iOS App        │         │            Backend (unchanged)        │
 │  (SwiftUI)       │         │                                        │
 │                  │  HTTPS  │  ┌──────────────┐  Hasura GraphQL      │
-│  Auth0.swift ────┼────────┼─▶│ /api/v1/graphql (JWT, per-user RLS) │
-│                  │  Bearer │  └──────────────┘                      │
-│  URLSession ─────┼────────┼─▶ /labeller/upload  (Rust OCR)  [later] │
-│                  │  JWT    │  └─▶ /llm/lookup     (Rust LLM)  [later]│
-│  Auth0 tenant ◀──┼────────┼─▶ Auth0 (OIDC, Hasura JWT claims)      │
+│  URLSession ─────┼────────┼─▶│ /api/v1/graphql (JWT, per-user RLS) │
+│  (Bearer JWT)    │  Bearer │  └──────────────┘                      │
+│                  │  JWT    │  └─▶ /labeller/upload  (Rust OCR) [later]│
+│  OIDCClient ─────┼────────┼─▶ /llm/lookup       (Rust LLM)  [later] │
+│  (ASWebAuth +    │         │                                        │
+│   PKCE) ◀────────┼────────┼─▶ Auth0 (OIDC authorize/token endpoints)│
 └─────────────────┘         └──────────────────────────────────────┘
 ```
 
-- **Auth:** Auth0 OIDC. Audience `https://direct-satyr-14.hasura.app/v1/graphql`.
-  Access token is a JWT containing Hasura claims (`x-hasura-user-id`,
-  `x-hasura-default-role: user`, allowed roles). The same token authorizes
-  Hasura, the labeller, and the LLM service via the ingress.
+- **Auth:** Auth0 OIDC via a **custom Authorization Code + PKCE client** (no SDK).
+  Audience `https://direct-satyr-14.hasura.app/v1/graphql`. The access token is a
+  JWT containing Hasura claims (`x-hasura-user-id`, `x-hasura-default-role: user`,
+  allowed roles). The same token authorizes Hasura, the labeller, and the LLM
+  service via the ingress. **The client never validates the token** — Hasura is
+  the verifier; the app treats the access token as an opaque bearer and only
+  decodes `exp` for refresh timing. See §6.5 for the full flow.
 - **Data scoping:** Every table has a `user_id text NOT NULL` column. Hasura
   `user` role permissions filter all reads/writes by
   `user_id _eq X-Hasura-User-Id` and auto-set `user_id` on insert. The iOS app
@@ -182,8 +186,8 @@ View (SwiftUI)
 - **GraphQLClient** is a single struct/actor that performs the POST, injects the
   bearer token, decodes `data`, and maps GraphQL/HTTP errors to typed Swift
   errors (`APIError.unauthorized`, `.graphQL([GraphQLError])`, `.transport`).
-- **AuthService** wraps Auth0.swift: `login()`, `logout()`, `currentToken()`
-  (with refresh), and publishes auth state to the app root.
+- **AuthService** wraps the custom `OIDCClient` (§6.5): `login()`, `logout()`,
+  `currentToken()` (with refresh), and publishes auth state to the app root.
 
 ### 6.2 Project structure
 
@@ -196,7 +200,11 @@ ios/
       AppEnvironment.swift        # DI container, base-URL config
       RootView.swift              # login gate → NavigationStack
     Auth/
-      AuthService.swift           # Auth0.swift wrapper (@Observable)
+      AuthService.swift           # @Observable; login/logout/currentToken
+      OIDCClient.swift            # Authorization Code + PKCE (ASWebAuthenticationSession)
+      PKCE.swift                  # verifier/challenge (CryptoKit)
+      TokenStore.swift            # actor: in-memory tokens + refresh coalescing
+      Keychain.swift              # ~60-line Keychain wrapper (refresh token)
       AuthState.swift
     Networking/
       GraphQLClient.swift
@@ -246,6 +254,59 @@ ios/
 - Root = diary list. A toolbar menu exposes Profile/Settings and the add actions
   (New Entry / New Item / New Recipe), mirroring the web's top buttons.
 - Modal sheets used for forms where it reads more naturally (e.g. quick add).
+
+### 6.5 Authentication — custom OIDC client (zero dependencies)
+
+The app is a **public OAuth client** using the **Authorization Code flow with
+PKCE**. It obtains and refreshes tokens and attaches the access token as a bearer.
+It does **not** validate tokens (Hasura does that), which removes the hard parts
+of OIDC (JWKS signature verification, nonce checks). Everything below uses only
+system frameworks: `AuthenticationServices`, `CryptoKit`, `Security`, `Foundation`.
+
+**Login flow**
+1. Generate PKCE `code_verifier` (32 random bytes, base64url) and
+   `code_challenge = base64url(SHA256(verifier))`; generate a random `state`.
+2. Open `ASWebAuthenticationSession` at Auth0 `/authorize` with:
+   `response_type=code`, `client_id`, `redirect_uri` (custom scheme),
+   `scope=openid profile email offline_access`,
+   `audience=https://direct-satyr-14.hasura.app/v1/graphql` (**required** — without
+   it Auth0 returns an opaque token, not a Hasura-claims JWT),
+   `code_challenge`, `code_challenge_method=S256`, `state`.
+3. The OS handles the browser/cookies and returns to the `redirect_uri`. Verify
+   `state` matches, extract `code`.
+4. POST to `/oauth/token` (`grant_type=authorization_code`) with `code`,
+   `code_verifier`, `client_id`, `redirect_uri`. Receive `access_token`,
+   `refresh_token`, `expires_in`.
+5. Persist the refresh token in Keychain; hold the access token + expiry in the
+   `TokenStore` actor; publish authenticated state.
+
+**Token use & refresh**
+- `currentToken()` returns a valid access token, refreshing first if it's expired
+  or within a small skew window. Expiry is read from the JWT `exp` claim (base64
+  decode, **no signature check**) or `expires_in`.
+- Refresh = POST `/oauth/token` (`grant_type=refresh_token`). **Auth0 rotates
+  refresh tokens for native clients** → persist the *new* refresh token returned
+  on every refresh.
+- The `TokenStore` actor **coalesces concurrent refreshes**: if several requests
+  hit a 401 at once, only one refresh runs; the rest await its result.
+- A 401/403 that survives a refresh attempt → clear tokens, publish signed-out,
+  route to login.
+
+**Logout**
+- Clear Keychain + in-memory tokens. Optionally open the Auth0 `/v2/logout`
+  (or end-session) URL in `ASWebAuthenticationSession` to clear the Auth0 session
+  cookie so the next login isn't auto-completed.
+
+**The five things to get right** (the only risk concentration):
+1. Always send the `audience` param (JWT vs opaque token).
+2. Request `offline_access` (no scope → no refresh token).
+3. Persist rotated refresh tokens on every refresh.
+4. Serialize/coalesce concurrent refreshes (the `TokenStore` actor).
+5. Keychain item accessibility: `kSecAttrAccessibleAfterFirstUnlock`.
+
+**Tests (added to the mandatory set, §12):** PKCE challenge derivation vs known
+vectors; authorize-URL construction (params present/encoded); JWT `exp` decoding;
+refresh-coalescing (N concurrent callers → 1 token request).
 
 ---
 
@@ -405,13 +466,16 @@ table for true cross-platform sync. Tracked as a separate task in `web/`.
   - **Debug:** default to production, with an in-app (Profile → Developer)
     override to point at a local/dev host (e.g. a Mac on the LAN) for the Hasura
     and sidecar endpoints.
-- **Auth0 config** (`domain`, `clientId`, `audience`) supplied via an
+- **Auth0 config** (`domain`, `clientId`, `audience`, `redirectUri`) supplied via
   `.xcconfig` / `Info.plist` keys, not hard-coded in source. Audience matches the
-  web app. A native Auth0 **Application** (type: Native) must be created/configured
-  in the Auth0 tenant with the iOS bundle ID callback URL
-  (`{BUNDLE_ID}://{AUTH0_DOMAIN}/ios/{BUNDLE_ID}/callback`).
-- **Secrets:** no API keys ship in the app; the Auth0 client ID for a Native app
-  is public by design. The labeller/LLM services authorize via the user's JWT.
+  web app. A native Auth0 **Application** (type: Native) must be created in the
+  tenant with a custom-scheme callback URL registered both in Auth0 (Allowed
+  Callback/Logout URLs) and in the app's `Info.plist` (`CFBundleURLTypes`), e.g.
+  `com.<bundle>.fooddiary://<AUTH0_DOMAIN>/ios/<BUNDLE_ID>/callback`. Refresh
+  token rotation must be enabled (Auth0 default for native apps).
+- **Secrets:** no API keys or client secret ship in the app — a Native app is a
+  *public* client (no secret), which is exactly why PKCE is used. The labeller/LLM
+  services authorize via the user's JWT.
 
 ---
 
@@ -438,6 +502,8 @@ table for true cross-platform sync. Tracked as a separate task in `web/`.
   - `GraphQLClient` decoding — golden JSON → model decoding for each operation,
     including snake_case mapping and the item/recipe XOR.
   - Error mapping — `401/403` → `unauthorized`; GraphQL `errors` → `.graphQL`.
+  - Auth (§6.5) — PKCE challenge vs known vectors, authorize-URL params,
+    JWT `exp` decoding, and refresh coalescing (N concurrent callers → 1 refresh).
 - **Manual test plan:** login/logout, log an item entry, log a recipe entry,
   edit servings/time, delete with rollback, create item, create recipe, change
   targets and confirm rings update, week paging, expired-token → re-login.
@@ -450,7 +516,8 @@ table for true cross-platform sync. Tracked as a separate task in `web/`.
 
 ## 13. Dependencies
 
-- **Auth0.swift** (SPM) — auth + Keychain token storage. (Only third-party dep.)
+- **None.** v1 is zero third-party dependencies. Auth uses the custom OIDC client
+  (§6.5) on `AuthenticationServices` + `CryptoKit` + `Security`.
 - Everything else uses the system SDK: SwiftUI, `URLSession`, `Codable`,
   Swift Charts (phase 2), VisionKit/AVFoundation (phase 3).
 
@@ -460,7 +527,8 @@ table for true cross-platform sync. Tracked as a separate task in `web/`.
 
 | Risk / question | Impact | Mitigation / proposal |
 |---|---|---|
-| Auth0 Native app + callback URL not yet configured | Blocks login | Create a Native Auth0 application in the tenant during Phase 0; reuse existing audience. |
+| Auth0 Native app + callback URL not yet configured | Blocks login | Create a Native Auth0 application + custom-scheme callback during Phase 0; reuse existing audience. |
+| Custom OIDC client gotchas (audience, offline_access, refresh rotation, refresh races, Keychain accessibility) | Broken login/refresh; surprise logouts | The five items in §6.5 are explicitly tested and reviewed; refresh coalescing via a dedicated actor. Owning auth means owning future security patches — surface is small (Auth Code + PKCE is stable; OS provides ASWebAuthenticationSession). |
 | `numeric` decimals decoding/rounding parity with web | Wrong macro totals | Decode as `Double`; port web rounding (`Math.round`/`Math.ceil`) precisely; cover with unit tests. |
 | Targets table migration coordination with web | Web still uses localStorage | Ship table additively; web migration is a separate, non-blocking follow-up. |
 | Timezone-dependent day grouping | Off-by-one day bugs | Reuse the web's local-day logic; test with `TZ` pinned; group by local `startOfDay`. |
