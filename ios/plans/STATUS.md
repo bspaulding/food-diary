@@ -62,7 +62,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 - [x] GraphQL operations mirrored from `web/src/Api.ts` (§1) — each with golden decode test
 - [x] Repositories (protocol-backed) for diary/items/recipes/search/suggestions/targets — Note: SwiftUI features (§4–§9: diary list, entry form, items, recipes, targets, profile, design system, error/session handling) remain open.
-- [ ] `MacroCalculations` + `WeeklyStats` + `DateHelpers` ported and unit-tested (§3)
+- [x] `MacroCalculations` + `WeeklyStats` + `DateHelpers` ported and unit-tested (§3)
 - [ ] Diary list: rings, grouping, 7-day/4-week headers, paging, empty state (§4)
 - [ ] Add/edit/delete entry with search + 3 suggestion sources (§5); delete optimistic + rollback
 - [ ] Nutrition items: create/view/edit (§6)
