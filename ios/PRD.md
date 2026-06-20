@@ -2,7 +2,7 @@
 
 **Status:** Draft for implementation
 **Author:** Brad Spaulding
-**Last updated:** 2026-06-19
+**Last updated:** 2026-06-20
 **Target:** Native iOS port of the Food Diary web front end (`web/`)
 
 ---
@@ -53,7 +53,7 @@ These were settled during the planning interview and drive the rest of the doc.
 | 7 | Persistence / offline | **Online-only** | Fetch on demand, no local store (matches current web behavior). |
 | 8 | Nutrition targets storage | **Store on server** | New additive Hasura table keyed by `user_id` (see §9). |
 | 9 | Repo location | **`ios/` in this monorepo** | Alongside `web/`, `graphql-engine/`, etc. |
-| 10 | Project tooling | **Plain Xcode project** | `.xcodeproj` committed, deps via SPM. |
+| 10 | Project tooling | **Plain Xcode project** | `.xcodeproj` committed; SPM available if a dep is ever needed (v1 has none — see §13). |
 | 11 | Device support | **iPhone only** | Portrait-first; runs scaled on iPad. |
 | 12 | Visual design | **Native base + custom accents** | HIG foundations + signature macro rings/colors. |
 | 13 | Testing | **Minimal** | Unit-test critical calculations + API decoding only. |
@@ -97,11 +97,14 @@ These were settled during the planning interview and drive the rest of the doc.
 ## 4. Feature Scope — v1 (Core Logging)
 
 ### 4.1 Authentication & session
-- Log in via Auth0 (native browser flow through Auth0.swift).
-- Persist session across launches (Keychain via the SDK); silent token refresh.
-- Log out (clears session, returns to login screen).
-- On any `401/403` from the API, treat the session as invalid and route to login
-  (mirrors the web app's `AuthorizationError` → logout behavior).
+- Log in via Auth0 using the custom OIDC client (in-app `ASWebAuthenticationSession`
+  flow, §6.5).
+- Persist session across launches (refresh token in Keychain); silent token
+  refresh on expiry.
+- Log out (clears tokens + optionally the Auth0 session cookie, returns to login).
+- On any `401/403` from the API that survives a refresh attempt, treat the session
+  as invalid and route to login (mirrors the web app's `AuthorizationError` →
+  logout behavior).
 
 ### 4.2 Diary list (home)
 - Weekly-paginated list of diary entries, newest week first; "Previous Week" /
@@ -172,7 +175,7 @@ View (SwiftUI)
   └─ binds to → ViewModel (@Observable, @MainActor)
         └─ calls → Service/Repository (async)
               └─ uses → GraphQLClient (URLSession + Codable)
-                    └─ gets token from → AuthService (Auth0.swift)
+                    └─ gets token from → AuthService (custom OIDC, §6.5)
 ```
 
 - **Views** are thin and declarative. No networking in views.
@@ -527,7 +530,7 @@ table for true cross-platform sync. Tracked as a separate task in `web/`.
 
 | Risk / question | Impact | Mitigation / proposal |
 |---|---|---|
-| Auth0 Native app + callback URL not yet configured | Blocks login | Create a Native Auth0 application + custom-scheme callback during Phase 0; reuse existing audience. |
+| Auth0 Native app + callback URL not yet configured | Blocks login (needed as soon as the Phase 0 login flow is tested) | Manual one-time setup per §16; tracked in the §17 checklist. Reuses the existing tenant/audience. |
 | Custom OIDC client gotchas (audience, offline_access, refresh rotation, refresh races, Keychain accessibility) | Broken login/refresh; surprise logouts | The five items in §6.5 are explicitly tested and reviewed; refresh coalescing via a dedicated actor. Owning auth means owning future security patches — surface is small (Auth Code + PKCE is stable; OS provides ASWebAuthenticationSession). |
 | `numeric` decimals decoding/rounding parity with web | Wrong macro totals | Decode as `Double`; port web rounding (`Math.round`/`Math.ceil`) precisely; cover with unit tests. |
 | Targets table migration coordination with web | Web still uses localStorage | Ship table additively; web migration is a separate, non-blocking follow-up. |
@@ -582,8 +585,8 @@ In the Native app's **Settings**:
 ### 16.3 Enable refresh tokens with rotation
 In the Native app's settings:
 - **Settings → Refresh Token Rotation:** enable **Rotation**.
-- **Refresh Token Expiration:** enable **Absolute** (and optionally Inline/Idle)
-  expiration per your preference.
+- **Refresh Token Expiration:** enable **Absolute** (and optionally
+  **Inactivity/Idle**) expiration per your preference.
 - Ensure **Grant Types** (Settings → Advanced → Grant Types) include
   **Authorization Code** and **Refresh Token**.
 - The app must request the `offline_access` scope (handled in code, §6.5) for a
@@ -604,16 +607,23 @@ Populate `ios/FoodDiary/Config/*.xcconfig` (not committed with real values if yo
 prefer; the client id/domain are not secrets but keep the file out of source if
 desired):
 
+Only values **without** `://` go in `.xcconfig`:
+
 ```
-AUTH0_DOMAIN     = <your-tenant>.us.auth0.com   # or custom domain
+AUTH0_DOMAIN     = <your-tenant>.us.auth0.com
 AUTH0_CLIENT_ID  = <native app client id>
-AUTH0_AUDIENCE   = https://direct-satyr-14.hasura.app/v1/graphql
 AUTH0_SCHEME     = com.bspaulding.fooddiary
-AUTH0_REDIRECT   = $(AUTH0_SCHEME)://$(AUTH0_DOMAIN)/ios/$(PRODUCT_BUNDLE_IDENTIFIER)/callback
 ```
 
-And register the scheme in `Info.plist` under `CFBundleURLTypes` so the OS routes
-the callback back to the app.
+> ⚠️ **xcconfig treats `//` as a comment**, so any value containing `://` (the
+> audience URL `https://…` and the redirect URI) is silently truncated. Keep the
+> **audience** and **redirect URI** in Swift instead, assembled from the config
+> values above:
+> - audience: `"https://direct-satyr-14.hasura.app/v1/graphql"` (a constant)
+> - redirect: `"\(scheme)://\(domain)/ios/\(bundleId)/callback"`
+
+Register the scheme in `Info.plist` under `CFBundleURLTypes` so the OS routes the
+callback back to the app.
 
 ### 16.6 Quick verification
 - Run the app, tap Log In → the Auth0 universal-login page appears in the
@@ -625,7 +635,7 @@ the callback back to the app.
 
 ---
 
-## 17. ⏰ Post-Build Reminder Checklist (do this when the project is complete)
+## 17. ⏰ Reminder Checklist — manual setup (complete before first run / TestFlight)
 
 > **Reminder for Brad:** the app cannot authenticate or persist targets until the
 > following manual, out-of-band setup is done. None of this is created by building
