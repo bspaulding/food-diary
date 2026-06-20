@@ -242,4 +242,45 @@ enum Api {
             var updateFoodDiaryNutritionItemByPk: Row
         }
     }
+
+    enum Recipes {
+        static let getById = """
+            query GetRecipe($id: Int!) {
+              food_diary_recipe_by_pk(id: $id) {
+                id, name, total_servings
+                recipe_items { servings, nutrition_item { id, description, calories } }
+              }
+            }
+            """
+
+        static let create = """
+            mutation CreateRecipe($input: food_diary_recipe_insert_input!) {
+              insert_food_diary_recipe_one(object: $input) { id }
+            }
+            """
+
+        static let update = """
+            mutation UpdateRecipe($id: Int!, $attrs: food_diary_recipe_set_input!, $items: [food_diary_recipe_item_insert_input!]!) {
+              update_food_diary_recipe_by_pk(pk_columns: { id: $id }, _set: $attrs) { id }
+              delete_food_diary_recipe_item(where: { recipe_id: { _eq: $id } }) { affected_rows }
+              insert_food_diary_recipe_item(objects: $items) { affected_rows }
+            }
+            """
+
+        struct GetByIdResponse: Decodable { var foodDiaryRecipeByPk: Recipe }
+        struct CreateResponse: Decodable {
+            struct Row: Decodable { var id: Int }
+            var insertFoodDiaryRecipeOne: Row
+        }
+
+        struct RecipeItemInput: Encodable { var servings: Double; var nutritionItemId: Int }
+        struct RecipeItemsData: Encodable { var data: [RecipeItemInput] }
+        struct CreateInput: Encodable {
+            var name: String
+            var totalServings: Int
+            var recipeItems: RecipeItemsData
+        }
+        struct UpdateAttrs: Encodable { var name: String; var totalServings: Int }
+        struct UpdateRecipeItemInput: Encodable { var servings: Double; var nutritionItemId: Int; var recipeId: Int }
+    }
 }

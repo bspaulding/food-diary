@@ -128,10 +128,49 @@ struct NutritionItemRepositoryImpl: NutritionItemRepository {
     }
 }
 
-protocol RecipeRepository {
+struct RecipeItemDraft: Sendable {
+    var nutritionItemID: Int
+    var servings: Double
+}
+
+protocol RecipeRepository: Sendable {
     func recipe(id: Int) async throws -> Recipe
-    func create(_ recipe: Recipe) async throws -> Recipe
-    func update(_ recipe: Recipe) async throws -> Recipe
+    func create(name: String, totalServings: Int, items: [RecipeItemDraft]) async throws -> Int
+    func update(id: Int, name: String, totalServings: Int, items: [RecipeItemDraft]) async throws
+}
+
+struct RecipeRepositoryImpl: RecipeRepository {
+    let client: GraphQLClient
+
+    func recipe(id: Int) async throws -> Recipe {
+        let response = try await client.execute(
+            query: Api.Recipes.getById, variables: ["id": AnyEncodable(id)],
+            as: Api.Recipes.GetByIdResponse.self)
+        return response.foodDiaryRecipeByPk
+    }
+
+    func create(name: String, totalServings: Int, items: [RecipeItemDraft]) async throws -> Int {
+        let input = Api.Recipes.CreateInput(
+            name: name, totalServings: totalServings,
+            recipeItems: Api.Recipes.RecipeItemsData(
+                data: items.map { Api.Recipes.RecipeItemInput(servings: $0.servings, nutritionItemId: $0.nutritionItemID) }))
+        let response = try await client.execute(
+            query: Api.Recipes.create, variables: ["input": AnyEncodable(input)],
+            as: Api.Recipes.CreateResponse.self)
+        return response.insertFoodDiaryRecipeOne.id
+    }
+
+    func update(id: Int, name: String, totalServings: Int, items: [RecipeItemDraft]) async throws {
+        struct Response: Decodable {}
+        let attrs = Api.Recipes.UpdateAttrs(name: name, totalServings: totalServings)
+        let itemsInput = items.map {
+            Api.Recipes.UpdateRecipeItemInput(servings: $0.servings, nutritionItemId: $0.nutritionItemID, recipeId: id)
+        }
+        _ = try await client.execute(
+            query: Api.Recipes.update,
+            variables: ["id": AnyEncodable(id), "attrs": AnyEncodable(attrs), "items": AnyEncodable(itemsInput)],
+            as: Response.self)
+    }
 }
 
 protocol SearchRepository: Sendable {

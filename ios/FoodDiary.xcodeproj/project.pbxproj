@@ -46,6 +46,7 @@
 		3F0D65B15F8B4F06AB11FFA1 /* SearchApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 555FB3739A364AB2BFDF7004 /* SearchApiTests.swift */; };
 		08B732DBDE9341698DD5BDBE /* NutritionItemApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA37288AB9A1407BAAEDD2C2 /* NutritionItemApiTests.swift */; };
 		13B2A21AD44C451F94698055 /* NutritionItemInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38EFD9F6A7F42849AB6E534 /* NutritionItemInput.swift */; };
+		FBF77882D1504E7F965AC851 /* RecipeApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7A21156B3B478ABC4266C7 /* RecipeApiTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -104,6 +105,7 @@
 		555FB3739A364AB2BFDF7004 /* SearchApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchApiTests.swift; sourceTree = "<group>"; };
 		FA37288AB9A1407BAAEDD2C2 /* NutritionItemApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionItemApiTests.swift; sourceTree = "<group>"; };
 		A38EFD9F6A7F42849AB6E534 /* NutritionItemInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionItemInput.swift; sourceTree = "<group>"; };
+		AE7A21156B3B478ABC4266C7 /* RecipeApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeApiTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -140,6 +142,7 @@
 				D4E5F6A7B8C9D0E1F2A3B4C5 /* DateHelpersTests.swift */,
 				555FB3739A364AB2BFDF7004 /* SearchApiTests.swift */,
 				FA37288AB9A1407BAAEDD2C2 /* NutritionItemApiTests.swift */,
+				AE7A21156B3B478ABC4266C7 /* RecipeApiTests.swift */,
 			);
 			path = FoodDiaryTests;
 			sourceTree = "<group>";
@@ -366,6 +369,7 @@
 				C3D4E5F6A7B8C9D0E1F2A3B4 /* DateHelpersTests.swift in Sources */,
 				3F0D65B15F8B4F06AB11FFA1 /* SearchApiTests.swift in Sources */,
 				08B732DBDE9341698DD5BDBE /* NutritionItemApiTests.swift in Sources */,
+				FBF77882D1504E7F965AC851 /* RecipeApiTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
