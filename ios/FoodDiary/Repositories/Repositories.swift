@@ -98,10 +98,34 @@ struct DiaryRepositoryImpl: DiaryRepository {
     }
 }
 
-protocol NutritionItemRepository {
+protocol NutritionItemRepository: Sendable {
     func item(id: Int) async throws -> NutritionItem
-    func create(_ item: NutritionItem) async throws -> NutritionItem
-    func update(_ item: NutritionItem) async throws -> NutritionItem
+    func create(_ input: NutritionItemInput) async throws -> Int
+    func update(id: Int, _ input: NutritionItemInput) async throws
+}
+
+struct NutritionItemRepositoryImpl: NutritionItemRepository {
+    let client: GraphQLClient
+
+    func item(id: Int) async throws -> NutritionItem {
+        let response = try await client.execute(
+            query: Api.Items.getById, variables: ["id": AnyEncodable(id)],
+            as: Api.Items.GetByIdResponse.self)
+        return response.foodDiaryNutritionItemByPk
+    }
+
+    func create(_ input: NutritionItemInput) async throws -> Int {
+        let response = try await client.execute(
+            query: Api.Items.create, variables: ["nutritionItem": AnyEncodable(input)],
+            as: Api.Items.CreateResponse.self)
+        return response.insertFoodDiaryNutritionItemOne.id
+    }
+
+    func update(id: Int, _ input: NutritionItemInput) async throws {
+        _ = try await client.execute(
+            query: Api.Items.update, variables: ["id": AnyEncodable(id), "attrs": AnyEncodable(input)],
+            as: Api.Items.UpdateResponse.self)
+    }
 }
 
 protocol RecipeRepository {

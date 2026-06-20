@@ -204,4 +204,42 @@ enum Api {
         struct TopEntriesAroundHourResponse: Decodable { var foodDiaryTopEntriesAroundHour: [EntryRow] }
         struct TopLoggedResponse: Decodable { var foodDiaryDiaryEntry: [EntryRow] }
     }
+
+    enum Items {
+        static let itemFields = """
+            id, description, calories,
+            total_fat_grams, saturated_fat_grams, trans_fat_grams,
+            polyunsaturated_fat_grams, monounsaturated_fat_grams,
+            cholesterol_milligrams, sodium_milligrams, total_carbohydrate_grams,
+            dietary_fiber_grams, total_sugars_grams, added_sugars_grams, protein_grams
+            """
+
+        static let getById = """
+            query GetNutritionItem($id: Int!) {
+              food_diary_nutrition_item_by_pk(id: $id) { \(itemFields) }
+            }
+            """
+
+        static let create = """
+            mutation CreateNutritionItem($nutritionItem: food_diary_nutrition_item_insert_input!) {
+              insert_food_diary_nutrition_item_one(object: $nutritionItem) { id }
+            }
+            """
+
+        static let update = """
+            mutation UpdateItem($id: Int!, $attrs: food_diary_nutrition_item_set_input!) {
+              update_food_diary_nutrition_item_by_pk(pk_columns: { id: $id }, _set: $attrs) { id }
+            }
+            """
+
+        struct GetByIdResponse: Decodable { var foodDiaryNutritionItemByPk: NutritionItem }
+        struct CreateResponse: Decodable {
+            struct Row: Decodable { var id: Int }
+            var insertFoodDiaryNutritionItemOne: Row
+        }
+        struct UpdateResponse: Decodable {
+            struct Row: Decodable { var id: Int }
+            var updateFoodDiaryNutritionItemByPk: Row
+        }
+    }
 }
