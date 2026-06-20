@@ -47,6 +47,7 @@
 		08B732DBDE9341698DD5BDBE /* NutritionItemApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA37288AB9A1407BAAEDD2C2 /* NutritionItemApiTests.swift */; };
 		13B2A21AD44C451F94698055 /* NutritionItemInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A38EFD9F6A7F42849AB6E534 /* NutritionItemInput.swift */; };
 		FBF77882D1504E7F965AC851 /* RecipeApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7A21156B3B478ABC4266C7 /* RecipeApiTests.swift */; };
+		5BAA171496B5433984732D22 /* TargetsApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3F5AADC5694D6E92302AD3 /* TargetsApiTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -106,6 +107,7 @@
 		FA37288AB9A1407BAAEDD2C2 /* NutritionItemApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionItemApiTests.swift; sourceTree = "<group>"; };
 		A38EFD9F6A7F42849AB6E534 /* NutritionItemInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionItemInput.swift; sourceTree = "<group>"; };
 		AE7A21156B3B478ABC4266C7 /* RecipeApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeApiTests.swift; sourceTree = "<group>"; };
+		7B3F5AADC5694D6E92302AD3 /* TargetsApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetsApiTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -143,6 +145,7 @@
 				555FB3739A364AB2BFDF7004 /* SearchApiTests.swift */,
 				FA37288AB9A1407BAAEDD2C2 /* NutritionItemApiTests.swift */,
 				AE7A21156B3B478ABC4266C7 /* RecipeApiTests.swift */,
+				7B3F5AADC5694D6E92302AD3 /* TargetsApiTests.swift */,
 			);
 			path = FoodDiaryTests;
 			sourceTree = "<group>";
@@ -370,6 +373,7 @@
 				3F0D65B15F8B4F06AB11FFA1 /* SearchApiTests.swift in Sources */,
 				08B732DBDE9341698DD5BDBE /* NutritionItemApiTests.swift in Sources */,
 				FBF77882D1504E7F965AC851 /* RecipeApiTests.swift in Sources */,
+				5BAA171496B5433984732D22 /* TargetsApiTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

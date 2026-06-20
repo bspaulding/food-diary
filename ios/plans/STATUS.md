@@ -7,7 +7,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 **Legend:** ☐ not started · ◐ in progress · ☑ done
 
-**Last updated:** 2026-06-19
+**Last updated:** 2026-06-20
 
 ---
 
@@ -19,7 +19,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 | ↳ Testing + CI infra (first PR) | ☑ | — | walking-skeleton test + auth/error/decoding tests; `test-ios` job added to `ci-cd.yml` |
 | Backend — nutrition targets (§9) | ☑ | — | migration + metadata written and verified locally; needs apply against the real dev/prod Hasura instance |
 | Auth0 + TestFlight manual setup (§16/§17) | ☐ | — | out-of-band; see checklist below |
-| Phase 1 — Core logging (v1) | ☐ | — | diary/entries/items/recipes/targets/profile |
+| Phase 1 — Core logging (v1) | ◐ | — | GraphQL operations + protocol-backed repositories landed; SwiftUI features (§4–§9) still open |
 | Phase 2 — Insights (Trends) | ☐ | — | deferred from v1 |
 | Phase 3 — Native capture (scan + LLM) | ☐ | — | deferred from v1 |
 | Phase 4 — Data portability (CSV) | ☐ | — | deferred from v1 |
@@ -60,8 +60,8 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 ## Phase 1 — Core logging / v1 ([plan](phase-1-core-logging.md))
 
-- [ ] GraphQL operations mirrored from `web/src/Api.ts` (§1) — each with golden decode test
-- [ ] Repositories (protocol-backed) for diary/items/recipes/search/suggestions/targets
+- [x] GraphQL operations mirrored from `web/src/Api.ts` (§1) — each with golden decode test
+- [x] Repositories (protocol-backed) for diary/items/recipes/search/suggestions/targets — Note: SwiftUI features (§4–§9: diary list, entry form, items, recipes, targets, profile, design system, error/session handling) remain open.
 - [ ] `MacroCalculations` + `WeeklyStats` + `DateHelpers` ported and unit-tested (§3)
 - [ ] Diary list: rings, grouping, 7-day/4-week headers, paging, empty state (§4)
 - [ ] Add/edit/delete entry with search + 3 suggestion sources (§5); delete optimistic + rollback

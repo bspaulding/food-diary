@@ -283,4 +283,32 @@ enum Api {
         struct UpdateAttrs: Encodable { var name: String; var totalServings: Int }
         struct UpdateRecipeItemInput: Encodable { var servings: Double; var nutritionItemId: Int; var recipeId: Int }
     }
+
+    enum Targets {
+        static let get = """
+            query GetNutritionTargets {
+              food_diary_nutrition_target {
+                calories, calories_max, protein_grams, dietary_fiber_grams, added_sugars_grams
+              }
+            }
+            """
+
+        static let set = """
+            mutation SetNutritionTargets($target: food_diary_nutrition_target_insert_input!) {
+              insert_food_diary_nutrition_target_one(
+                object: $target
+                on_conflict: {
+                  constraint: nutrition_target_pkey
+                  update_columns: [calories, calories_max, protein_grams, dietary_fiber_grams, added_sugars_grams]
+                }
+              ) { user_id }
+            }
+            """
+
+        struct GetResponse: Decodable { var foodDiaryNutritionTarget: [NutritionTargets] }
+        struct SetResponse: Decodable {
+            struct Row: Decodable { var userId: String }
+            var insertFoodDiaryNutritionTargetOne: Row
+        }
+    }
 }

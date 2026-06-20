@@ -255,9 +255,24 @@ struct SuggestionsRepositoryImpl: SuggestionsRepository {
     }
 }
 
-protocol TargetsRepository {
+protocol TargetsRepository: Sendable {
     func targets() async throws -> NutritionTargets
-    func save(_ targets: NutritionTargets) async throws -> NutritionTargets
+    func save(_ targets: NutritionTargets) async throws
+}
+
+struct TargetsRepositoryImpl: TargetsRepository {
+    let client: GraphQLClient
+
+    func targets() async throws -> NutritionTargets {
+        let response = try await client.execute(query: Api.Targets.get, as: Api.Targets.GetResponse.self)
+        return response.foodDiaryNutritionTarget.first ?? .default
+    }
+
+    func save(_ targets: NutritionTargets) async throws {
+        _ = try await client.execute(
+            query: Api.Targets.set, variables: ["target": AnyEncodable(targets)],
+            as: Api.Targets.SetResponse.self)
+    }
 }
 
 struct SearchResult: Identifiable, Hashable, Sendable {
