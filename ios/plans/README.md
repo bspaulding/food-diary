@@ -15,8 +15,8 @@ out-of-band setup.
 | [`backend-nutrition-targets.md`](backend-nutrition-targets.md) | §9 (the only backend change for v1) | Phase 0/1 |
 | [`auth0-testflight-setup.md`](auth0-testflight-setup.md) | §16 + §17 (manual Auth0 tenant + TestFlight runbook) | Phase 0 → first run |
 | [`phase-1-core-logging.md`](phase-1-core-logging.md) | §4 (diary list, entries, items, recipes, search, suggestions, targets, profile), §7.1 calcs, §8 contract | Phase 1 (v1) |
-| [`ci.md`](ci.md) | §12 CI + decision #14 | Phase 0, maintained throughout |
-| [`testing.md`](testing.md) | §12 mandatory unit tests + §6.5 auth tests | Phase 0/1 |
+| [`ci.md`](ci.md) | §12 CI + decision #14 | **Phase 0 (first PR)**, maintained throughout |
+| [`testing.md`](testing.md) | §12 mandatory unit tests + §6.5 auth tests | **Phase 0 (set up first)**, grown throughout |
 | [`phase-2-insights.md`](phase-2-insights.md) | §11 Phase 2 (Trends / Swift Charts) | Phase 2 |
 | [`phase-3-native-capture.md`](phase-3-native-capture.md) | §11 Phase 3 (label scan + LLM autofill) | Phase 3 |
 | [`phase-4-data-portability.md`](phase-4-data-portability.md) | §11 Phase 4 (CSV import/export) | Phase 4 |
@@ -36,12 +36,19 @@ out-of-band setup.
 
 ## Suggested execution order
 
-1. `phase-0-foundation.md` (project skeleton, auth, networking, navigation).
-2. `backend-nutrition-targets.md` (apply migration + metadata; unblocks targets).
-3. `auth0-testflight-setup.md` (manual Auth0 setup — required before login works).
-4. `phase-1-core-logging.md` (the v1 feature surface) + `testing.md` + `ci.md`.
-5. Ship v1 to TestFlight (PRD §15 Definition of Done).
-6. Phases 2–5 as additive follow-ups, each independent.
+1. **Testing + CI infra first** — `phase-0-foundation.md` §1.2 with
+   [`testing.md`](testing.md) §0 and [`ci.md`](ci.md): create the test target and
+   the `test-ios` GitHub Actions job against a trivial walking-skeleton test. The
+   **first `ios/` PR must show CI green** so automated testing is the standard from
+   commit one, and everything after is built **test-first**.
+2. Rest of `phase-0-foundation.md` (auth, networking, models, navigation) — each
+   unit added with its tests in the same change, CI staying green.
+3. `backend-nutrition-targets.md` (apply migration + metadata; unblocks targets).
+4. `auth0-testflight-setup.md` (manual Auth0 setup — required before login works).
+5. `phase-1-core-logging.md` (the v1 feature surface), every screen's logic
+   landing with its `testing.md` coverage.
+6. Ship v1 to TestFlight (PRD §15 Definition of Done).
+7. Phases 2–5 as additive follow-ups, each independent.
 
 ## Source-of-truth references in this repo
 

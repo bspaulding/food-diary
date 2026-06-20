@@ -10,6 +10,13 @@ exchanges the code for a Hasura-claims JWT, persists/refreshes the session, and
 shows an empty authenticated shell rooted at a `NavigationStack`. No feature
 screens yet — those are Phase 1.
 
+> **Testing + CI come first (§1.2).** Before any auth, networking, or model code
+> is written, stand up the test target and the GitHub Actions pipeline against a
+> trivial walking-skeleton test. This sets the standard for the whole project:
+> **every subsequent unit of work lands with tests and a green CI run.** Do
+> [`testing.md`](testing.md) §0 and [`ci.md`](ci.md) as the first scaffolding
+> step — see §1.2 below — then build the rest of Phase 0 test-first.
+
 > **Blocker:** login cannot be exercised end-to-end until the manual Auth0 setup
 > in [`auth0-testflight-setup.md`](auth0-testflight-setup.md) is done. Build the
 > code first; verify against the live tenant once that runbook is complete.
@@ -74,6 +81,37 @@ Surface the three keys into `Info.plist` (`AUTH0_DOMAIN = $(AUTH0_DOMAIN)`, etc.
 and read them via a small typed `AppConfig` loader. Register the custom scheme in
 `Info.plist` under `CFBundleURLTypes` with `CFBundleURLSchemes =
 [com.bspaulding.fooddiary]` so the OS can route the callback (PRD §16.5).
+
+### 1.2 Walking skeleton — testing + CI **before** any feature code
+
+> **Do this immediately after the project compiles and before §2–§6.** The point
+> is to make "tests + green CI" the default state from commit one, so every
+> later unit (models, auth, networking) is added test-first against a pipeline
+> that already runs. This operationalizes decisions #13 (test scope) and #14 (CI).
+
+1. **Create the `FoodDiaryTests` target** (Swift Testing, Xcode 16+), wired to the
+   `FoodDiary` scheme so `xcodebuild test` runs it.
+2. **Add one trivial test** (a "walking skeleton", e.g. assert `AppConfig` reads
+   the bundled `AUTH0_SCHEME`) so the bundle is non-empty and proves the harness
+   and simulator destination work end to end.
+3. **Stand up CI now** per [`ci.md`](ci.md): the `test-ios` job
+   (macOS runner, iOS 18 simulator, `TZ=America/Los_Angeles`,
+   `CODE_SIGNING_ALLOWED=NO`) gated on the `ios/**` paths filter. The **first PR
+   that adds the Xcode project must show `test-ios` green** — that is the gate
+   that establishes the standard.
+4. **Establish the testing conventions** (full matrix in [`testing.md`](testing.md)):
+   - Swift Testing (`@Test`/`#expect`), no XCUITest in v1 (minimal scope, #13).
+   - Pure logic (`Util/`, decoding, auth crypto) is unit-tested; UI is not.
+   - Repositories and the token endpoint are **protocol-backed** so tests inject
+     fakes — define the protocols before the concrete impls.
+   - Date-sensitive tests assume `TZ=America/Los_Angeles` (matches `web/`).
+5. **Build the rest of Phase 0 test-first:** each of §2 (models decode), §3 (PKCE,
+   exp, refresh coalescing), §4 (error mapping) ships with its tests in the same
+   change, and CI stays green throughout.
+
+After this step the repo has: a compiling app, a runnable (if tiny) test bundle,
+and a CI job that runs it on every `ios/**` PR. Everything below is added on top
+of that foundation.
 
 ---
 
@@ -249,7 +287,9 @@ every Phase 1 feature, so finalize the enum cases here.
 
 ## 8. Tests delivered in Phase 0
 
-(Full matrix in [`testing.md`](testing.md); Phase 0 owns the auth + error pieces.)
+(The test target + CI were stood up first in §1.2; these are the specific tests
+added test-first alongside §2–§4. Full matrix in [`testing.md`](testing.md);
+Phase 0 owns the auth + error pieces.)
 - PKCE challenge vs. RFC 7636 known vectors.
 - Authorize-URL construction (all params present + encoded).
 - JWT `exp` decoding (base64url payload).
@@ -261,6 +301,8 @@ every Phase 1 feature, so finalize the enum cases here.
 
 ## 9. Definition of Done (Phase 0)
 
+- **The first `ios/` PR lands with the test target + `test-ios` CI job green**
+  (§1.2) — the testing/CI standard is in place before feature code.
 - `ios/FoodDiary.xcodeproj` builds for an iOS 18 simulator from a clean checkout.
 - App launches to a login screen; tapping Log In opens `ASWebAuthenticationSession`.
 - After the manual Auth0 setup (`auth0-testflight-setup.md`), a full login

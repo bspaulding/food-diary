@@ -8,6 +8,28 @@ plan, CI), decision #13 (minimal scope).
 calculations, API decoding, error mapping, and the auth crypto/refresh logic —
 not the UI.
 
+> **Sequencing:** this infrastructure is stood up **first**, during scaffolding
+> (Phase 0 §1.2), not after features exist. The test target and CI run against a
+> trivial walking-skeleton test before any auth/model/networking code, so every
+> later unit is added **test-first** against a pipeline that is already green.
+
+---
+
+## 0. Set up first (Phase 0 §1.2)
+
+Before writing feature code:
+1. Create the `FoodDiaryTests` Swift Testing target wired to the `FoodDiary`
+   scheme (`xcodebuild test` runs it).
+2. Add one trivial walking-skeleton `@Test` so the bundle is runnable and proves
+   the simulator destination works.
+3. Stand up the `test-ios` CI job ([`ci.md`](ci.md)) and require it green on the
+   first `ios/` PR — this establishes the standard for the project.
+4. Lock the conventions used everywhere after: Swift Testing `@Test`/`#expect`;
+   protocol-backed repositories + token endpoint for fakes; pure logic tested, UI
+   not; `TZ=America/Los_Angeles` for date-sensitive tests.
+
+Thereafter, each item in §1 lands in the **same change** as the code it covers.
+
 ---
 
 ## 1. Mandatory unit coverage (§12)

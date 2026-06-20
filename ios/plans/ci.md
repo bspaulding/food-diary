@@ -6,6 +6,11 @@
 **Goal:** build the app and run the unit-test bundle on PRs that touch `ios/`,
 using `xcodebuild` on a macOS runner with an iOS 18 simulator.
 
+> **This is part of the very first scaffolding PR** (Phase 0 §1.2), not a later
+> add-on. The `test-ios` job must run green against the walking-skeleton test
+> bundle before any feature/auth code exists, so automated testing is enforced
+> from commit one and stays green throughout development.
+
 ---
 
 ## 1. Integrate with the existing workflow
