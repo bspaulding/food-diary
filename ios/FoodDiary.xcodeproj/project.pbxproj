@@ -37,6 +37,8 @@
 		EC3886184EBA4162BEFB14A3 /* Repositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = B938E7821E354ED08C442128 /* Repositories.swift */; };
 		F69B077EAE824AC08CE7609C /* NutritionTargets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339BD5829BE04CF682616F48 /* NutritionTargets.swift */; };
 		FDC7061A95C4415E8B38997A /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 932B4E41AB204DEABDD9332F /* AppEnvironment.swift */; };
+		47D3B5AB3EED8E9D78CAEC10 /* MacroCalculationsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD733C40F52F1F26483E2166 /* MacroCalculationsTests.swift */; };
+		099FDED5C451532BD1A5DD14 /* MacroCalculations.swift in Sources */ = {isa = PBXBuildFile; fileRef = A239B9B25CCD9978A75DCFBC /* MacroCalculations.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -86,6 +88,8 @@
 		E530C701AB4C49A18BE12F34 /* TokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStore.swift; sourceTree = "<group>"; };
 		FDE06B1BC6534C338CE3886F /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		FEE3944FE6254E87ABAE57E4 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		DD733C40F52F1F26483E2166 /* MacroCalculationsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroCalculationsTests.swift; sourceTree = "<group>"; };
+		A239B9B25CCD9978A75DCFBC /* MacroCalculations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroCalculations.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,6 +121,7 @@
 				2ACA729527764E6DAE590AB5 /* APIErrorTests.swift */,
 				820C09964A64440AB461DEED /* ModelDecodingTests.swift */,
 				F6086E88867B43BA9CCAD048 /* DiaryApiTests.swift */,
+				DD733C40F52F1F26483E2166 /* MacroCalculationsTests.swift */,
 			);
 			path = FoodDiaryTests;
 			sourceTree = "<group>";
@@ -163,6 +168,14 @@
 			path = Repositories;
 			sourceTree = "<group>";
 		};
+		6E7B2D1A9F8C5E3F2A1B4C6D /* Util */ = {
+			isa = PBXGroup;
+			children = (
+				A239B9B25CCD9978A75DCFBC /* MacroCalculations.swift */,
+			);
+			path = Util;
+			sourceTree = "<group>";
+		};
 		571AF81253144995B7E0E4F0 /* FoodDiary */ = {
 			isa = PBXGroup;
 			children = (
@@ -171,6 +184,7 @@
 				5382B2628ABF41DF9534388C /* Networking */,
 				CE351FD17FE14E14A035288F /* Models */,
 				5682A016AB4D48FBA29D91A8 /* Repositories */,
+				6E7B2D1A9F8C5E3F2A1B4C6D /* Util */,
 			);
 			path = FoodDiary;
 			sourceTree = "<group>";
@@ -326,6 +340,7 @@
 				A23ACB01E47245B5A1ACEE06 /* APIErrorTests.swift in Sources */,
 				7C566F4C91ED49D8BD30046D /* ModelDecodingTests.swift in Sources */,
 				EAD40ED1F8C147078051B0B3 /* DiaryApiTests.swift in Sources */,
+				47D3B5AB3EED8E9D78CAEC10 /* MacroCalculationsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -355,6 +370,7 @@
 				2F642026591D4E15B8857101 /* DiaryEntry.swift in Sources */,
 				F69B077EAE824AC08CE7609C /* NutritionTargets.swift in Sources */,
 				EC3886184EBA4162BEFB14A3 /* Repositories.swift in Sources */,
+				099FDED5C451532BD1A5DD14 /* MacroCalculations.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
