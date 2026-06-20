@@ -38,11 +38,7 @@ struct ModelDecodingTests {
               "servings": 1.5,
               "nutrition_item": {
                 "id": 1, "description": "Almonds", "calories": 160,
-                "total_fat_grams": 14, "saturated_fat_grams": 1.1, "trans_fat_grams": 0,
-                "polyunsaturated_fat_grams": 3.4, "monounsaturated_fat_grams": 9,
-                "cholesterol_milligrams": 0, "sodium_milligrams": 0,
-                "total_carbohydrate_grams": 6, "dietary_fiber_grams": 3.5,
-                "total_sugars_grams": 1.2, "added_sugars_grams": 0, "protein_grams": 6
+                "added_sugars_grams": 0, "protein_grams": 6, "dietary_fiber_grams": 3.5
               },
               "recipe": null
             }

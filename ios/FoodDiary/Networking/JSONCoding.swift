@@ -30,6 +30,13 @@ enum JSONCoding {
         return formatter
     }()
 
+    /// For building GraphQL variable dictionaries directly (repositories pass
+    /// dates as `timestamptz` strings, not as a `Date` property on an
+    /// `Encodable`, so the dedicated encoder path above isn't used).
+    static func isoString(_ date: Date) -> String {
+        fractionalFormatter.string(from: date)
+    }
+
     private static func decodeISO8601Date(_ decoder: Decoder) throws -> Date {
         let container = try decoder.singleValueContainer()
         let string = try container.decode(String.self)
