@@ -7,7 +7,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 **Legend:** ☐ not started · ◐ in progress · ☑ done
 
-**Last updated:** 2026-06-20
+**Last updated:** 2026-06-19
 
 ---
 
@@ -17,7 +17,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 |---|---|---|---|
 | Phase 0 — Foundation | ◐ | — | project, models, auth, networking, login gate landed; pending live-tenant verification |
 | ↳ Testing + CI infra (first PR) | ☑ | — | walking-skeleton test + auth/error/decoding tests; `test-ios` job added to `ci-cd.yml` |
-| Backend — nutrition targets (§9) | ☐ | — | migration + metadata applied |
+| Backend — nutrition targets (§9) | ☑ | — | migration + metadata written and verified locally; needs apply against the real dev/prod Hasura instance |
 | Auth0 + TestFlight manual setup (§16/§17) | ☐ | — | out-of-band; see checklist below |
 | Phase 1 — Core logging (v1) | ☐ | — | diary/entries/items/recipes/targets/profile |
 | Phase 2 — Insights (Trends) | ☐ | — | deferred from v1 |
@@ -41,9 +41,9 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 ## Backend — Nutrition targets ([plan](backend-nutrition-targets.md))
 
-- [ ] Migration up/down applies cleanly
-- [ ] Table tracked + `user` role permissions + `on_conflict` upsert work (RLS-scoped)
-- [ ] `GetNutritionTargets` / `SetNutritionTargets` verified against a real JWT
+- [x] Migration up/down applies cleanly (verified against a local ephemeral Hasura/Postgres stack)
+- [x] Table tracked + `user` role permissions + `on_conflict` upsert work (RLS-scoped) — verified two distinct synthetic JWTs cannot see each other's row
+- [x] `GetNutritionTargets` / `SetNutritionTargets` verified against a real (synthetic HS256) JWT — still needs to be applied to the actual dev/prod Hasura instance (tracked in the §16/§17 checklist below)
 
 ## Auth0 + TestFlight manual setup ([runbook](auth0-testflight-setup.md), PRD §17)
 

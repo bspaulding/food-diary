@@ -1,0 +1,52 @@
+table:
+  name: nutrition_target
+  schema: food_diary
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: x-hasura-User-Id
+      columns:
+        - calories
+        - calories_max
+        - protein_grams
+        - dietary_fiber_grams
+        - added_sugars_grams
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - user_id
+        - calories
+        - calories_max
+        - protein_grams
+        - dietary_fiber_grams
+        - added_sugars_grams
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - calories
+        - calories_max
+        - protein_grams
+        - dietary_fiber_grams
+        - added_sugars_grams
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
+      set:
+        user_id: x-hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
