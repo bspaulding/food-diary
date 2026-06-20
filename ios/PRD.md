@@ -212,7 +212,7 @@ ios/
     Networking/
       GraphQLClient.swift
       APIError.swift
-      Endpoints.swift             # query/mutation strings
+      Api.swift                   # query/mutation strings (mirrors web/src/Api.ts)
     Models/
       DiaryEntry.swift
       NutritionItem.swift
