@@ -11,6 +11,13 @@ This monorepo contains three components:
 | [`nutrition-fact-labeller/`](nutrition-fact-labeller/) | Rust/Warp OCR service — parses nutrition label images |
 | [`llm-nutrition-api/`](llm-nutrition-api/) | Rust/Warp LLM service — looks up / estimates nutrition info from text |
 
+## Specs & planning
+
+PRDs, design docs, and implementation plans live in [`specs/`](specs/). See
+[`specs/README.md`](specs/README.md) for the conventions (date-prefixed
+filenames, status header, lifecycle). Operational/reference docs live in
+[`docs/`](docs/).
+
 ## Local Development
 
 ### Prerequisites
