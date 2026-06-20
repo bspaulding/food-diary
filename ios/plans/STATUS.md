@@ -19,7 +19,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 | ↳ Testing + CI infra (first PR) | ☑ | — | walking-skeleton test + auth/error/decoding tests; `test-ios` job added to `ci-cd.yml` |
 | Backend — nutrition targets (§9) | ☑ | — | migration + metadata written and verified locally; needs apply against the real dev/prod Hasura instance |
 | Auth0 + TestFlight manual setup (§16/§17) | ☐ | — | out-of-band; see checklist below |
-| Phase 1 — Core logging (v1) | ◐ | — | GraphQL operations + protocol-backed repositories landed; SwiftUI features (§4–§9) still open |
+| Phase 1 — Core logging (v1) | ◐ | — | GraphQL operations + protocol-backed repositories + DesignSystem (§10) landed; feature screens (§4–§9) still open |
 | Phase 2 — Insights (Trends) | ☐ | — | deferred from v1 |
 | Phase 3 — Native capture (scan + LLM) | ☐ | — | deferred from v1 |
 | Phase 4 — Data portability (CSV) | ☐ | — | deferred from v1 |
@@ -69,7 +69,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 - [ ] Recipes: create/view/edit (delete-then-insert items) (§7)
 - [ ] Nutrition targets: view/edit, server-stored, drive rings (§8)
 - [ ] Profile: user info, targets link, debug env switcher, logout (§9)
-- [ ] DesignSystem: `MacroRing` (exact color rules), `DateBadge`, `Theme` (§10)
+- [x] DesignSystem: `MacroRing` (exact color rules), `DateBadge`, `Theme` (§10) — ratio/color logic in `MacroRingMath` and date formatting in `DateBadgeFormatting`, each unit-tested; views are thin wrappers
 - [ ] Error/session handling: 401/403 → re-login; per-screen loading/error (§11)
 
 ## Phase 2 — Insights / Trends ([plan](phase-2-insights.md))
