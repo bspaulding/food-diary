@@ -37,4 +37,23 @@ struct RecipeApiTests {
         #expect(json.contains("\"total_servings\":4"))
         #expect(json.contains("\"nutrition_item_id\":1"))
     }
+
+    @Test func encodesUpdateRecipeItemInputAsSnakeCaseBareArray() throws {
+        let items = [
+            Api.Recipes.UpdateRecipeItemInput(servings: 3, nutritionItemId: 5, recipeId: 9),
+            Api.Recipes.UpdateRecipeItemInput(servings: 1.5, nutritionItemId: 7, recipeId: 9),
+        ]
+        let data = try JSONCoding.encoder.encode(items)
+        let json = String(data: data, encoding: .utf8)!
+        #expect(json.hasPrefix("["))
+        #expect(json.contains("\"nutrition_item_id\":5"))
+        #expect(json.contains("\"nutrition_item_id\":7"))
+        #expect(json.contains("\"recipe_id\":9"))
+        #expect(!json.contains("\"data\":"))
+
+        let attrs = Api.Recipes.UpdateAttrs(name: "X", totalServings: 6)
+        let attrsData = try JSONCoding.encoder.encode(attrs)
+        let attrsJson = String(data: attrsData, encoding: .utf8)!
+        #expect(attrsJson.contains("\"total_servings\":6"))
+    }
 }
