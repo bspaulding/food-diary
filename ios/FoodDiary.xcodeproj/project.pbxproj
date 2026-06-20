@@ -43,6 +43,7 @@
 		K5L6M7N8O9P0Q1R2S3T4U5V6 /* WeeklyStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = M2N3O4P5Q6R7S8T9U0V1W2X3 /* WeeklyStatsTests.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* DateHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7B8C9D0E1F2A3 /* DateHelpers.swift */; };
 		C3D4E5F6A7B8C9D0E1F2A3B4 /* DateHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9D0E1F2A3B4C5 /* DateHelpersTests.swift */; };
+		3F0D65B15F8B4F06AB11FFA1 /* SearchApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 555FB3739A364AB2BFDF7004 /* SearchApiTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,6 +99,7 @@
 		M2N3O4P5Q6R7S8T9U0V1W2X3 /* WeeklyStatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyStatsTests.swift; sourceTree = "<group>"; };
 		B2C3D4E5F6A7B8C9D0E1F2A3 /* DateHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHelpers.swift; sourceTree = "<group>"; };
 		D4E5F6A7B8C9D0E1F2A3B4C5 /* DateHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHelpersTests.swift; sourceTree = "<group>"; };
+		555FB3739A364AB2BFDF7004 /* SearchApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchApiTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +134,7 @@
 				DD733C40F52F1F26483E2166 /* MacroCalculationsTests.swift */,
 				M2N3O4P5Q6R7S8T9U0V1W2X3 /* WeeklyStatsTests.swift */,
 				D4E5F6A7B8C9D0E1F2A3B4C5 /* DateHelpersTests.swift */,
+				555FB3739A364AB2BFDF7004 /* SearchApiTests.swift */,
 			);
 			path = FoodDiaryTests;
 			sourceTree = "<group>";
@@ -355,6 +358,7 @@
 				47D3B5AB3EED8E9D78CAEC10 /* MacroCalculationsTests.swift in Sources */,
 				K5L6M7N8O9P0Q1R2S3T4U5V6 /* WeeklyStatsTests.swift in Sources */,
 				C3D4E5F6A7B8C9D0E1F2A3B4 /* DateHelpersTests.swift in Sources */,
+				3F0D65B15F8B4F06AB11FFA1 /* SearchApiTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

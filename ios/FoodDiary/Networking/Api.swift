@@ -133,4 +133,75 @@ enum Api {
             }
         }
     }
+
+    enum Search {
+        static let itemsAndRecipes = """
+            query SearchItemsAndRecipes($search: String!) {
+              food_diary_search_nutrition_items(args: { search: $search }) { id, description }
+              food_diary_search_recipes(args: { search: $search }) { id, name }
+            }
+            """
+
+        static let itemsOnly = """
+            query SearchItems($search: String!) {
+              food_diary_search_nutrition_items(args: { search: $search }) { id, description }
+            }
+            """
+
+        struct ItemRow: Decodable { var id: Int; var description: String }
+        struct RecipeRow: Decodable { var id: Int; var name: String }
+
+        struct ItemsAndRecipesResponse: Decodable {
+            var foodDiarySearchNutritionItems: [ItemRow]
+            var foodDiarySearchRecipes: [RecipeRow]
+        }
+
+        struct ItemsOnlyResponse: Decodable {
+            var foodDiarySearchNutritionItems: [ItemRow]
+        }
+    }
+
+    enum Suggestions {
+        struct EntryRow: Decodable {
+            struct Item: Decodable { var id: Int; var description: String }
+            struct Recipe: Decodable { var id: Int; var name: String }
+            var consumedAt: Date
+            var nutritionItem: Item?
+            var recipe: Recipe?
+        }
+
+        static let recent = """
+            query GetRecentEntryItems {
+              food_diary_diary_entry_recent(order_by: { consumed_at: desc }, limit: 5) {
+                consumed_at
+                nutrition_item { id, description }
+                recipe { id, name }
+              }
+            }
+            """
+
+        static let topAroundHour = """
+            query TopEntriesAroundHour($startHour: Int!, $endHour: Int!) {
+              food_diary_top_entries_around_hour(args: { start_hour: $startHour, end_hour: $endHour, n: 5 }) {
+                consumed_at
+                nutrition_item { id, description }
+                recipe { id, name }
+              }
+            }
+            """
+
+        static let topLogged = """
+            query GetTopLoggedItems {
+              food_diary_diary_entry(order_by: { consumed_at: desc }, limit: 100) {
+                consumed_at
+                nutrition_item { id, description }
+                recipe { id, name }
+              }
+            }
+            """
+
+        struct RecentEntriesResponse: Decodable { var foodDiaryDiaryEntryRecent: [EntryRow] }
+        struct TopEntriesAroundHourResponse: Decodable { var foodDiaryTopEntriesAroundHour: [EntryRow] }
+        struct TopLoggedResponse: Decodable { var foodDiaryDiaryEntry: [EntryRow] }
+    }
 }

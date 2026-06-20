@@ -110,8 +110,86 @@ protocol RecipeRepository {
     func update(_ recipe: Recipe) async throws -> Recipe
 }
 
-protocol SearchRepository {
-    func search(query: String) async throws -> [SearchResult]
+protocol SearchRepository: Sendable {
+    func searchItemsAndRecipes(_ query: String) async throws -> [SearchResult]
+    func searchItems(_ query: String) async throws -> [SearchResult]
+}
+
+struct SearchRepositoryImpl: SearchRepository {
+    let client: GraphQLClient
+
+    func searchItemsAndRecipes(_ query: String) async throws -> [SearchResult] {
+        let response = try await client.execute(
+            query: Api.Search.itemsAndRecipes, variables: ["search": AnyEncodable(query)],
+            as: Api.Search.ItemsAndRecipesResponse.self)
+        return response.foodDiarySearchNutritionItems.map { SearchResult(id: $0.id, kind: .item, name: $0.description) }
+            + response.foodDiarySearchRecipes.map { SearchResult(id: $0.id, kind: .recipe, name: $0.name) }
+    }
+
+    func searchItems(_ query: String) async throws -> [SearchResult] {
+        let response = try await client.execute(
+            query: Api.Search.itemsOnly, variables: ["search": AnyEncodable(query)],
+            as: Api.Search.ItemsOnlyResponse.self)
+        return response.foodDiarySearchNutritionItems.map { SearchResult(id: $0.id, kind: .item, name: $0.description) }
+    }
+}
+
+struct SuggestionEntry: Identifiable, Hashable, Sendable {
+    var kind: SearchResult.Kind
+    var id: Int
+    var name: String
+    var consumedAt: Date
+}
+
+protocol SuggestionsRepository: Sendable {
+    func recent() async throws -> [SuggestionEntry]
+    func topAroundHour(startHour: Int, endHour: Int) async throws -> [SuggestionEntry]
+    func topLogged() async throws -> [SuggestionEntry]
+}
+
+struct SuggestionsRepositoryImpl: SuggestionsRepository {
+    let client: GraphQLClient
+
+    private func toSuggestions(_ rows: [Api.Suggestions.EntryRow]) -> [SuggestionEntry] {
+        rows.compactMap { row in
+            if let item = row.nutritionItem {
+                return SuggestionEntry(kind: .item, id: item.id, name: item.description, consumedAt: row.consumedAt)
+            }
+            if let recipe = row.recipe {
+                return SuggestionEntry(kind: .recipe, id: recipe.id, name: recipe.name, consumedAt: row.consumedAt)
+            }
+            return nil
+        }
+    }
+
+    func recent() async throws -> [SuggestionEntry] {
+        let response = try await client.execute(
+            query: Api.Suggestions.recent, as: Api.Suggestions.RecentEntriesResponse.self)
+        return toSuggestions(response.foodDiaryDiaryEntryRecent)
+    }
+
+    func topAroundHour(startHour: Int, endHour: Int) async throws -> [SuggestionEntry] {
+        let response = try await client.execute(
+            query: Api.Suggestions.topAroundHour,
+            variables: ["startHour": AnyEncodable(startHour), "endHour": AnyEncodable(endHour)],
+            as: Api.Suggestions.TopEntriesAroundHourResponse.self)
+        return toSuggestions(response.foodDiaryTopEntriesAroundHour)
+    }
+
+    /// Client-side most-logged merge over the last 100 entries (web
+    /// `NewDiaryEntryForm.tsx:78-101`): count by item/recipe id, sort desc,
+    /// take top 5.
+    func topLogged() async throws -> [SuggestionEntry] {
+        let response = try await client.execute(
+            query: Api.Suggestions.topLogged, as: Api.Suggestions.TopLoggedResponse.self)
+        let suggestions = toSuggestions(response.foodDiaryDiaryEntry)
+        var counts: [String: (entry: SuggestionEntry, count: Int)] = [:]
+        for suggestion in suggestions {
+            let key = "\(suggestion.kind)_\(suggestion.id)"
+            counts[key] = (suggestion, (counts[key]?.count ?? 0) + 1)
+        }
+        return counts.values.sorted { $0.count > $1.count }.prefix(5).map(\.entry)
+    }
 }
 
 protocol TargetsRepository {
