@@ -34,7 +34,7 @@ cd ios
 xcodebuild test \
   -project FoodDiary.xcodeproj \
   -scheme FoodDiary \
-  -destination 'platform=iOS Simulator,name=iPhone 16'
+  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.6'
 ```
 
 Before login works against the live tenant, complete the manual Auth0 setup
