@@ -23,6 +23,7 @@ jobs:
       llm_nutrition_api: ${{ steps.filter.outputs.llm_nutrition_api }}
       nutrition_fact_labeller: ${{ steps.filter.outputs.nutrition_fact_labeller }}
       mcp_server: ${{ steps.filter.outputs.mcp_server }}
+      ios: ${{ steps.filter.outputs.ios }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +41,8 @@ jobs:
               - "nutrition-fact-labeller/**"
             mcp_server:
               - "mcp-server/**"
+            ios:
+              - "ios/**"
 
   test-web:
     needs: changes
@@ -80,6 +83,42 @@ jobs:
         run: npm run test:acceptance
         env:
           TZ: America/Los_Angeles
+
+  test-ios:
+    needs: changes
+    if: |
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
+      needs.changes.outputs.ios == 'true'
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
+    env:
+      TZ: America/Los_Angeles
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Show available simulators
+        run: xcrun simctl list devices available
+
+      - name: Build & test
+        run: |
+          xcodebuild test \
+            -project FoodDiary.xcodeproj \
+            -scheme FoodDiary \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.0' \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: ios/TestResults.xcresult
 
   test-graphql-engine:
     needs: changes
