@@ -128,7 +128,7 @@ struct NutritionItemRepositoryImpl: NutritionItemRepository {
     }
 }
 
-struct RecipeItemDraft: Sendable {
+struct RecipeItemDraft: Sendable, Equatable {
     var nutritionItemID: Int
     var servings: Double
 }

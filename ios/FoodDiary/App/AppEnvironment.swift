@@ -18,6 +18,7 @@ final class AppEnvironment {
     let searchRepository: SearchRepository
     let suggestionsRepository: SuggestionsRepository
     let nutritionItemRepository: NutritionItemRepository
+    let recipeRepository: RecipeRepository
 
     init(config: AppConfig = .shared) {
         self.config = config
@@ -42,5 +43,6 @@ final class AppEnvironment {
         self.searchRepository = SearchRepositoryImpl(client: graphQLClient)
         self.suggestionsRepository = SuggestionsRepositoryImpl(client: graphQLClient)
         self.nutritionItemRepository = NutritionItemRepositoryImpl(client: graphQLClient)
+        self.recipeRepository = RecipeRepositoryImpl(client: graphQLClient)
     }
 }

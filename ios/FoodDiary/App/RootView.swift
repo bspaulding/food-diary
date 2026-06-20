@@ -58,6 +58,22 @@ struct RootView: View {
             ItemDetailView(
                 viewModel: ItemDetailViewModel(itemID: id, itemRepository: environment.nutritionItemRepository),
                 onEdit: { environment.router.push(.itemEdit(id)) })
+        case .newRecipe:
+            RecipeFormView(
+                viewModel: RecipeFormViewModel(
+                    recipeID: nil, recipeRepository: environment.recipeRepository,
+                    searchRepository: environment.searchRepository),
+                onSave: { environment.router.popToRoot() })
+        case .recipeEdit(let id):
+            RecipeFormView(
+                viewModel: RecipeFormViewModel(
+                    recipeID: id, recipeRepository: environment.recipeRepository,
+                    searchRepository: environment.searchRepository),
+                onSave: { environment.router.popToRoot() })
+        case .recipeDetail(let id):
+            RecipeDetailView(
+                viewModel: RecipeDetailViewModel(recipeID: id, recipeRepository: environment.recipeRepository),
+                onEdit: { environment.router.push(.recipeEdit(id)) })
         default:
             PlaceholderDestinationView(route: route)
         }

@@ -19,7 +19,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 | ↳ Testing + CI infra (first PR) | ☑ | — | walking-skeleton test + auth/error/decoding tests; `test-ios` job added to `ci-cd.yml` |
 | Backend — nutrition targets (§9) | ☑ | — | migration + metadata written and verified locally; needs apply against the real dev/prod Hasura instance |
 | Auth0 + TestFlight manual setup (§16/§17) | ☐ | — | out-of-band; see checklist below |
-| Phase 1 — Core logging (v1) | ◐ | — | GraphQL operations + protocol-backed repositories + DesignSystem (§10) + diary list (§4) + entry form (§5) + nutrition items (§6) landed; §7–§9 still open |
+| Phase 1 — Core logging (v1) | ◐ | — | GraphQL operations + protocol-backed repositories + DesignSystem (§10) + diary list (§4) + entry form (§5) + nutrition items (§6) + recipes (§7) landed; §8–§9 still open |
 | Phase 2 — Insights (Trends) | ☐ | — | deferred from v1 |
 | Phase 3 — Native capture (scan + LLM) | ☐ | — | deferred from v1 |
 | Phase 4 — Data portability (CSV) | ☐ | — | deferred from v1 |
@@ -61,12 +61,12 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 ## Phase 1 — Core logging / v1 ([plan](phase-1-core-logging.md))
 
 - [x] GraphQL operations mirrored from `web/src/Api.ts` (§1) — each with golden decode test
-- [x] Repositories (protocol-backed) for diary/items/recipes/search/suggestions/targets — Note: SwiftUI features (§7–§9: recipes, targets, profile, error/session handling) remain open; diary list, entry form, items, and design system are now landed (see below).
+- [x] Repositories (protocol-backed) for diary/items/recipes/search/suggestions/targets — Note: SwiftUI features (§8–§9: targets, profile, error/session handling) remain open; diary list, entry form, items, recipes, and design system are now landed (see below).
 - [x] `MacroCalculations` + `WeeklyStats` + `DateHelpers` ported and unit-tested (§3)
 - [x] Diary list: rings, grouping, 7-day/4-week headers, paging, empty state (§4) — `DiaryGrouping`/`DiaryListViewModel` unit-tested (load, paging, optimistic delete + rollback); `DiaryListView` wired into `RootView`/`AppEnvironment`. Edit/Delete/Add buttons push `Route`s whose destination screens (§5–§7) are still placeholders.
 - [x] Add/edit/delete entry with search + 3 suggestion sources (§5); delete optimistic + rollback — `SuggestionHourRange`/`NewEntryViewModel`/`EditEntryViewModel` unit-tested (suggestion loading, search, save item/recipe, edit load/save/delete, error states); `NewEntryView`/`EditEntryView` are thin SwiftUI wrappers wired into `RootView`'s `.newEntry`/`.editEntry` destinations
 - [x] Nutrition items: create/view/edit (§6) — `ItemFormViewModel` (create + edit, full macro set, save error handling) and `ItemDetailViewModel` (load/error states) unit-tested with actor-based fake `NutritionItemRepository`; `ItemFormView`/`ItemDetailView` are thin SwiftUI wrappers wired into `RootView`'s `.newItem`/`.itemEdit`/`.itemDetail` destinations. Camera-scan/LLM-autofill deferred to Phase 3 per plan.
-- [ ] Recipes: create/view/edit (delete-then-insert items) (§7)
+- [x] Recipes: create/view/edit (delete-then-insert items) (§7) — `RecipeFormViewModel` (create + edit via optional `recipeID`, search-as-you-type item picker over `SearchRepository.searchItems`, add/remove/edit-servings on the item list, save error handling) and `RecipeDetailViewModel` (load/error states, total-calories and calories-per-serving computed properties ported from `web/src/RecipeShow.tsx`) unit-tested with actor-based fake `RecipeRepository`/`SearchRepository`; `RecipeFormView`/`RecipeDetailView` are thin SwiftUI wrappers wired into `RootView`'s `.newRecipe`/`.recipeEdit`/`.recipeDetail` destinations; `AppEnvironment.recipeRepository` added. Update replaces all recipe items via the existing delete-then-insert `RecipeRepositoryImpl.update`.
 - [ ] Nutrition targets: view/edit, server-stored, drive rings (§8)
 - [ ] Profile: user info, targets link, debug env switcher, logout (§9)
 - [x] DesignSystem: `MacroRing` (exact color rules), `DateBadge`, `Theme` (§10) — ratio/color logic in `MacroRingMath` and date formatting in `DateBadgeFormatting`, each unit-tested; views are thin wrappers
