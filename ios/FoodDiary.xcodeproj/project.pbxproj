@@ -41,6 +41,8 @@
 		099FDED5C451532BD1A5DD14 /* MacroCalculations.swift in Sources */ = {isa = PBXBuildFile; fileRef = A239B9B25CCD9978A75DCFBC /* MacroCalculations.swift */; };
 		Y3Z4A5B6C7D8E9F0G1H2I3J4 /* WeeklyStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A2B3D4E5F6G7H8I9J0K1L2 /* WeeklyStats.swift */; };
 		K5L6M7N8O9P0Q1R2S3T4U5V6 /* WeeklyStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = M2N3O4P5Q6R7S8T9U0V1W2X3 /* WeeklyStatsTests.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* DateHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7B8C9D0E1F2A3 /* DateHelpers.swift */; };
+		C3D4E5F6A7B8C9D0E1F2A3B4 /* DateHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9D0E1F2A3B4C5 /* DateHelpersTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -94,6 +96,8 @@
 		A239B9B25CCD9978A75DCFBC /* MacroCalculations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroCalculations.swift; sourceTree = "<group>"; };
 		C1A2B3D4E5F6G7H8I9J0K1L2 /* WeeklyStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyStats.swift; sourceTree = "<group>"; };
 		M2N3O4P5Q6R7S8T9U0V1W2X3 /* WeeklyStatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyStatsTests.swift; sourceTree = "<group>"; };
+		B2C3D4E5F6A7B8C9D0E1F2A3 /* DateHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHelpers.swift; sourceTree = "<group>"; };
+		D4E5F6A7B8C9D0E1F2A3B4C5 /* DateHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHelpersTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -127,6 +131,7 @@
 				F6086E88867B43BA9CCAD048 /* DiaryApiTests.swift */,
 				DD733C40F52F1F26483E2166 /* MacroCalculationsTests.swift */,
 				M2N3O4P5Q6R7S8T9U0V1W2X3 /* WeeklyStatsTests.swift */,
+				D4E5F6A7B8C9D0E1F2A3B4C5 /* DateHelpersTests.swift */,
 			);
 			path = FoodDiaryTests;
 			sourceTree = "<group>";
@@ -178,6 +183,7 @@
 			children = (
 				A239B9B25CCD9978A75DCFBC /* MacroCalculations.swift */,
 				C1A2B3D4E5F6G7H8I9J0K1L2 /* WeeklyStats.swift */,
+				B2C3D4E5F6A7B8C9D0E1F2A3 /* DateHelpers.swift */,
 			);
 			path = Util;
 			sourceTree = "<group>";
@@ -348,6 +354,7 @@
 				EAD40ED1F8C147078051B0B3 /* DiaryApiTests.swift in Sources */,
 				47D3B5AB3EED8E9D78CAEC10 /* MacroCalculationsTests.swift in Sources */,
 				K5L6M7N8O9P0Q1R2S3T4U5V6 /* WeeklyStatsTests.swift in Sources */,
+				C3D4E5F6A7B8C9D0E1F2A3B4 /* DateHelpersTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -379,6 +386,7 @@
 				EC3886184EBA4162BEFB14A3 /* Repositories.swift in Sources */,
 				099FDED5C451532BD1A5DD14 /* MacroCalculations.swift in Sources */,
 				Y3Z4A5B6C7D8E9F0G1H2I3J4 /* WeeklyStats.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* DateHelpers.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
