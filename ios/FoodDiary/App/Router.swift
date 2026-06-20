@@ -13,6 +13,7 @@ enum Route: Hashable {
     case editEntry(Int)
     case newItem
     case newRecipe
+    case targets
 }
 
 @Observable @MainActor

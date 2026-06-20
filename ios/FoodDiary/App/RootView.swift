@@ -74,6 +74,10 @@ struct RootView: View {
             RecipeDetailView(
                 viewModel: RecipeDetailViewModel(recipeID: id, recipeRepository: environment.recipeRepository),
                 onEdit: { environment.router.push(.recipeEdit(id)) })
+        case .targets:
+            TargetsView(
+                viewModel: TargetsViewModel(targetsRepository: environment.targetsRepository),
+                onSave: { environment.router.popToRoot() })
         default:
             PlaceholderDestinationView(route: route)
         }
