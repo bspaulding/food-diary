@@ -7,6 +7,10 @@ the existing web app, tests, and a definition of done. Together they cover the
 **entirety** of the PRD — every section, decision, phase, and the manual
 out-of-band setup.
 
+> **Tracking progress:** [`STATUS.md`](STATUS.md) is the living checklist of what's
+> done across all phases (plus the §15 Definition of Done and §17 manual setup).
+> Update it in the same PR that completes an item.
+
 ## How the plans map to the PRD
 
 | Plan | PRD coverage | Ships in |
