@@ -20,7 +20,7 @@ struct AppConfig {
         auth0Domain = value("AUTH0_DOMAIN")
         auth0ClientID = value("AUTH0_CLIENT_ID")
         auth0Scheme = value("AUTH0_SCHEME")
-        bundleID = bundle.bundleIdentifier ?? "com.bspaulding.fooddiary"
+        bundleID = bundle.bundleIdentifier ?? "com.motingo.food-diary"
     }
 }
 
