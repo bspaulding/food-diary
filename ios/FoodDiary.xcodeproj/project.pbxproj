@@ -27,7 +27,9 @@
 		786A71B90D42481A9D68EBE8 /* TokenStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62DE2063DE394A7FBB1240BF /* TokenStoreTests.swift */; };
 		79138566FDE64675BEA33EB4 /* JSONCoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54988FF28D034309B322A5A9 /* JSONCoding.swift */; };
 		7C566F4C91ED49D8BD30046D /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 820C09964A64440AB461DEED /* ModelDecodingTests.swift */; };
+		7C8DB3C5C9F7716EC3B8526F /* DiaryListViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB05C94337FE140EBB3BEE1 /* DiaryListViewModelTests.swift */; };
 		876E240FAC264335BC73775C /* TokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E530C701AB4C49A18BE12F34 /* TokenStore.swift */; };
+		8CF3454FCDCCF8E39C215A54 /* DiaryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943D58C9839364CAFD50AF00 /* DiaryListView.swift */; };
 		8E6B1D2B33EC43E281A850A5 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A256459B4D7448DEAE5309B9 /* AuthService.swift */; };
 		95047C1E7AF540D19B5ACD4D /* Recipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE373324BC8A4ECBB8E55637 /* Recipe.swift */; };
 		9C42539536A49EDA27D7C858 /* DateBadgeFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C9BCAE04A39B4ACADF62C8 /* DateBadgeFormatting.swift */; };
@@ -50,7 +52,10 @@
 		E57A7E0CB5E399E21FA41BF8 /* MacroRingMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4879117EA7AD797B42381DAF /* MacroRingMathTests.swift */; };
 		EAD40ED1F8C147078051B0B3 /* DiaryApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6086E88867B43BA9CCAD048 /* DiaryApiTests.swift */; };
 		EC3886184EBA4162BEFB14A3 /* Repositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = B938E7821E354ED08C442128 /* Repositories.swift */; };
+		F675A74D319491536354DFA7 /* DiaryGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3EF7BFA1183136AAB26A4AC /* DiaryGroupingTests.swift */; };
 		F69B077EAE824AC08CE7609C /* NutritionTargets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339BD5829BE04CF682616F48 /* NutritionTargets.swift */; };
+		F9B9573E205FFCC8F7A85DAE /* DiaryGrouping.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12E112F6FC8C5BAA4F694E73 /* DiaryGrouping.swift */; };
+		FB21D8F8206DFE53182C7124 /* DiaryListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862B52934D3283EB39A7F686 /* DiaryListViewModel.swift */; };
 		FBF77882D1504E7F965AC851 /* RecipeApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7A21156B3B478ABC4266C7 /* RecipeApiTests.swift */; };
 		FDC7061A95C4415E8B38997A /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 932B4E41AB204DEABDD9332F /* AppEnvironment.swift */; };
 		K5L6M7N8O9P0Q1R2S3T4U5V6 /* WeeklyStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = M2N3O4P5Q6R7S8T9U0V1W2X3 /* WeeklyStatsTests.swift */; };
@@ -71,6 +76,8 @@
 		088B6FB0F5E34C3EB538C554 /* AuthState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthState.swift; sourceTree = "<group>"; };
 		097D20A7DD684143B98F17A4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		0A5F9E0A74F6473EA30E09D5 /* OIDCClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OIDCClient.swift; sourceTree = "<group>"; };
+		0FB05C94337FE140EBB3BEE1 /* DiaryListViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiaryListViewModelTests.swift; sourceTree = "<group>"; };
+		12E112F6FC8C5BAA4F694E73 /* DiaryGrouping.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiaryGrouping.swift; sourceTree = "<group>"; };
 		13154B0DDD1C4A3BB795B64B /* FoodDiary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FoodDiary.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1502A7D7A25F4105B22AF010 /* NutritionItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionItem.swift; sourceTree = "<group>"; };
 		15BE5BE2DC1E459083DFE1E1 /* Api.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Api.swift; sourceTree = "<group>"; };
@@ -98,14 +105,17 @@
 		7CA0B54FB9FA485683824405 /* PKCETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PKCETests.swift; sourceTree = "<group>"; };
 		7D311E2A2CF844FFB85AAEF3 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		820C09964A64440AB461DEED /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
+		862B52934D3283EB39A7F686 /* DiaryListViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DiaryListViewModel.swift; path = Features/Diary/DiaryListViewModel.swift; sourceTree = "<group>"; };
 		8DC30E8DA13046BBBE9B005F /* GraphQLClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphQLClient.swift; sourceTree = "<group>"; };
 		8E5DAEBE65CB8FC5AA4E7D02 /* MacroRingMath.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MacroRingMath.swift; path = DesignSystem/MacroRingMath.swift; sourceTree = "<group>"; };
 		8E8AE1CE10E84F1F87B2672E /* DiaryEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryEntry.swift; sourceTree = "<group>"; };
 		90C9BCAE04A39B4ACADF62C8 /* DateBadgeFormatting.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DateBadgeFormatting.swift; path = DesignSystem/DateBadgeFormatting.swift; sourceTree = "<group>"; };
 		932B4E41AB204DEABDD9332F /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		943D58C9839364CAFD50AF00 /* DiaryListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DiaryListView.swift; path = Features/Diary/DiaryListView.swift; sourceTree = "<group>"; };
 		A239B9B25CCD9978A75DCFBC /* MacroCalculations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroCalculations.swift; sourceTree = "<group>"; };
 		A256459B4D7448DEAE5309B9 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		A38EFD9F6A7F42849AB6E534 /* NutritionItemInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionItemInput.swift; sourceTree = "<group>"; };
+		A3EF7BFA1183136AAB26A4AC /* DiaryGroupingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiaryGroupingTests.swift; sourceTree = "<group>"; };
 		A5616F72241D4D859334C4B5 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		AE7A21156B3B478ABC4266C7 /* RecipeApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeApiTests.swift; sourceTree = "<group>"; };
 		B2C3D4E5F6A7B8C9D0E1F2A3 /* DateHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHelpers.swift; sourceTree = "<group>"; };
@@ -162,6 +172,8 @@
 				7B3F5AADC5694D6E92302AD3 /* TargetsApiTests.swift */,
 				4879117EA7AD797B42381DAF /* MacroRingMathTests.swift */,
 				1D746F89760DAC9DC6A397A9 /* DateBadgeFormattingTests.swift */,
+				A3EF7BFA1183136AAB26A4AC /* DiaryGroupingTests.swift */,
+				0FB05C94337FE140EBB3BEE1 /* DiaryListViewModelTests.swift */,
 			);
 			path = FoodDiaryTests;
 			sourceTree = "<group>";
@@ -218,8 +230,17 @@
 				5682A016AB4D48FBA29D91A8 /* Repositories */,
 				6E7B2D1A9F8C5E3F2A1B4C6D /* Util */,
 				7AAA4CB5D7E67300BCBC535F /* DesignSystem */,
+				67AAFB3DF1E49668280977DE /* Features */,
 			);
 			path = FoodDiary;
+			sourceTree = "<group>";
+		};
+		67AAFB3DF1E49668280977DE /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				CD3F64163890115F6A559E5D /* Diary */,
+			);
+			name = Features;
 			sourceTree = "<group>";
 		};
 		681645B9D37149EB85ED79D3 /* App */ = {
@@ -242,6 +263,7 @@
 				A239B9B25CCD9978A75DCFBC /* MacroCalculations.swift */,
 				C1A2B3D4E5F6G7H8I9J0K1L2 /* WeeklyStats.swift */,
 				B2C3D4E5F6A7B8C9D0E1F2A3 /* DateHelpers.swift */,
+				12E112F6FC8C5BAA4F694E73 /* DiaryGrouping.swift */,
 			);
 			path = Util;
 			sourceTree = "<group>";
@@ -266,6 +288,15 @@
 				D6287A9EF22447808A06DAF9 /* Config */,
 				4F7325BAF7C64E1687AF8B77 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		CD3F64163890115F6A559E5D /* Diary */ = {
+			isa = PBXGroup;
+			children = (
+				862B52934D3283EB39A7F686 /* DiaryListViewModel.swift */,
+				943D58C9839364CAFD50AF00 /* DiaryListView.swift */,
+			);
+			name = Diary;
 			sourceTree = "<group>";
 		};
 		CE351FD17FE14E14A035288F /* Models */ = {
@@ -405,6 +436,8 @@
 				5BAA171496B5433984732D22 /* TargetsApiTests.swift in Sources */,
 				E57A7E0CB5E399E21FA41BF8 /* MacroRingMathTests.swift in Sources */,
 				C1030FD17AFC61EBCC925423 /* DateBadgeFormattingTests.swift in Sources */,
+				F675A74D319491536354DFA7 /* DiaryGroupingTests.swift in Sources */,
+				7C8DB3C5C9F7716EC3B8526F /* DiaryListViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -443,6 +476,9 @@
 				D795FBED0514B1E196AC50B1 /* Theme.swift in Sources */,
 				C3B83F159B735B4FE4176271 /* MacroRing.swift in Sources */,
 				DD82B9B007AB2F6E67D3826B /* DateBadge.swift in Sources */,
+				F9B9573E205FFCC8F7A85DAE /* DiaryGrouping.swift in Sources */,
+				FB21D8F8206DFE53182C7124 /* DiaryListViewModel.swift in Sources */,
+				8CF3454FCDCCF8E39C215A54 /* DiaryListView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

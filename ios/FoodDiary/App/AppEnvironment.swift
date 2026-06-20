@@ -13,6 +13,8 @@ final class AppEnvironment {
     let authService: AuthService
     let graphQLClient: GraphQLClient
     let router: Router
+    let diaryRepository: DiaryRepository
+    let targetsRepository: TargetsRepository
 
     init(config: AppConfig = .shared) {
         self.config = config
@@ -32,5 +34,7 @@ final class AppEnvironment {
             tokenProvider: authService
         )
         self.router = Router()
+        self.diaryRepository = DiaryRepositoryImpl(client: graphQLClient)
+        self.targetsRepository = TargetsRepositoryImpl(client: graphQLClient)
     }
 }

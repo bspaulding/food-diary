@@ -5,6 +5,13 @@ import SwiftUI
 /// Phase 0 content is a placeholder "Diary" screen — Phase 1 fills it in.
 struct RootView: View {
     let environment: AppEnvironment
+    @State private var diaryListViewModel: DiaryListViewModel
+
+    init(environment: AppEnvironment) {
+        self.environment = environment
+        self._diaryListViewModel = State(initialValue: DiaryListViewModel(
+            diaryRepository: environment.diaryRepository, targetsRepository: environment.targetsRepository))
+    }
 
     var body: some View {
         Group {
@@ -13,7 +20,7 @@ struct RootView: View {
                 LoginView(authService: environment.authService)
             case .signedIn:
                 NavigationStack(path: Bindable(environment.router).path) {
-                    PlaceholderDiaryView()
+                    DiaryListView(viewModel: diaryListViewModel, router: environment.router)
                         .navigationDestination(for: Route.self) { route in
                             PlaceholderDestinationView(route: route)
                         }
@@ -23,13 +30,6 @@ struct RootView: View {
         .task {
             await environment.authService.restoreSession()
         }
-    }
-}
-
-private struct PlaceholderDiaryView: View {
-    var body: some View {
-        Text("Diary")
-            .navigationTitle("Food Diary")
     }
 }
 
