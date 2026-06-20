@@ -1,0 +1,36 @@
+import Foundation
+import Observation
+
+/// DI container (PRD §6.1, §5.1). Holds the singletons every screen needs.
+/// Repositories are protocol-typed; Phase 0 leaves them unimplemented (no
+/// concrete repo conforms yet) — Phase 1 wires real implementations here.
+@MainActor
+final class AppEnvironment {
+    let config: AppConfig
+    let environmentConfig: AppEnvironmentConfig
+    let oidcClient: OIDCClient
+    let tokenStore: TokenStore
+    let authService: AuthService
+    let graphQLClient: GraphQLClient
+    let router: Router
+
+    init(config: AppConfig = .shared) {
+        self.config = config
+        self.environmentConfig = AppEnvironmentConfig()
+
+        let oidcClient = OIDCClient(
+            domain: config.auth0Domain,
+            clientID: config.auth0ClientID,
+            scheme: config.auth0Scheme,
+            bundleID: config.bundleID
+        )
+        self.oidcClient = oidcClient
+        self.tokenStore = TokenStore(endpoint: oidcClient)
+        self.authService = AuthService(oidcClient: oidcClient, tokenStore: tokenStore)
+        self.graphQLClient = GraphQLClient(
+            baseURL: environmentConfig.backend.graphQLBaseURL,
+            tokenProvider: authService
+        )
+        self.router = Router()
+    }
+}

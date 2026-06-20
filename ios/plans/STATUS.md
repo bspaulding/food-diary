@@ -7,7 +7,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 **Legend:** ☐ not started · ◐ in progress · ☑ done
 
-**Last updated:** _not yet started_
+**Last updated:** 2026-06-20
 
 ---
 
@@ -15,8 +15,8 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 | Phase / plan | Status | PR(s) | Notes |
 |---|---|---|---|
-| Phase 0 — Foundation | ☐ | — | test target + CI first (§1.2) |
-| ↳ Testing + CI infra (first PR) | ☐ | — | walking-skeleton test, `test-ios` green |
+| Phase 0 — Foundation | ◐ | — | project, models, auth, networking, login gate landed; pending live-tenant verification |
+| ↳ Testing + CI infra (first PR) | ☑ | — | walking-skeleton test + auth/error/decoding tests; `test-ios` job added to `ci-cd.yml` |
 | Backend — nutrition targets (§9) | ☐ | — | migration + metadata applied |
 | Auth0 + TestFlight manual setup (§16/§17) | ☐ | — | out-of-band; see checklist below |
 | Phase 1 — Core logging (v1) | ☐ | — | diary/entries/items/recipes/targets/profile |
@@ -29,15 +29,15 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 ## Phase 0 — Foundation ([plan](phase-0-foundation.md))
 
-- [ ] Xcode project under `ios/` builds for an iOS 18 simulator from clean checkout
-- [ ] `FoodDiaryTests` target + walking-skeleton test (§1.2)
-- [ ] `test-ios` CI job green on the first `ios/` PR (§1.2, [ci.md](ci.md))
-- [ ] Config (`.xcconfig` + `Info.plist` `CFBundleURLTypes`) wired (§1.1)
-- [ ] Models decode (golden JSON, snake_case, item/recipe XOR) (§2)
-- [ ] PKCE + OIDCClient + Keychain + TokenStore (refresh coalescing) (§3)
-- [ ] GraphQLClient + APIError mapping (§4)
-- [ ] DI container + login gate + NavigationStack route enum (§5/§6)
-- [ ] Phase 0 unit tests pass in CI (PKCE vectors, exp decode, coalescing, errors)
+- [x] Xcode project under `ios/` created (`FoodDiary.xcodeproj`, validated with the `xcodeproj` gem; not yet built on a macOS/Xcode 16 runner)
+- [x] `FoodDiaryTests` target + walking-skeleton test (§1.2)
+- [x] `test-ios` CI job added to `.github/workflows/ci-cd.yml`, gated on `ios/**` (§1.2, [ci.md](ci.md)) — not yet observed green (needs a macOS runner run)
+- [x] Config (`.xcconfig` + `Info.plist` `CFBundleURLTypes`) wired (§1.1) — placeholder Auth0 domain/client id, see [auth0-testflight-setup.md](auth0-testflight-setup.md)
+- [x] Models decode (golden JSON, snake_case, item/recipe XOR) (§2)
+- [x] PKCE + OIDCClient + Keychain + TokenStore (refresh coalescing) (§3)
+- [x] GraphQLClient + APIError mapping (§4)
+- [x] DI container + login gate + NavigationStack route enum (§5/§6)
+- [x] Phase 0 unit tests written (PKCE vectors, exp decode, coalescing, errors) — not yet run in CI (needs macOS runner)
 
 ## Backend — Nutrition targets ([plan](backend-nutrition-targets.md))
 
