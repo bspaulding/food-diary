@@ -2,6 +2,26 @@ import Testing
 import Foundation
 @testable import FoodDiary
 
+/// Real `Keychain` writes require a code-signing entitlement that's absent
+/// from unsigned CI test runs (CODE_SIGNING_ALLOWED=NO), so unit tests use
+/// this in-memory stand-in instead.
+private final class InMemoryKeychain: KeychainStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: String?
+
+    func set(_ value: String) {
+        lock.withLock { self.value = value }
+    }
+
+    func get() -> String? {
+        lock.withLock { value }
+    }
+
+    func delete() {
+        lock.withLock { value = nil }
+    }
+}
+
 private actor CountingTokenEndpoint: TokenEndpoint {
     private(set) var refreshCallCount = 0
     private let exp: TimeInterval
@@ -33,7 +53,7 @@ private actor CountingTokenEndpoint: TokenEndpoint {
 struct TokenStoreTests {
     @Test func currentTokenReturnsCachedTokenWhenNotExpired() async throws {
         let endpoint = CountingTokenEndpoint(exp: Date().addingTimeInterval(3600).timeIntervalSince1970)
-        let keychain = Keychain(service: "test.\(UUID().uuidString)")
+        let keychain = InMemoryKeychain()
         keychain.set("seed-refresh-token")
         let store = TokenStore(endpoint: endpoint, keychain: keychain)
 
@@ -49,7 +69,7 @@ struct TokenStoreTests {
     /// exactly 1 token request.
     @Test func concurrentCallersCoalesceIntoOneRefresh() async throws {
         let endpoint = CountingTokenEndpoint(exp: Date().addingTimeInterval(3600).timeIntervalSince1970)
-        let keychain = Keychain(service: "test.\(UUID().uuidString)")
+        let keychain = InMemoryKeychain()
         keychain.set("seed-refresh-token")
         let store = TokenStore(endpoint: endpoint, keychain: keychain)
 
@@ -67,7 +87,7 @@ struct TokenStoreTests {
 
     @Test func missingRefreshTokenThrows() async throws {
         let endpoint = CountingTokenEndpoint(exp: Date().addingTimeInterval(3600).timeIntervalSince1970)
-        let keychain = Keychain(service: "test.\(UUID().uuidString)")
+        let keychain = InMemoryKeychain()
         let store = TokenStore(endpoint: endpoint, keychain: keychain)
 
         await #expect(throws: TokenStoreError.noRefreshToken) {

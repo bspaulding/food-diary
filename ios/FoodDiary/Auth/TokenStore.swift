@@ -10,14 +10,14 @@ enum TokenStoreError: Error {
 /// the marquee auth test).
 actor TokenStore {
     private let endpoint: TokenEndpoint
-    private let keychain: Keychain
+    private let keychain: KeychainStoring
     private let refreshSkew: TimeInterval
 
     private var accessToken: String?
     private var expiry: Date?
     private var refreshTask: Task<String, Error>?
 
-    init(endpoint: TokenEndpoint, keychain: Keychain = Keychain(), refreshSkew: TimeInterval = 60) {
+    init(endpoint: TokenEndpoint, keychain: KeychainStoring = Keychain(), refreshSkew: TimeInterval = 60) {
         self.endpoint = endpoint
         self.keychain = keychain
         self.refreshSkew = refreshSkew

@@ -1,10 +1,16 @@
 import Foundation
 import Security
 
+protocol KeychainStoring {
+    func set(_ value: String)
+    func get() -> String?
+    func delete()
+}
+
 /// Minimal wrapper over `Security` for storing the refresh token only.
 /// Accessibility is `kSecAttrAccessibleAfterFirstUnlock` (PRD §6.5 item 5) —
 /// available in the background after the device has been unlocked once.
-struct Keychain {
+struct Keychain: KeychainStoring {
     private let service: String
 
     init(service: String = "com.bspaulding.fooddiary.refreshToken") {
