@@ -22,13 +22,32 @@ struct RootView: View {
                 NavigationStack(path: Bindable(environment.router).path) {
                     DiaryListView(viewModel: diaryListViewModel, router: environment.router)
                         .navigationDestination(for: Route.self) { route in
-                            PlaceholderDestinationView(route: route)
+                            destination(for: route)
                         }
                 }
             }
         }
         .task {
             await environment.authService.restoreSession()
+        }
+    }
+
+    @ViewBuilder
+    private func destination(for route: Route) -> some View {
+        switch route {
+        case .newEntry:
+            NewEntryView(
+                viewModel: NewEntryViewModel(
+                    diaryRepository: environment.diaryRepository,
+                    suggestionsRepository: environment.suggestionsRepository,
+                    searchRepository: environment.searchRepository),
+                onSave: { environment.router.popToRoot() })
+        case .editEntry(let id):
+            EditEntryView(
+                viewModel: EditEntryViewModel(entryID: id, diaryRepository: environment.diaryRepository),
+                onFinish: { environment.router.popToRoot() })
+        default:
+            PlaceholderDestinationView(route: route)
         }
     }
 }

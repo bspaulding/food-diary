@@ -19,7 +19,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 | ↳ Testing + CI infra (first PR) | ☑ | — | walking-skeleton test + auth/error/decoding tests; `test-ios` job added to `ci-cd.yml` |
 | Backend — nutrition targets (§9) | ☑ | — | migration + metadata written and verified locally; needs apply against the real dev/prod Hasura instance |
 | Auth0 + TestFlight manual setup (§16/§17) | ☐ | — | out-of-band; see checklist below |
-| Phase 1 — Core logging (v1) | ◐ | — | GraphQL operations + protocol-backed repositories + DesignSystem (§10) landed; feature screens (§4–§9) still open |
+| Phase 1 — Core logging (v1) | ◐ | — | GraphQL operations + protocol-backed repositories + DesignSystem (§10) + diary list (§4) + entry form (§5) landed; §6–§9 still open |
 | Phase 2 — Insights (Trends) | ☐ | — | deferred from v1 |
 | Phase 3 — Native capture (scan + LLM) | ☐ | — | deferred from v1 |
 | Phase 4 — Data portability (CSV) | ☐ | — | deferred from v1 |
@@ -64,7 +64,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 - [x] Repositories (protocol-backed) for diary/items/recipes/search/suggestions/targets — Note: SwiftUI features (§4–§9: diary list, entry form, items, recipes, targets, profile, design system, error/session handling) remain open.
 - [x] `MacroCalculations` + `WeeklyStats` + `DateHelpers` ported and unit-tested (§3)
 - [x] Diary list: rings, grouping, 7-day/4-week headers, paging, empty state (§4) — `DiaryGrouping`/`DiaryListViewModel` unit-tested (load, paging, optimistic delete + rollback); `DiaryListView` wired into `RootView`/`AppEnvironment`. Edit/Delete/Add buttons push `Route`s whose destination screens (§5–§7) are still placeholders.
-- [ ] Add/edit/delete entry with search + 3 suggestion sources (§5); delete optimistic + rollback
+- [x] Add/edit/delete entry with search + 3 suggestion sources (§5); delete optimistic + rollback — `SuggestionHourRange`/`NewEntryViewModel`/`EditEntryViewModel` unit-tested (suggestion loading, search, save item/recipe, edit load/save/delete, error states); `NewEntryView`/`EditEntryView` are thin SwiftUI wrappers wired into `RootView`'s `.newEntry`/`.editEntry` destinations
 - [ ] Nutrition items: create/view/edit (§6)
 - [ ] Recipes: create/view/edit (delete-then-insert items) (§7)
 - [ ] Nutrition targets: view/edit, server-stored, drive rings (§8)

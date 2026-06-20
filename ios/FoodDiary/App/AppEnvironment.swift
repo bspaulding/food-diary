@@ -15,6 +15,8 @@ final class AppEnvironment {
     let router: Router
     let diaryRepository: DiaryRepository
     let targetsRepository: TargetsRepository
+    let searchRepository: SearchRepository
+    let suggestionsRepository: SuggestionsRepository
 
     init(config: AppConfig = .shared) {
         self.config = config
@@ -36,5 +38,7 @@ final class AppEnvironment {
         self.router = Router()
         self.diaryRepository = DiaryRepositoryImpl(client: graphQLClient)
         self.targetsRepository = TargetsRepositoryImpl(client: graphQLClient)
+        self.searchRepository = SearchRepositoryImpl(client: graphQLClient)
+        self.suggestionsRepository = SuggestionsRepositoryImpl(client: graphQLClient)
     }
 }
