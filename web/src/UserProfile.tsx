@@ -11,7 +11,7 @@ type Auth0User = {
 };
 
 const UserProfile: Component = () => {
-  const [{ user, auth0 }] = useAuth();
+  const [{ user, auth0, accessToken }] = useAuth();
   const userObj = (): Auth0User => (user() ?? {}) as Auth0User;
 
   const [targets, updateTargets] = useNutritionTargets();
@@ -23,15 +23,18 @@ const UserProfile: Component = () => {
   let fiberRef!: HTMLInputElement;
   let sugarRef!: HTMLInputElement;
 
-  const handleSaveTargets = (e: Event) => {
+  const handleSaveTargets = async (e: Event) => {
     e.preventDefault();
-    updateTargets({
-      calories: Number(caloriesRef.value),
-      calories_max: Number(caloriesMaxRef.value),
-      protein_grams: Number(proteinRef.value),
-      dietary_fiber_grams: Number(fiberRef.value),
-      added_sugars_grams: Number(sugarRef.value),
-    });
+    await updateTargets(
+      {
+        calories: Number(caloriesRef.value),
+        calories_max: Number(caloriesMaxRef.value),
+        protein_grams: Number(proteinRef.value),
+        dietary_fiber_grams: Number(fiberRef.value),
+        added_sugars_grams: Number(sugarRef.value),
+      },
+      accessToken(),
+    );
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

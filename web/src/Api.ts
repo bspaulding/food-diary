@@ -835,6 +835,61 @@ export async function fetchWeeklyTrends(
   return await fetchQuery(accessToken, getWeeklyTrendsQuery);
 }
 
+const getNutritionTargetsQuery = `
+query GetNutritionTargets {
+  food_diary_nutrition_target {
+    calories
+    calories_max
+    protein_grams
+    dietary_fiber_grams
+    added_sugars_grams
+  }
+}
+`;
+
+export type NutritionTargetsRow = {
+  calories: number;
+  calories_max: number;
+  protein_grams: number;
+  dietary_fiber_grams: number;
+  added_sugars_grams: number;
+};
+
+export type GetNutritionTargetsQueryResponse = {
+  data?: {
+    food_diary_nutrition_target: NutritionTargetsRow[];
+  };
+};
+
+export async function fetchNutritionTargets(
+  accessToken: string,
+): Promise<GetNutritionTargetsQueryResponse> {
+  return await fetchQuery(accessToken, getNutritionTargetsQuery);
+}
+
+const setNutritionTargetsMutation = `
+mutation SetNutritionTargets($target: food_diary_nutrition_target_insert_input!) {
+  insert_food_diary_nutrition_target_one(
+    object: $target
+    on_conflict: {
+      constraint: nutrition_target_pkey
+      update_columns: [calories, calories_max, protein_grams, dietary_fiber_grams, added_sugars_grams]
+    }
+  ) {
+    user_id
+  }
+}
+`;
+
+export async function setNutritionTargets(
+  accessToken: string,
+  target: NutritionTargetsRow,
+): Promise<unknown> {
+  return await fetchQuery(accessToken, setNutritionTargetsMutation, {
+    target,
+  });
+}
+
 export async function lookupNutritionWithLLM(
   description: string,
 ): Promise<Partial<NutritionItemAttrs>> {

@@ -3,13 +3,15 @@ import { Show, createEffect } from "solid-js";
 import { Router, Route } from "@solidjs/router";
 import { useAuth } from "./Auth0";
 import { registerLogoutHandler } from "./Api";
+import { useNutritionTargets } from "./NutritionTargets";
 
 type Auth0User = {
   picture?: string;
 };
 
 const App: Component<ParentProps> = (props: ParentProps) => {
-  const [{ user, isAuthenticated, auth0 }] = useAuth();
+  const [{ user, isAuthenticated, auth0, accessToken }] = useAuth();
+  const [, , syncNutritionTargets] = useNutritionTargets();
   const userObj = (): Auth0User => (user() ?? {}) as Auth0User;
 
   // Register the global logout handler once the Auth0 client is available.
@@ -21,6 +23,15 @@ const App: Component<ParentProps> = (props: ParentProps) => {
       registerLogoutHandler(() => {
         void client.logout({ returnTo: window.location.origin });
       });
+    }
+  });
+
+  // Once we have a real token, pull nutrition targets from the server
+  // (migrating any pre-existing localStorage targets on first run).
+  createEffect(() => {
+    const token = accessToken();
+    if (token) {
+      void syncNutritionTargets(token);
     }
   });
 
