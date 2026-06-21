@@ -30,7 +30,7 @@ struct DiaryListView: View {
         .navigationTitle("Food Diary")
         .toolbar {
             ToolbarItem {
-                Button("Targets") { router.push(.targets) }
+                Button("Profile") { router.push(.profile) }
             }
             ToolbarItem {
                 Button("Add Entry") { router.push(.newEntry) }

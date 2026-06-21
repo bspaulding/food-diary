@@ -74,8 +74,9 @@ final class AuthService {
     }
 
     private func userInfo(from response: TokenResponse) -> AuthenticatedUser {
-        // Decoded from the id_token's claims in a later pass; Phase 0 only needs
-        // the signed-in/signed-out transition for the login gate.
-        AuthenticatedUser()
+        guard let idToken = response.idToken, let claims = JWT.profileClaims(of: idToken) else {
+            return AuthenticatedUser()
+        }
+        return AuthenticatedUser(name: claims.name, email: claims.email, picture: claims.picture)
     }
 }

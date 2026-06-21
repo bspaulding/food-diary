@@ -32,6 +32,13 @@ struct RootView: View {
         }
     }
 
+    private var currentUser: AuthenticatedUser {
+        if case .signedIn(let user) = environment.authService.state {
+            return user
+        }
+        return AuthenticatedUser()
+    }
+
     @ViewBuilder
     private func destination(for route: Route) -> some View {
         switch route {
@@ -78,6 +85,12 @@ struct RootView: View {
             TargetsView(
                 viewModel: TargetsViewModel(targetsRepository: environment.targetsRepository),
                 onSave: { environment.router.popToRoot() })
+        case .profile:
+            ProfileView(
+                viewModel: ProfileViewModel(
+                    user: currentUser, environmentConfig: environment.environmentConfig),
+                authService: environment.authService,
+                onEditTargets: { environment.router.push(.targets) })
         default:
             PlaceholderDestinationView(route: route)
         }

@@ -14,6 +14,7 @@ enum Route: Hashable {
     case newItem
     case newRecipe
     case targets
+    case profile
 }
 
 @Observable @MainActor
