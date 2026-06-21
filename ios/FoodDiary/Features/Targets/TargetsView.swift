@@ -14,7 +14,7 @@ struct TargetsView: View {
             case .loading:
                 ProgressView()
             case .error(let message):
-                Text(message).foregroundStyle(.red)
+                ErrorRetryView(message: message) { Task { await viewModel.load() } }
             case .loaded:
                 form
             }

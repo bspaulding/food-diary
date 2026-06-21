@@ -52,6 +52,7 @@ final class NewEntryViewModel {
     }
 
     func save(kind: SearchResult.Kind, id: Int, servings: Double, consumedAt: Date) async {
+        saveError = nil
         let input: NewDiaryEntryInput = kind == .item
             ? .item(nutritionItemID: id, servings: servings, consumedAt: consumedAt)
             : .recipe(recipeID: id, servings: servings, consumedAt: consumedAt)

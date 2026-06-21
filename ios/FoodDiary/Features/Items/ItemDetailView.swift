@@ -12,7 +12,7 @@ struct ItemDetailView: View {
             case .loading:
                 ProgressView()
             case .error(let message):
-                Text(message).foregroundStyle(.red)
+                ErrorRetryView(message: message) { Task { await viewModel.load() } }
             case .loaded:
                 if let item = viewModel.item {
                     detail(for: item)

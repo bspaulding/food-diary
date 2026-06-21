@@ -6,6 +6,31 @@ struct DiaryListView: View {
     let router: Router
 
     var body: some View {
+        Group {
+            switch viewModel.state {
+            case .loading:
+                ProgressView()
+            case .error(let message):
+                ErrorRetryView(message: message) { Task { await viewModel.load() } }
+            case .idle, .loaded:
+                list
+            }
+        }
+        .navigationTitle("Food Diary")
+        .toolbar {
+            ToolbarItem {
+                Button("Profile") { router.push(.profile) }
+            }
+            ToolbarItem {
+                Button("Add Entry") { router.push(.newEntry) }
+            }
+        }
+        .task {
+            await viewModel.load()
+        }
+    }
+
+    private var list: some View {
         List {
             if let weeklyStats = viewModel.weeklyStats {
                 Section {
@@ -26,18 +51,6 @@ struct DiaryListView: View {
                 }
             }
             pagingControls
-        }
-        .navigationTitle("Food Diary")
-        .toolbar {
-            ToolbarItem {
-                Button("Profile") { router.push(.profile) }
-            }
-            ToolbarItem {
-                Button("Add Entry") { router.push(.newEntry) }
-            }
-        }
-        .task {
-            await viewModel.load()
         }
     }
 

@@ -101,17 +101,24 @@ private struct LoggableItemRow: View {
             if isExpanded {
                 Stepper("Servings: \(servings.formatted())", value: $servings, in: 0.1...50, step: 0.1)
                 DatePicker("Consumed at", selection: $consumedAt)
+                if let saveError = viewModel.saveError {
+                    Text(saveError).foregroundStyle(.red)
+                }
                 Button(isSaving ? "Saving..." : "Save") {
-                    Task {
-                        isSaving = true
-                        await viewModel.save(kind: kind, id: id, servings: servings, consumedAt: consumedAt)
-                        isSaving = false
-                        isExpanded = false
-                        onSave()
-                    }
+                    Task { await save() }
                 }
                 .disabled(isSaving)
             }
+        }
+    }
+
+    private func save() async {
+        isSaving = true
+        await viewModel.save(kind: kind, id: id, servings: servings, consumedAt: consumedAt)
+        isSaving = false
+        if viewModel.didSave {
+            isExpanded = false
+            onSave()
         }
     }
 }
