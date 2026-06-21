@@ -91,6 +91,11 @@ struct RootView: View {
                     user: currentUser, environmentConfig: environment.environmentConfig),
                 authService: environment.authService,
                 onEditTargets: { environment.router.push(.targets) })
+        case .trends:
+            TrendsView(
+                viewModel: TrendsViewModel(
+                    trendsRepository: environment.trendsRepository,
+                    targetsRepository: environment.targetsRepository))
         default:
             PlaceholderDestinationView(route: route)
         }

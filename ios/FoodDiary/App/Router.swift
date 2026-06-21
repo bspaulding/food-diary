@@ -15,6 +15,7 @@ enum Route: Hashable {
     case newRecipe
     case targets
     case profile
+    case trends
 }
 
 @Observable @MainActor

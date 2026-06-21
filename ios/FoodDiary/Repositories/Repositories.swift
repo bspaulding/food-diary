@@ -275,6 +275,20 @@ struct TargetsRepositoryImpl: TargetsRepository {
     }
 }
 
+protocol TrendsRepository: Sendable {
+    func weeklyTrends() async throws -> [WeeklyTrendsData]
+}
+
+struct TrendsRepositoryImpl: TrendsRepository {
+    let client: GraphQLClient
+
+    func weeklyTrends() async throws -> [WeeklyTrendsData] {
+        let response = try await client.execute(
+            query: Api.Trends.getWeeklyTrends, as: Api.Trends.WeeklyTrendsResponse.self)
+        return response.foodDiaryTrendsWeekly
+    }
+}
+
 struct SearchResult: Identifiable, Hashable, Sendable {
     enum Kind: Hashable, Sendable {
         case item

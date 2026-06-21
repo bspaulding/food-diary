@@ -19,6 +19,9 @@ struct DiaryListView: View {
         .navigationTitle("Food Diary")
         .toolbar {
             ToolbarItem {
+                Button("Trends") { router.push(.trends) }
+            }
+            ToolbarItem {
                 Button("Profile") { router.push(.profile) }
             }
             ToolbarItem {

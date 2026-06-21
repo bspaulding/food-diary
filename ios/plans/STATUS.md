@@ -20,7 +20,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 | Backend — nutrition targets (§9) | ☑ | — | migration + metadata written and verified locally; needs apply against the real dev/prod Hasura instance |
 | Auth0 + TestFlight manual setup (§16/§17) | ☐ | — | out-of-band; see checklist below |
 | Phase 1 — Core logging (v1) | ☑ | — | GraphQL operations + protocol-backed repositories + DesignSystem (§10) + diary list (§4) + entry form (§5) + nutrition items (§6) + recipes (§7) + nutrition targets (§8) + profile (§9) + error/session handling (§11) all landed |
-| Phase 2 — Insights (Trends) | ☐ | — | deferred from v1 |
+| Phase 2 — Insights (Trends) | ☑ | — | `GetWeeklyTrends` + `TrendsRepository` + `TrendsViewModel`/`TrendsView` (Swift Charts) landed |
 | Phase 3 — Native capture (scan + LLM) | ☐ | — | deferred from v1 |
 | Phase 4 — Data portability (CSV) | ☐ | — | deferred from v1 |
 | Phase 5+ — Platform polish | ☐ | — | iPad, cache, widgets, HealthKit, App Store |
@@ -74,9 +74,10 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 ## Phase 2 — Insights / Trends ([plan](phase-2-insights.md))
 
-- [ ] `GetWeeklyTrends` + `TrendsRepository` (+ decode test)
-- [ ] Trends screen (Swift Charts): calories/protein/added-sugar series
-- [ ] "View Trends" link un-hidden from the diary header
+- [x] `GetWeeklyTrends` (`Api.Trends.getWeeklyTrends`) + `WeeklyTrendsData` model + `TrendsRepository`/`TrendsRepositoryImpl` (`Repositories.swift`) — golden-JSON decode tests in `TrendsApiTests` cover both string and integer JSON encodings of `week_of_year` (the underlying Postgres view column is `int`; the web type treats it as `string`, so `WeeklyTrendsData`'s custom `init(from:)` accepts either and normalizes to `String`), plus an empty-array case.
+- [x] `TrendsViewModel` (`@Observable @MainActor`, `loading/loaded/error` state mirroring `ItemDetailViewModel`'s pattern) loads `TrendsRepository.weeklyTrends()` + `TargetsRepository.targets()` on `.task`, client-side sorting trends ascending by `Int(weekOfYear)` (the Hasura view has no natural order) — unit-tested in `TrendsViewModelTests` with actor-based fake repositories (sort order, targets population, error state, empty state).
+- [x] `TrendsView` (thin SwiftUI wrapper, untested per the established pattern for views): one `Chart` per metric (Calories/Protein/Added Sugar) using `LineMark`+`PointMark` over `week_of_year`, with a dashed `RuleMark` reference line at the corresponding `NutritionTargets` value (calories/proteinGrams/addedSugarsGrams). Empty-data state matches web's "No data available yet" message.
+- [x] "View Trends" link added: `DiaryListView` toolbar gained a "Trends" button (no pre-existing hidden link was found in the codebase to un-hide, so a new toolbar button was added per the plan's fallback instruction) pushing `Route.trends`; wired into `Router`, `AppEnvironment.trendsRepository`, and `RootView.destination(for:)` following the exact pattern of `.targets`/`.profile`.
 
 ## Phase 3 — Native capture ([plan](phase-3-native-capture.md))
 

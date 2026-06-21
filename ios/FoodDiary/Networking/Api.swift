@@ -284,6 +284,18 @@ enum Api {
         struct UpdateRecipeItemInput: Encodable { var servings: Double; var nutritionItemId: Int; var recipeId: Int }
     }
 
+    enum Trends {
+        static let getWeeklyTrends = """
+            query GetWeeklyTrends {
+              food_diary_trends_weekly { week_of_year protein calories added_sugar }
+            }
+            """
+
+        struct WeeklyTrendsResponse: Decodable {
+            var foodDiaryTrendsWeekly: [WeeklyTrendsData]
+        }
+    }
+
     enum Targets {
         static let get = """
             query GetNutritionTargets {
