@@ -8,7 +8,7 @@ struct WeeklyStatsTotals: Sendable, Hashable {
     var pastFourWeeksCalories: Double
 }
 
-enum NewDiaryEntryInput: Sendable {
+enum NewDiaryEntryInput: Sendable, Equatable {
     case item(nutritionItemID: Int, servings: Double, consumedAt: Date)
     case recipe(recipeID: Int, servings: Double, consumedAt: Date)
 }

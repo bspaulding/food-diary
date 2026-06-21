@@ -41,6 +41,7 @@
 		510A144B9E1D20D473C64974 /* SuggestionHourRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2319745D400D796F029BC5AC /* SuggestionHourRange.swift */; };
 		559A4CAF3C3B4C1B82E67BED /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E9925D2943B412D8769303E /* RootView.swift */; };
 		5749005AECEE1F461B80B52F /* TrendsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B63CB4909F5886D5A1C3C64B /* TrendsViewModelTests.swift */; };
+		58DFB2BADF758D1D37F079E1 /* LogDiaryEntryIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FBC434B29DA48B27C2B731A /* LogDiaryEntryIntent.swift */; };
 		58F03CBA8F34081755F97BC2 /* NewEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91E97C9C39280FD2AEB04277 /* NewEntryView.swift */; };
 		5A768E74CD41762618A8705A /* ExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EBB4BF38975CE2416316A3 /* ExportView.swift */; };
 		5A851786E2DF74472406F3A1 /* ErrorRetryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A098B0449ECB88A2B8789120 /* ErrorRetryView.swift */; };
@@ -59,6 +60,7 @@
 		84678EF2ECF6E20D07718FBB /* ItemDetailViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03B76E428E61493AA59171E1 /* ItemDetailViewModelTests.swift */; };
 		876E240FAC264335BC73775C /* TokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E530C701AB4C49A18BE12F34 /* TokenStore.swift */; };
 		8CF3454FCDCCF8E39C215A54 /* DiaryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943D58C9839364CAFD50AF00 /* DiaryListView.swift */; };
+		8E1859523A643FE77FFE77FC /* LogDiaryEntryServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D4C355EC78951C579C2DCC1 /* LogDiaryEntryServiceTests.swift */; };
 		8E6B1D2B33EC43E281A850A5 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A256459B4D7448DEAE5309B9 /* AuthService.swift */; };
 		95047C1E7AF540D19B5ACD4D /* Recipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE373324BC8A4ECBB8E55637 /* Recipe.swift */; };
 		9848E67332997F0D0F0A7253 /* RecipeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44D30F716EBE3B88B7F216B9 /* RecipeDetailView.swift */; };
@@ -77,6 +79,7 @@
 		B2FB430AB67E4B708CBC8BDA /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38EF2152C37E47E2AFA8F5CC /* Router.swift */; };
 		BE30241D31DF7A2E6D9B184C /* CameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C368C737B702F8C8336E767 /* CameraCaptureView.swift */; };
 		C1030FD17AFC61EBCC925423 /* DateBadgeFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D746F89760DAC9DC6A397A9 /* DateBadgeFormattingTests.swift */; };
+		C2DD571E3970E47CB95E064F /* LogDiaryEntryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F80C8AB5D962E72ADABA1A /* LogDiaryEntryService.swift */; };
 		C3B83F159B735B4FE4176271 /* MacroRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59A2521C603F9C92E89F1629 /* MacroRing.swift */; };
 		C3D4E5F6A7B8C9D0E1F2A3B4 /* DateHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9D0E1F2A3B4C5 /* DateHelpersTests.swift */; };
 		C40F0B9905F24FDFB0804809 /* NutritionItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1502A7D7A25F4105B22AF010 /* NutritionItem.swift */; };
@@ -126,6 +129,7 @@
 /* Begin PBXFileReference section */
 		019485F884A3EC953141CC7B /* EditEntryViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditEntryViewModelTests.swift; path = ../FoodDiaryTests/EditEntryViewModelTests.swift; sourceTree = "<group>"; };
 		03B76E428E61493AA59171E1 /* ItemDetailViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ItemDetailViewModelTests.swift; path = ../FoodDiaryTests/ItemDetailViewModelTests.swift; sourceTree = "<group>"; };
+		07F80C8AB5D962E72ADABA1A /* LogDiaryEntryService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LogDiaryEntryService.swift; path = ../FoodDiary/Intents/LogDiaryEntryService.swift; sourceTree = "<group>"; };
 		08139AC61E207EE652B20794 /* CSVTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CSVTests.swift; path = ../FoodDiaryTests/CSVTests.swift; sourceTree = "<group>"; };
 		088B6FB0F5E34C3EB538C554 /* AuthState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthState.swift; sourceTree = "<group>"; };
 		091E3329EBD34411C76B569D /* ItemDetailViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ItemDetailViewModel.swift; path = ../FoodDiary/Features/Items/ItemDetailViewModel.swift; sourceTree = "<group>"; };
@@ -140,6 +144,7 @@
 		15A18B2561ECE905776DBC8D /* ItemDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ItemDetailView.swift; path = ../FoodDiary/Features/Items/ItemDetailView.swift; sourceTree = "<group>"; };
 		15BE5BE2DC1E459083DFE1E1 /* Api.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Api.swift; sourceTree = "<group>"; };
 		166420CA3CF7E1A263DC6C7F /* ProfileViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProfileViewModelTests.swift; path = ../FoodDiaryTests/ProfileViewModelTests.swift; sourceTree = "<group>"; };
+		1D4C355EC78951C579C2DCC1 /* LogDiaryEntryServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LogDiaryEntryServiceTests.swift; sourceTree = "<group>"; };
 		1D746F89760DAC9DC6A397A9 /* DateBadgeFormattingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DateBadgeFormattingTests.swift; sourceTree = "<group>"; };
 		2319745D400D796F029BC5AC /* SuggestionHourRange.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SuggestionHourRange.swift; path = ../FoodDiary/Features/Entry/SuggestionHourRange.swift; sourceTree = "<group>"; };
 		2ACA729527764E6DAE590AB5 /* APIErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIErrorTests.swift; sourceTree = "<group>"; };
@@ -168,6 +173,7 @@
 		5A6A128A0233D0F08A808E84 /* DateBadge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DateBadge.swift; path = DesignSystem/DateBadge.swift; sourceTree = "<group>"; };
 		5B2E1E71CD4CB93C771D902A /* WeeklyTrendsData.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WeeklyTrendsData.swift; sourceTree = "<group>"; };
 		5E9925D2943B412D8769303E /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		5FBC434B29DA48B27C2B731A /* LogDiaryEntryIntent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LogDiaryEntryIntent.swift; path = ../FoodDiary/Intents/LogDiaryEntryIntent.swift; sourceTree = "<group>"; };
 		61BD893B24DE6B0689D974B8 /* ImportView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImportView.swift; path = ../FoodDiary/Features/Import/ImportView.swift; sourceTree = "<group>"; };
 		62DE2063DE394A7FBB1240BF /* TokenStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStoreTests.swift; sourceTree = "<group>"; };
 		631A8705414C0996FB61789A /* NewEntryViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NewEntryViewModelTests.swift; path = ../FoodDiaryTests/NewEntryViewModelTests.swift; sourceTree = "<group>"; };
@@ -304,6 +310,7 @@
 				C7C102BBDBF835A8C46818C7 /* CachingRepositoriesTests.swift */,
 				A84B1545AE58159F7B4E0584 /* RouteStackTests.swift */,
 				3109E25FECC8C663423274F3 /* RouterTests.swift */,
+				1D4C355EC78951C579C2DCC1 /* LogDiaryEntryServiceTests.swift */,
 			);
 			path = FoodDiaryTests;
 			sourceTree = "<group>";
@@ -364,6 +371,7 @@
 				6E7B2D1A9F8C5E3F2A1B4C6D /* Util */,
 				7AAA4CB5D7E67300BCBC535F /* DesignSystem */,
 				67AAFB3DF1E49668280977DE /* Features */,
+				ADA98722495225342F03FA4F /* Intents */,
 			);
 			path = FoodDiary;
 			sourceTree = "<group>";
@@ -463,6 +471,15 @@
 				44D30F716EBE3B88B7F216B9 /* RecipeDetailView.swift */,
 			);
 			name = Recipes;
+			sourceTree = "<group>";
+		};
+		ADA98722495225342F03FA4F /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				07F80C8AB5D962E72ADABA1A /* LogDiaryEntryService.swift */,
+				5FBC434B29DA48B27C2B731A /* LogDiaryEntryIntent.swift */,
+			);
+			name = Intents;
 			sourceTree = "<group>";
 		};
 		C27A65C7BF383B7A1FDE579F /* Targets */ = {
@@ -674,6 +691,7 @@
 				3550E3F0097ED58D9FCBFAA5 /* CachingRepositoriesTests.swift in Sources */,
 				47D8FBFAAA95E312E9262A71 /* RouteStackTests.swift in Sources */,
 				E4CEFB29278155164DED7CC6 /* RouterTests.swift in Sources */,
+				8E1859523A643FE77FFE77FC /* LogDiaryEntryServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -747,6 +765,8 @@
 				68656275C6E991A5F6B71DFB /* CacheModels.swift in Sources */,
 				B2D1E7008A8722BA0D5AFA84 /* CachingRepositories.swift in Sources */,
 				2012A4A144BABC492F4DF2D4 /* AdaptiveRootView.swift in Sources */,
+				C2DD571E3970E47CB95E064F /* LogDiaryEntryService.swift in Sources */,
+				58DFB2BADF758D1D37F079E1 /* LogDiaryEntryIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
