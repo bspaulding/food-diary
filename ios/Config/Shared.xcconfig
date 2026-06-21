@@ -1,7 +1,7 @@
 // Public client config — no secrets. The audience and redirect URI contain
 // "://" and are assembled in Swift instead (AppConfig.swift), since xcconfig
 // treats "//" as a comment.
-AUTH0_DOMAIN = your-tenant.us.auth0.com
-AUTH0_CLIENT_ID = REPLACE_WITH_NATIVE_CLIENT_ID
+AUTH0_DOMAIN = motingo.auth0.com
+AUTH0_CLIENT_ID = NCgQbGEsClLp10D3GpS7xLzWWRDIwFzN
 AUTH0_SCHEME = com.motingo.fooddiary
 PRODUCT_BUNDLE_IDENTIFIER = com.motingo.fooddiary
