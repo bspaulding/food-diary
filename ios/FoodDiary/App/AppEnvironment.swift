@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 
 /// DI container (PRD §6.1, §5.1). Holds the singletons every screen needs.
 /// Repositories are protocol-typed; Phase 0 leaves them unimplemented (no
@@ -23,10 +24,12 @@ final class AppEnvironment {
     let exportRepository: ExportRepository
     let importRepository: ImportRepository
     let sidecarClient: SidecarClient
+    let cacheContainer: ModelContainer
 
     init(config: AppConfig = .shared) {
         self.config = config
         self.environmentConfig = AppEnvironmentConfig()
+        self.cacheContainer = CacheSchema.makeContainer()
 
         let oidcClient = OIDCClient(
             domain: config.auth0Domain,
@@ -42,12 +45,17 @@ final class AppEnvironment {
             tokenProvider: authService
         )
         self.router = Router()
-        self.diaryRepository = DiaryRepositoryImpl(client: graphQLClient)
-        self.targetsRepository = TargetsRepositoryImpl(client: graphQLClient)
+        let cacheContext = ModelContext(cacheContainer)
+        self.diaryRepository = CachingDiaryRepository(
+            wrapping: DiaryRepositoryImpl(client: graphQLClient), context: cacheContext)
+        self.targetsRepository = CachingTargetsRepository(
+            wrapping: TargetsRepositoryImpl(client: graphQLClient), context: cacheContext)
         self.searchRepository = SearchRepositoryImpl(client: graphQLClient)
         self.suggestionsRepository = SuggestionsRepositoryImpl(client: graphQLClient)
-        self.nutritionItemRepository = NutritionItemRepositoryImpl(client: graphQLClient)
-        self.recipeRepository = RecipeRepositoryImpl(client: graphQLClient)
+        self.nutritionItemRepository = CachingNutritionItemRepository(
+            wrapping: NutritionItemRepositoryImpl(client: graphQLClient), context: cacheContext)
+        self.recipeRepository = CachingRecipeRepository(
+            wrapping: RecipeRepositoryImpl(client: graphQLClient), context: cacheContext)
         self.trendsRepository = TrendsRepositoryImpl(client: graphQLClient)
         self.exportRepository = ExportRepositoryImpl(client: graphQLClient)
         self.importRepository = ImportRepositoryImpl(client: graphQLClient)
