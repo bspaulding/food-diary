@@ -7,7 +7,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 **Legend:** ☐ not started · ◐ in progress · ☑ done
 
-**Last updated:** 2026-06-20
+**Last updated:** 2026-06-21
 
 ---
 
@@ -22,8 +22,8 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 | Phase 1 — Core logging (v1) | ☑ | — | GraphQL operations + protocol-backed repositories + DesignSystem (§10) + diary list (§4) + entry form (§5) + nutrition items (§6) + recipes (§7) + nutrition targets (§8) + profile (§9) + error/session handling (§11) all landed |
 | Phase 2 — Insights (Trends) | ☑ | — | `GetWeeklyTrends` + `TrendsRepository` + `TrendsViewModel`/`TrendsView` (Swift Charts) landed |
 | Phase 3 — Native capture (scan + LLM) | ◐ | — | networking/decoding/error-mapping/retry, ViewModel actions, camera capture UI, and item-form wiring all built + unit-tested; §0 ingress-JWT precondition is UNVERIFIED (no live deployment reachable from this sandbox) |
-| Phase 4 — Data portability (CSV) | ☐ | — | deferred from v1 |
-| Phase 5+ — Platform polish | ☐ | — | iPad, cache, widgets, HealthKit, App Store |
+| Phase 4 — Data portability (CSV) | ☑ | — | CSV export/import (web-parity), GraphQL ops, ExportView/ImportView wired into Profile |
+| Phase 5+ — Platform polish | ◐ | — | SwiftData read cache landed; iPad/widgets/HealthKit/App Store readiness remain |
 
 ---
 
