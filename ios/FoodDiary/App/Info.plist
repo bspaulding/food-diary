@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Food Diary uses your camera to scan nutrition labels and autofill macro fields.</string>
 	<key>AUTH0_DOMAIN</key>
 	<string>$(AUTH0_DOMAIN)</string>
 	<key>AUTH0_CLIENT_ID</key>

@@ -34,6 +34,41 @@ private actor FakeNutritionItemRepository: NutritionItemRepository {
 
 private struct TestError: Error {}
 
+private actor FakeAutofillClient: NutritionAutofillClient {
+    var lookupResult: NutritionItemInput?
+    var lookupError: Error?
+    var uploadResult: NutritionItemInput?
+    var uploadError: Error?
+    private(set) var lastLookupDescription: String?
+    private(set) var lastUploadImageData: Data?
+
+    func lookupNutrition(description: String) async throws -> NutritionItemInput {
+        lastLookupDescription = description
+        if let lookupError { throw lookupError }
+        return lookupResult!
+    }
+
+    func uploadLabel(imageData: Data) async throws -> NutritionItemInput {
+        lastUploadImageData = imageData
+        if let uploadError { throw uploadError }
+        return uploadResult!
+    }
+
+    func setLookupResult(_ value: NutritionItemInput) { lookupResult = value }
+    func setLookupError(_ error: Error) { lookupError = error }
+    func setUploadResult(_ value: NutritionItemInput) { uploadResult = value }
+    func setUploadError(_ error: Error) { uploadError = error }
+}
+
+private func makeInput(description: String = "Looked Up Food", calories: Double = 150) -> NutritionItemInput {
+    NutritionItemInput(
+        description: description, calories: calories,
+        totalFatGrams: 1, saturatedFatGrams: 0.5, transFatGrams: 0, polyunsaturatedFatGrams: 0.2,
+        monounsaturatedFatGrams: 0.3, cholesterolMilligrams: 5, sodiumMilligrams: 100,
+        totalCarbohydrateGrams: 20, dietaryFiberGrams: 3, totalSugarsGrams: 8,
+        addedSugarsGrams: 2, proteinGrams: 6)
+}
+
 private func makeItem(id: Int = 1) -> NutritionItem {
     NutritionItem(
         id: id, description: "Apple", calories: 95,
@@ -138,5 +173,112 @@ struct ItemFormViewModelTests {
 
         #expect(viewModel.state == .error(""))
         #expect(!viewModel.didSave)
+    }
+
+    // MARK: - LLM lookup (Phase 3)
+
+    @Test func lookUpPrefillsFieldsFromAutofillClient() async {
+        let repo = FakeNutritionItemRepository()
+        let autofill = FakeAutofillClient()
+        await autofill.setLookupResult(makeInput(description: "Banana", calories: 105))
+        let viewModel = ItemFormViewModel(
+            itemID: nil, itemRepository: repo, autofillClient: autofill)
+        await viewModel.load()
+        viewModel.lookupQuery = "a banana"
+
+        await viewModel.lookUp()
+
+        #expect(viewModel.description == "Banana")
+        #expect(viewModel.calories == 105)
+        #expect(viewModel.proteinGrams == 6)
+        #expect(viewModel.lookupState == .idle)
+        let sentDescription = await autofill.lastLookupDescription
+        #expect(sentDescription == "a banana")
+    }
+
+    @Test func lookUpSetsLoadingStateDuringCall() async {
+        let repo = FakeNutritionItemRepository()
+        let autofill = FakeAutofillClient()
+        await autofill.setLookupResult(makeInput())
+        let viewModel = ItemFormViewModel(
+            itemID: nil, itemRepository: repo, autofillClient: autofill)
+        await viewModel.load()
+        viewModel.lookupQuery = "food"
+
+        #expect(viewModel.lookupState == .idle)
+        await viewModel.lookUp()
+        #expect(viewModel.lookupState == .idle)
+    }
+
+    @Test func lookUpFailureSetsErrorStateAndDoesNotChangeFields() async {
+        let repo = FakeNutritionItemRepository()
+        let autofill = FakeAutofillClient()
+        await autofill.setLookupError(TestError())
+        let viewModel = ItemFormViewModel(
+            itemID: nil, itemRepository: repo, autofillClient: autofill)
+        await viewModel.load()
+        viewModel.lookupQuery = "food"
+        viewModel.description = "Unchanged"
+
+        await viewModel.lookUp()
+
+        #expect(viewModel.description == "Unchanged")
+        if case .error = viewModel.lookupState {
+            // expected
+        } else {
+            Issue.record("expected lookupState to be .error, got \(viewModel.lookupState)")
+        }
+    }
+
+    @Test func lookUpWithEmptyQueryDoesNothing() async {
+        let repo = FakeNutritionItemRepository()
+        let autofill = FakeAutofillClient()
+        let viewModel = ItemFormViewModel(
+            itemID: nil, itemRepository: repo, autofillClient: autofill)
+        await viewModel.load()
+        viewModel.lookupQuery = "   "
+
+        await viewModel.lookUp()
+
+        let sentDescription = await autofill.lastLookupDescription
+        #expect(sentDescription == nil)
+    }
+
+    // MARK: - Label scan (Phase 3)
+
+    @Test func scanLabelPrefillsFieldsFromAutofillClient() async {
+        let repo = FakeNutritionItemRepository()
+        let autofill = FakeAutofillClient()
+        await autofill.setUploadResult(makeInput(description: "Cereal", calories: 120))
+        let viewModel = ItemFormViewModel(
+            itemID: nil, itemRepository: repo, autofillClient: autofill)
+        await viewModel.load()
+
+        await viewModel.scanLabel(imageData: Data([0x01, 0x02]))
+
+        #expect(viewModel.description == "Cereal")
+        #expect(viewModel.calories == 120)
+        #expect(viewModel.scanState == .idle)
+        let sentData = await autofill.lastUploadImageData
+        #expect(sentData == Data([0x01, 0x02]))
+    }
+
+    @Test func scanLabelFailureSetsErrorStateAndDoesNotChangeFields() async {
+        let repo = FakeNutritionItemRepository()
+        let autofill = FakeAutofillClient()
+        await autofill.setUploadError(TestError())
+        let viewModel = ItemFormViewModel(
+            itemID: nil, itemRepository: repo, autofillClient: autofill)
+        await viewModel.load()
+        viewModel.description = "Unchanged"
+
+        await viewModel.scanLabel(imageData: Data([0x01]))
+
+        #expect(viewModel.description == "Unchanged")
+        if case .error = viewModel.scanState {
+            // expected
+        } else {
+            Issue.record("expected scanState to be .error, got \(viewModel.scanState)")
+        }
     }
 }

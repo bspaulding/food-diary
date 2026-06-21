@@ -1,10 +1,13 @@
 import SwiftUI
 
 /// Port of `web/src/NewNutritionItemForm.tsx` (PRD §4.4): manual entry of the
-/// full macro set for create or edit. Camera-scan/LLM-autofill are deferred to
-/// Phase 3.
+/// full macro set for create or edit, plus the Phase 3 autofill paths —
+/// "Look Up" (`/llm/lookup`, `web/src/LLMLookupModal.tsx`) and "Scan Label"
+/// (`/labeller/upload`, `web/src/CameraModal.tsx`). Both prefill the macro
+/// fields below; the user still reviews/edits before Save.
 struct ItemFormView: View {
     @State var viewModel: ItemFormViewModel
+    @State private var showCamera = false
     let onSave: () -> Void
 
     var body: some View {
@@ -25,10 +28,35 @@ struct ItemFormView: View {
         .onChange(of: viewModel.didSave) {
             if viewModel.didSave { onSave() }
         }
+        .sheet(isPresented: $showCamera) {
+            CameraCaptureView { imageData in
+                Task { await viewModel.scanLabel(imageData: imageData) }
+            }
+        }
     }
 
     private var form: some View {
         Form {
+            Section("Autofill") {
+                HStack {
+                    TextField("Describe the food", text: $viewModel.lookupQuery)
+                    Button("Look Up") { Task { await viewModel.lookUp() } }
+                        .disabled(viewModel.lookupState == .loading || viewModel.lookupQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                if viewModel.lookupState == .loading {
+                    ProgressView("Looking up...")
+                } else if case .error(let message) = viewModel.lookupState {
+                    Text(message).foregroundStyle(.red)
+                }
+
+                Button("Scan Label") { showCamera = true }
+                    .disabled(viewModel.scanState == .loading)
+                if viewModel.scanState == .loading {
+                    ProgressView("Scanning label...")
+                } else if case .error(let message) = viewModel.scanState {
+                    Text(message).foregroundStyle(.red)
+                }
+            }
             Section {
                 TextField("Description", text: $viewModel.description)
             }

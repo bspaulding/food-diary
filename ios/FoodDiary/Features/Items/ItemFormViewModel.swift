@@ -16,11 +16,28 @@ final class ItemFormViewModel {
         }
     }
 
+    /// Loading/error state for an autofill action (LLM lookup or label scan),
+    /// kept separate from `State` so an autofill failure doesn't replace the
+    /// whole form with an error screen — the user can still edit/save
+    /// manually (PRD §11, phase-3 plan §3: "Add loading + error states for
+    /// each action").
+    enum AutofillState: Equatable {
+        case idle, loading, error(String)
+    }
+
     let itemID: Int?
     private let itemRepository: NutritionItemRepository
+    private let autofillClient: NutritionAutofillClient?
 
     private(set) var state: State = .loading
     private(set) var didSave = false
+
+    /// Text entered for the "Look Up" action (`web/src/LLMLookupModal.tsx`
+    /// equivalent — ported here as an inline field rather than a separate
+    /// modal, per the phase-3 plan's "Add two buttons to ItemFormView").
+    var lookupQuery: String = ""
+    private(set) var lookupState: AutofillState = .idle
+    private(set) var scanState: AutofillState = .idle
 
     var description: String = ""
     var calories: Double = 0
@@ -37,9 +54,13 @@ final class ItemFormViewModel {
     var addedSugarsGrams: Double = 0
     var proteinGrams: Double = 0
 
-    init(itemID: Int?, itemRepository: NutritionItemRepository) {
+    init(
+        itemID: Int?, itemRepository: NutritionItemRepository,
+        autofillClient: NutritionAutofillClient? = nil
+    ) {
         self.itemID = itemID
         self.itemRepository = itemRepository
+        self.autofillClient = autofillClient
     }
 
     func load() async {
@@ -76,6 +97,55 @@ final class ItemFormViewModel {
         } catch {
             state = .error(String(describing: error))
         }
+    }
+
+    /// "Look Up" button (PRD §4.4, phase-3 plan §3): `/llm/lookup` via
+    /// `lookupQuery`, prefilling the macro fields for the user to
+    /// review/edit before Save. Mirrors `lookupNutritionWithLLM`
+    /// (`web/src/Api.ts:894`) being invoked from `LLMLookupModal.tsx`.
+    func lookUp() async {
+        let query = lookupQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty, let autofillClient else { return }
+        lookupState = .loading
+        do {
+            let input = try await autofillClient.lookupNutrition(description: query)
+            apply(input)
+            lookupState = .idle
+        } catch {
+            lookupState = .error(String(describing: error))
+        }
+    }
+
+    /// "Scan Label" button (PRD §4.4, phase-3 plan §3): `/labeller/upload`
+    /// with a captured nutrition-label photo, prefilling the macro fields.
+    /// Mirrors `CameraModal.uploadImage` (`web/src/CameraModal.tsx:232`).
+    func scanLabel(imageData: Data) async {
+        guard let autofillClient else { return }
+        scanState = .loading
+        do {
+            let input = try await autofillClient.uploadLabel(imageData: imageData)
+            apply(input)
+            scanState = .idle
+        } catch {
+            scanState = .error(String(describing: error))
+        }
+    }
+
+    private func apply(_ input: NutritionItemInput) {
+        description = input.description
+        calories = input.calories
+        totalFatGrams = input.totalFatGrams
+        saturatedFatGrams = input.saturatedFatGrams
+        transFatGrams = input.transFatGrams
+        polyunsaturatedFatGrams = input.polyunsaturatedFatGrams
+        monounsaturatedFatGrams = input.monounsaturatedFatGrams
+        cholesterolMilligrams = input.cholesterolMilligrams
+        sodiumMilligrams = input.sodiumMilligrams
+        totalCarbohydrateGrams = input.totalCarbohydrateGrams
+        dietaryFiberGrams = input.dietaryFiberGrams
+        totalSugarsGrams = input.totalSugarsGrams
+        addedSugarsGrams = input.addedSugarsGrams
+        proteinGrams = input.proteinGrams
     }
 
     private func apply(_ item: NutritionItem) {

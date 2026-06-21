@@ -20,6 +20,7 @@ final class AppEnvironment {
     let nutritionItemRepository: NutritionItemRepository
     let recipeRepository: RecipeRepository
     let trendsRepository: TrendsRepository
+    let sidecarClient: SidecarClient
 
     init(config: AppConfig = .shared) {
         self.config = config
@@ -46,5 +47,9 @@ final class AppEnvironment {
         self.nutritionItemRepository = NutritionItemRepositoryImpl(client: graphQLClient)
         self.recipeRepository = RecipeRepositoryImpl(client: graphQLClient)
         self.trendsRepository = TrendsRepositoryImpl(client: graphQLClient)
+        self.sidecarClient = SidecarClient(
+            baseURL: environmentConfig.backend.graphQLBaseURL,
+            tokenProvider: authService
+        )
     }
 }

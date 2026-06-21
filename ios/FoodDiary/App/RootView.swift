@@ -55,11 +55,15 @@ struct RootView: View {
                 onFinish: { environment.router.popToRoot() })
         case .newItem:
             ItemFormView(
-                viewModel: ItemFormViewModel(itemID: nil, itemRepository: environment.nutritionItemRepository),
+                viewModel: ItemFormViewModel(
+                    itemID: nil, itemRepository: environment.nutritionItemRepository,
+                    autofillClient: environment.sidecarClient),
                 onSave: { environment.router.popToRoot() })
         case .itemEdit(let id):
             ItemFormView(
-                viewModel: ItemFormViewModel(itemID: id, itemRepository: environment.nutritionItemRepository),
+                viewModel: ItemFormViewModel(
+                    itemID: id, itemRepository: environment.nutritionItemRepository,
+                    autofillClient: environment.sidecarClient),
                 onSave: { environment.router.popToRoot() })
         case .itemDetail(let id):
             ItemDetailView(
