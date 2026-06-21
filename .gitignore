@@ -21,5 +21,14 @@ nutrition-fact-labeller/target/
 nutrition-fact-labeller/paddleocr-models/
 nutrition-fact-labeller/vlm-models/
 
+# llm-nutrition-api
+llm-nutrition-api/*.gguf
+
+# git worktrees
+.worktrees/
+
 # macOS
 .DS_Store
+
+# scratch/local-only scripts
+/paste.applescript

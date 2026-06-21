@@ -1,0 +1,7 @@
+## Xcode
+build/
+DerivedData/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+TestResults.xcresult
