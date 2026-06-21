@@ -26,12 +26,12 @@ public client using PKCE).
 
 ## B. Callback / logout URLs (§16.2)
 
-Custom scheme tied to the bundle id `com.bspaulding.fooddiary`. Callback URL
+Custom scheme tied to the bundle id `com.motingo.fooddiary`. Callback URL
 format: `{SCHEME}://{AUTH0_DOMAIN}/ios/{BUNDLE_ID}/callback`.
 
 In the Native app's **Settings**:
 - **Allowed Callback URLs:**
-  `com.bspaulding.fooddiary://<AUTH0_DOMAIN>/ios/com.bspaulding.fooddiary/callback`
+  `com.motingo.fooddiary://<AUTH0_DOMAIN>/ios/com.motingo.fooddiary/callback`
 - **Allowed Logout URLs:** the same value (used by `/v2/logout` return).
 - Save.
 
@@ -63,7 +63,7 @@ The access token must be a **JWT for the Hasura API**
 ```
 AUTH0_DOMAIN    = <tenant>.us.auth0.com
 AUTH0_CLIENT_ID = <native app client id>
-AUTH0_SCHEME    = com.bspaulding.fooddiary
+AUTH0_SCHEME    = com.motingo.fooddiary
 ```
 In Swift (constants, because they contain `://`):
 - audience: `"https://direct-satyr-14.hasura.app/v1/graphql"`
@@ -93,7 +93,7 @@ hasura metadata apply
 ## H. TestFlight (§17 last item)
 
 - App Store Connect: create the app record (bundle id
-  `com.bspaulding.fooddiary`).
+  `com.motingo.fooddiary`).
 - Signing/provisioning: distribution cert + App Store provisioning profile (or
   Xcode automatic signing with the team).
 - Archive a **Release** build (production ingress) and upload the first build to

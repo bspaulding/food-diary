@@ -13,7 +13,7 @@ protocol KeychainStoring {
 struct Keychain: KeychainStoring {
     private let service: String
 
-    init(service: String = "com.bspaulding.fooddiary.refreshToken") {
+    init(service: String = "com.motingo.fooddiary.refreshToken") {
         self.service = service
     }
 

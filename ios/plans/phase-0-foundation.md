@@ -26,8 +26,8 @@ screens yet — those are Phase 1.
 ## 0. Prerequisites
 
 - Xcode 16+ (Swift Testing, iOS 18 SDK).
-- The bundle id decision: `com.bspaulding.fooddiary` (per PRD §16.2), scheme
-  `com.bspaulding.fooddiary`.
+- The bundle id decision: `com.motingo.fooddiary` (per PRD §16.2), scheme
+  `com.motingo.fooddiary`.
 - Read access to the live Auth0 tenant values (domain, native client id) — only
   needed at verification time, not to write the code.
 
@@ -69,8 +69,8 @@ in Phase 1.
 ```
 AUTH0_DOMAIN    = <tenant>.us.auth0.com
 AUTH0_CLIENT_ID = <native app client id>
-AUTH0_SCHEME    = com.bspaulding.fooddiary
-PRODUCT_BUNDLE_IDENTIFIER = com.bspaulding.fooddiary
+AUTH0_SCHEME    = com.motingo.fooddiary
+PRODUCT_BUNDLE_IDENTIFIER = com.motingo.fooddiary
 ```
 
 > ⚠️ **xcconfig treats `//` as a comment** (PRD §16.5). Never put a value
@@ -80,7 +80,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.bspaulding.fooddiary
 Surface the three keys into `Info.plist` (`AUTH0_DOMAIN = $(AUTH0_DOMAIN)`, etc.)
 and read them via a small typed `AppConfig` loader. Register the custom scheme in
 `Info.plist` under `CFBundleURLTypes` with `CFBundleURLSchemes =
-[com.bspaulding.fooddiary]` so the OS can route the callback (PRD §16.5).
+[com.motingo.fooddiary]` so the OS can route the callback (PRD §16.5).
 
 ### 1.2 Walking skeleton — testing + CI **before** any feature code
 

@@ -7,8 +7,8 @@ struct OIDCClientTests {
         OIDCClient(
             domain: "example.us.auth0.com",
             clientID: "abc123",
-            scheme: "com.bspaulding.fooddiary",
-            bundleID: "com.bspaulding.fooddiary"
+            scheme: "com.motingo.fooddiary",
+            bundleID: "com.motingo.fooddiary"
         )
     }
 
@@ -32,7 +32,7 @@ struct OIDCClientTests {
         let client = makeClient()
         #expect(
             client.redirectURI
-                == "com.bspaulding.fooddiary://example.us.auth0.com/ios/com.bspaulding.fooddiary/callback"
+                == "com.motingo.fooddiary://example.us.auth0.com/ios/com.motingo.fooddiary/callback"
         )
     }
 }
