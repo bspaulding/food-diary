@@ -296,6 +296,89 @@ enum Api {
         }
     }
 
+    enum Export {
+        static let nutritionItemFragment = """
+            fragment nutritionItem on food_diary_nutrition_item {
+              description
+              calories
+              total_fat_grams
+              saturated_fat_grams
+              trans_fat_grams
+              polyunsaturated_fat_grams
+              monounsaturated_fat_grams
+              cholesterol_milligrams
+              sodium_milligrams
+              total_carbohydrate_grams
+              dietary_fiber_grams
+              total_sugars_grams
+              added_sugars_grams
+              protein_grams
+            }
+            """
+
+        static let entryFields = """
+            servings
+            consumed_at
+            nutrition_item {
+              ...nutritionItem
+            }
+            recipe {
+              name
+              recipe_items {
+                servings
+                nutrition_item {
+                  ...nutritionItem
+                }
+              }
+            }
+            """
+
+        static let entries = """
+            \(nutritionItemFragment)
+
+            query ExportEntries {
+              food_diary_diary_entry { \(entryFields) }
+            }
+            """
+
+        static let entriesWithDateRange = """
+            \(nutritionItemFragment)
+
+            query ExportEntriesWithDateRange($startDate: timestamptz!, $endDate: timestamptz!) {
+              food_diary_diary_entry(where: { consumed_at: { _gte: $startDate, _lte: $endDate } }) { \(entryFields) }
+            }
+            """
+
+        struct EntriesResponse: Decodable {
+            var foodDiaryDiaryEntry: [ExportEntry]
+        }
+    }
+
+    enum Import {
+        static let insertEntriesWithNewItems = """
+            mutation InsertDiaryEntriesWithNewItems($entries: [food_diary_diary_entry_insert_input!]!){
+              insert_food_diary_diary_entry(objects: $entries) {
+                affected_rows
+              }
+            }
+            """
+
+        struct NewItemData: Encodable {
+            var data: NutritionItemInput
+        }
+
+        struct NewEntryInput: Encodable {
+            var consumedAt: String
+            var servings: Double
+            var nutritionItem: NewItemData
+        }
+
+        struct InsertResponse: Decodable {
+            struct Row: Decodable { var affectedRows: Int }
+            var insertFoodDiaryDiaryEntry: Row
+        }
+    }
+
     enum Targets {
         static let get = """
             query GetNutritionTargets {

@@ -37,6 +37,12 @@ enum JSONCoding {
         fractionalFormatter.string(from: date)
     }
 
+    /// Parses a `timestamptz`-shaped string (with or without fractional
+    /// seconds) outside of the `Decoder` path, e.g. from a CSV cell.
+    static func isoString8601(from string: String) -> Date? {
+        fractionalFormatter.date(from: string) ?? formatter.date(from: string)
+    }
+
     private static func decodeISO8601Date(_ decoder: Decoder) throws -> Date {
         let container = try decoder.singleValueContainer()
         let string = try container.decode(String.self)

@@ -6,6 +6,8 @@ struct ProfileView: View {
     @State var viewModel: ProfileViewModel
     let authService: AuthService
     let onEditTargets: () -> Void
+    let onExport: () -> Void
+    let onImport: () -> Void
 
     @State private var customHost: String = ""
     @State private var customPort: String = "8080"
@@ -31,6 +33,11 @@ struct ProfileView: View {
 
             Section {
                 Button("Edit Nutrition Targets", action: onEditTargets)
+            }
+
+            Section("Data") {
+                Button("Export Entries", action: onExport)
+                Button("Import Entries", action: onImport)
             }
 
             #if DEBUG

@@ -31,4 +31,15 @@ extension NutritionItemInput {
             dietaryFiberGrams: item.dietaryFiberGrams, totalSugarsGrams: item.totalSugarsGrams,
             addedSugarsGrams: item.addedSugarsGrams, proteinGrams: item.proteinGrams)
     }
+
+    init(_ item: ExportNutritionItem) {
+        self.init(
+            description: item.description, calories: item.calories,
+            totalFatGrams: item.totalFatGrams, saturatedFatGrams: item.saturatedFatGrams,
+            transFatGrams: item.transFatGrams, polyunsaturatedFatGrams: item.polyunsaturatedFatGrams,
+            monounsaturatedFatGrams: item.monounsaturatedFatGrams, cholesterolMilligrams: item.cholesterolMilligrams,
+            sodiumMilligrams: item.sodiumMilligrams, totalCarbohydrateGrams: item.totalCarbohydrateGrams,
+            dietaryFiberGrams: item.dietaryFiberGrams, totalSugarsGrams: item.totalSugarsGrams,
+            addedSugarsGrams: item.addedSugarsGrams, proteinGrams: item.proteinGrams)
+    }
 }

@@ -299,3 +299,48 @@ struct SearchResult: Identifiable, Hashable, Sendable {
     var kind: Kind
     var name: String
 }
+
+protocol ExportRepository: Sendable {
+    /// `from`/`to` both `nil` exports everything (PRD §11 Phase 4).
+    func entries(from: Date?, to: Date?) async throws -> [ExportEntry]
+}
+
+struct ExportRepositoryImpl: ExportRepository {
+    let client: GraphQLClient
+
+    func entries(from: Date?, to: Date?) async throws -> [ExportEntry] {
+        if let from, let to {
+            let response = try await client.execute(
+                query: Api.Export.entriesWithDateRange,
+                variables: [
+                    "startDate": AnyEncodable(JSONCoding.isoString(from)),
+                    "endDate": AnyEncodable(JSONCoding.isoString(to)),
+                ],
+                as: Api.Export.EntriesResponse.self)
+            return response.foodDiaryDiaryEntry
+        }
+        let response = try await client.execute(
+            query: Api.Export.entries, as: Api.Export.EntriesResponse.self)
+        return response.foodDiaryDiaryEntry
+    }
+}
+
+protocol ImportRepository: Sendable {
+    func insertEntries(_ entries: [CSV.ImportedEntry]) async throws -> Int
+}
+
+struct ImportRepositoryImpl: ImportRepository {
+    let client: GraphQLClient
+
+    func insertEntries(_ entries: [CSV.ImportedEntry]) async throws -> Int {
+        let inputs = entries.map {
+            Api.Import.NewEntryInput(
+                consumedAt: $0.consumedAt, servings: $0.servings,
+                nutritionItem: Api.Import.NewItemData(data: NutritionItemInput($0.nutritionItem)))
+        }
+        let response = try await client.execute(
+            query: Api.Import.insertEntriesWithNewItems, variables: ["entries": AnyEncodable(inputs)],
+            as: Api.Import.InsertResponse.self)
+        return response.insertFoodDiaryDiaryEntry.affectedRows
+    }
+}

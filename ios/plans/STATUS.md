@@ -88,9 +88,9 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 ## Phase 4 — Data portability ([plan](phase-4-data-portability.md))
 
-- [ ] Export/import GraphQL ops added
-- [ ] CSV serialize/parse ported, round-trip vs. web fixtures (tested)
-- [ ] Export via share sheet/Files; import via Files picker with preview
+- [x] Export/import GraphQL ops added — `Api.Export`/`Api.Import` operations (entries-for-export query, insert-entries mutation) in `Api.swift`, with golden decode/encode coverage in `ExportImportApiTests`; `ExportRepository`/`ExportRepositoryImpl` and `ImportRepository`/`ImportRepositoryImpl` added to `Repositories.swift` (untested at the repository layer, matching the established codebase convention that no `*RepositoryImpl` has dedicated tests — `GraphQLClient` is a non-subclassable `struct`, so coverage comes from the Api.swift tests + ViewModel-level fake-repository tests instead).
+- [x] CSV serialize/parse ported, round-trip vs. web fixtures (tested) — `FoodDiary/Util/CSV.swift` ports `web/src/CSVExport.ts`/`CSVImport.ts` byte-for-byte (18-column header, recipe-entry expansion into one row per recipe item, quoting/escaping, integer-vs-decimal number formatting, Date/Time/Consumed-At formatting against the passed `Calendar`'s timezone); `CSVTests` (14 tests) verify exact output/parsing including round-trip.
+- [x] Export via Files (`.fileExporter`)/import via Files picker with preview — `ExportViewModel`/`ImportViewModel` (`@MainActor @Observable`, unit-tested with actor-based fake repositories in `ExportViewModelTests`/`ImportViewModelTests`) and thin SwiftUI wrappers `ExportView`/`ImportView` (date-range toggle + `.fileExporter` with a custom `CSVDocument: FileDocument`; `.fileImporter` → preview list of parsed rows + per-row parse errors → confirm to insert). Reached via a new "Data" section on `ProfileView` ("Export Entries"/"Import Entries" buttons) and `Route.exportEntries`/`.importEntries` wired into `Router`/`AppEnvironment`/`RootView`. Full build + full test suite (179/179 across 36 suites) green after wiring.
 
 ## Phase 5+ — Platform polish ([plan](phase-5-platform-polish.md))
 

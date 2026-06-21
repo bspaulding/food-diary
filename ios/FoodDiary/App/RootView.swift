@@ -94,12 +94,20 @@ struct RootView: View {
                 viewModel: ProfileViewModel(
                     user: currentUser, environmentConfig: environment.environmentConfig),
                 authService: environment.authService,
-                onEditTargets: { environment.router.push(.targets) })
+                onEditTargets: { environment.router.push(.targets) },
+                onExport: { environment.router.push(.exportEntries) },
+                onImport: { environment.router.push(.importEntries) })
         case .trends:
             TrendsView(
                 viewModel: TrendsViewModel(
                     trendsRepository: environment.trendsRepository,
                     targetsRepository: environment.targetsRepository))
+        case .exportEntries:
+            ExportView(viewModel: ExportViewModel(exportRepository: environment.exportRepository))
+        case .importEntries:
+            ImportView(
+                viewModel: ImportViewModel(importRepository: environment.importRepository),
+                onFinish: { environment.router.popToRoot() })
         default:
             PlaceholderDestinationView(route: route)
         }

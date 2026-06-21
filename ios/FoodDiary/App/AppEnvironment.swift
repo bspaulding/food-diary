@@ -20,6 +20,8 @@ final class AppEnvironment {
     let nutritionItemRepository: NutritionItemRepository
     let recipeRepository: RecipeRepository
     let trendsRepository: TrendsRepository
+    let exportRepository: ExportRepository
+    let importRepository: ImportRepository
     let sidecarClient: SidecarClient
 
     init(config: AppConfig = .shared) {
@@ -47,6 +49,8 @@ final class AppEnvironment {
         self.nutritionItemRepository = NutritionItemRepositoryImpl(client: graphQLClient)
         self.recipeRepository = RecipeRepositoryImpl(client: graphQLClient)
         self.trendsRepository = TrendsRepositoryImpl(client: graphQLClient)
+        self.exportRepository = ExportRepositoryImpl(client: graphQLClient)
+        self.importRepository = ImportRepositoryImpl(client: graphQLClient)
         self.sidecarClient = SidecarClient(
             baseURL: environmentConfig.backend.graphQLBaseURL,
             tokenProvider: authService
