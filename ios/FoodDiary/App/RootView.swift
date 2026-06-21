@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Login gate (PRD §6.4): `.signedOut`/`.signingIn` show `LoginView`;
-/// `.signedIn` roots a `NavigationStack` with the route enum's destinations.
-/// Phase 0 content is a placeholder "Diary" screen — Phase 1 fills it in.
+/// `.signedIn` roots an adaptive container (`NavigationStack` on iPhone-width,
+/// `NavigationSplitView` on iPad/regular-width — see `AdaptiveRootView`) over
+/// the route enum's destinations.
 struct RootView: View {
     let environment: AppEnvironment
     @State private var diaryListViewModel: DiaryListViewModel
@@ -19,12 +20,10 @@ struct RootView: View {
             case .signedOut, .signingIn:
                 LoginView(authService: environment.authService)
             case .signedIn:
-                NavigationStack(path: Bindable(environment.router).path) {
-                    DiaryListView(viewModel: diaryListViewModel, router: environment.router)
-                        .navigationDestination(for: Route.self) { route in
-                            destination(for: route)
-                        }
-                }
+                AdaptiveRootView(
+                    router: environment.router,
+                    sidebar: { DiaryListView(viewModel: diaryListViewModel, router: environment.router) },
+                    destination: { route in destination(for: route) })
             }
         }
         .task {
