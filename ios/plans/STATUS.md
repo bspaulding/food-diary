@@ -51,8 +51,8 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 - [x] Auth0: Native application created in the existing tenant (§16.1) — `motingo.auth0.com`
 - [x] Auth0: Allowed Callback + Logout URLs set to the custom scheme (§16.2) — `com.motingo.fooddiary://motingo.auth0.com/ios/com.motingo.fooddiary/callback`
-- [ ] Auth0: Refresh Token Rotation + Authorization Code & Refresh Token grants (§16.3)
-- [ ] Auth0: Hasura API audience allows offline access + identifier matches (§16.4)
+- [x] Auth0: Refresh Token Rotation + Authorization Code & Refresh Token grants (§16.3)
+- [x] Auth0: Hasura API audience allows offline access + identifier matches (§16.4)
 - [x] App config: Domain/Client ID/Scheme in `.xcconfig`; audience+redirect in Swift; `Info.plist` scheme (§16.5) — `Config/Shared.xcconfig` has `AUTH0_DOMAIN`/`AUTH0_CLIENT_ID` filled in; audience (`https://direct-satyr-14.hasura.app/v1/graphql`, confirmed correct for this backend) and redirect remain Swift constants in `OIDCClient.swift` per the existing decision (contain `://`)
 - [ ] Verify: login round-trip returns a Hasura-claims JWT (§16.6)
 - [ ] Backend: `nutrition_target` migration + metadata applied (§9)
