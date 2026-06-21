@@ -15,10 +15,10 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 | Phase / plan | Status | PR(s) | Notes |
 |---|---|---|---|
-| Phase 0 — Foundation | ◐ | — | project, models, auth, networking, login gate landed; pending live-tenant verification |
+| Phase 0 — Foundation | ☑ | — | project, models, auth, networking, login gate landed; live-tenant login verified against `motingo.auth0.com` |
 | ↳ Testing + CI infra (first PR) | ☑ | — | walking-skeleton test + auth/error/decoding tests; `test-ios` job added to `ci-cd.yml` |
-| Backend — nutrition targets (§9) | ☑ | — | migration + metadata written and verified locally; needs apply against the real dev/prod Hasura instance |
-| Auth0 + TestFlight manual setup (§16/§17) | ☐ | — | out-of-band; see checklist below |
+| Backend — nutrition targets (§9) | ☑ | — | migration + metadata applied against the real `motingo` Hasura instance |
+| Auth0 + TestFlight manual setup (§16/§17) | ◐ | — | Auth0 tenant config + backend migration done; only TestFlight/App Store Connect setup remains |
 | Phase 1 — Core logging (v1) | ☑ | — | GraphQL operations + protocol-backed repositories + DesignSystem (§10) + diary list (§4) + entry form (§5) + nutrition items (§6) + recipes (§7) + nutrition targets (§8) + profile (§9) + error/session handling (§11) all landed |
 | Phase 2 — Insights (Trends) | ☑ | — | `GetWeeklyTrends` + `TrendsRepository` + `TrendsViewModel`/`TrendsView` (Swift Charts) landed |
 | Phase 3 — Native capture (scan + LLM) | ◐ | — | networking/decoding/error-mapping/retry, ViewModel actions, camera capture UI, and item-form wiring all built + unit-tested; §0 ingress-JWT precondition is UNVERIFIED (no live deployment reachable from this sandbox) |
@@ -54,8 +54,8 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 - [x] Auth0: Refresh Token Rotation + Authorization Code & Refresh Token grants (§16.3)
 - [x] Auth0: Hasura API audience allows offline access + identifier matches (§16.4)
 - [x] App config: Domain/Client ID/Scheme in `.xcconfig`; audience+redirect in Swift; `Info.plist` scheme (§16.5) — `Config/Shared.xcconfig` has `AUTH0_DOMAIN`/`AUTH0_CLIENT_ID` filled in; audience (`https://direct-satyr-14.hasura.app/v1/graphql`, confirmed correct for this backend) and redirect remain Swift constants in `OIDCClient.swift` per the existing decision (contain `://`)
-- [ ] Verify: login round-trip returns a Hasura-claims JWT (§16.6)
-- [ ] Backend: `nutrition_target` migration + metadata applied (§9)
+- [x] Verify: login round-trip returns a Hasura-claims JWT (§16.6) — confirmed in the simulator: log in completes, returns to the app, diary screen loads live data from the `motingo` backend
+- [x] Backend: `nutrition_target` migration + metadata applied (§9) — applied against the real `motingo` Hasura instance
 - [ ] TestFlight: App Store Connect record, signing/provisioning, first upload
 
 ## Phase 1 — Core logging / v1 ([plan](phase-1-core-logging.md))
