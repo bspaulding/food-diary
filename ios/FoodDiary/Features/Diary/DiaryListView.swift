@@ -25,7 +25,11 @@ struct DiaryListView: View {
                 Button("Profile") { router.push(.profile) }
             }
             ToolbarItem {
-                Button("Add Entry") { router.push(.newEntry) }
+                Menu("Add") {
+                    Button("Add Entry") { router.push(.newEntry) }
+                    Button("Add Item") { router.push(.newItem) }
+                    Button("Add Recipe") { router.push(.newRecipe) }
+                }
             }
         }
         .task {
