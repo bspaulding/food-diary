@@ -7,7 +7,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 
 **Legend:** ☐ not started · ◐ in progress · ☑ done
 
-**Last updated:** 2026-06-21
+**Last updated:** 2026-06-24
 
 ---
 
@@ -24,6 +24,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 | Phase 3 — Native capture (scan + LLM) | ☑ | — | networking/decoding/error-mapping/retry, ViewModel actions, camera capture UI, and item-form wiring all built + unit-tested; §0 ingress-JWT precondition verified live by the user against the real ingress/sidecar |
 | Phase 4 — Data portability (CSV) | ☑ | — | CSV export/import (web-parity), GraphQL ops, ExportView/ImportView wired into Profile |
 | Phase 5+ — Platform polish | ☑ | — | SwiftData read cache + iPad adaptive layouts + App Intents/Shortcuts landed; WidgetKit extension/HealthKit/App Store readiness descoped at user's direction (2026-06-21) |
+| Phase 6 — On-device LLM (Gemma 4 E2B) | ☐ | — | plan drafted ([phase-6-on-device-llm.md](phase-6-on-device-llm.md)) per 2026-06-24 interview; not started |
 
 ---
 
