@@ -24,7 +24,7 @@ for "what's done"; the plans describe *how*, this tracks *whether*.
 | Phase 3 — Native capture (scan + LLM) | ☑ | — | networking/decoding/error-mapping/retry, ViewModel actions, camera capture UI, and item-form wiring all built + unit-tested; §0 ingress-JWT precondition verified live by the user against the real ingress/sidecar |
 | Phase 4 — Data portability (CSV) | ☑ | — | CSV export/import (web-parity), GraphQL ops, ExportView/ImportView wired into Profile |
 | Phase 5+ — Platform polish | ☑ | — | SwiftData read cache + iPad adaptive layouts + App Intents/Shortcuts landed; WidgetKit extension/HealthKit/App Store readiness descoped at user's direction (2026-06-21) |
-| Phase 6 — On-device LLM (Gemma 4 E2B) | ☐ | — | plan drafted ([phase-6-on-device-llm.md](phase-6-on-device-llm.md)) per 2026-06-24 interview; not started |
+| Phase 6 — On-device LLM (Gemma 4 E2B) | ☑ | — | LiteRT-LM SPM dependency, device gating, model download manager, `OnDeviceLLMEngine`/`OnDeviceAutofillClient`, Profile UI, and `AppEnvironment` wiring all landed — see notes below; not build-verified (no macOS/Xcode in this sandbox) |
 
 ---
 
@@ -119,4 +119,16 @@ v1 ships when **all** of these hold:
 - [x] Auth0 tenant + backend manual setup complete (§16/§17 checklist above) — TestFlight item within §17 descoped at user's direction
 
 **v1 is complete.** WidgetKit, HealthKit, and App Store/TestFlight distribution are permanently out of scope per user direction (2026-06-21), not deferred.
+
+## Phase 6 — On-device LLM ([plan](phase-6-on-device-llm.md))
+
+- [x] LiteRT-LM SPM dependency added to `project.pbxproj` (`google-ai-edge/LiteRT-LM`, `upToNextMajorVersion` from 0.12.0) — the one approved exception to the zero-third-party-dependencies rule (§0).
+- [x] `DeviceCapability` (RAM-gated, simulator-excluded, injectable `PhysicalMemoryReporting`) + tests (§2).
+- [x] `OnDeviceModelManager` — resumable `URLSessionDownloadTask`-backed download/delete state machine (`notDownloaded`/`downloading(progress:)`/`ready(path:)`/`failed`), persists resume data across failures/restarts, model excluded from iCloud backup — + tests against a `ModelDownloading` fake (§3).
+- [x] Profile UI — "On-device AI" section (hidden unless `supportsOnDeviceLLM`): toggle, download button + progress bar, "Model ready" + delete control; `ProfileViewModel` persists the toggle to `UserDefaults` — + tests (§4).
+- [x] `OnDeviceLLMEngine` — thin actor wrapper around LiteRT-LM's `Engine`/`Conversation` API (lazy load, `unload()`), behind the `OnDeviceLLMInferring` protocol for testability. **Not unit-tested** (no compiled LiteRT-LM package in this sandbox) and **not build-verified** — the exact `EngineConfig`/`Message`/`Content` API shape is based on published docs as of 2026-06-24 and needs re-verification against the real package on the first macOS build (§5/§9/§11).
+- [x] `OnDeviceAutofillClient` conforms to the existing `NutritionAutofillClient` protocol (zero changes to `ItemFormViewModel`/`ItemFormView`), shares `NutritionJSONMapping`/`JSONFieldCoercion` (extracted from `SidecarClient`) with the server-side client, retries once on unparseable model output before throwing — + tests against an `OnDeviceLLMInferring` fake (§7).
+- [x] `AppEnvironment` wiring — `onDeviceModelManager` (nil when `!DeviceCapability.supportsOnDeviceLLM()`), an `autofillClient` resolver re-evaluated per `ItemFormViewModel` construction (on-device only when the toggle is on *and* the model is `.ready`, else falls back to `sidecarClient`), and `UIApplication.didReceiveMemoryWarningNotification`/`didEnterBackgroundNotification` observers that unload the resident engine (§6/§8).
+- [x] All new files registered in `project.pbxproj`'s `FoodDiary`/`FoodDiaryTests` targets via the `xcodeproj` gem.
+- [ ] **Not done:** real-device build/run verification (no macOS/Xcode in this sandbox), manual test plan (§10), and re-verifying the LiteRT-LM Swift API surface against the actual compiled package.
 </content>
