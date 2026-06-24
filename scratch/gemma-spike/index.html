@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gemma 4 E2B Browser Feasibility Spike</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 720px; margin: 1rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.2rem; }
+  section { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+  button { padding: 0.5rem 1rem; margin: 0.25rem 0; }
+  pre { background: #f4f4f4; padding: 0.5rem; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; }
+  .metric { font-weight: bold; color: #1a5; }
+  .err { color: #c33; font-weight: bold; }
+  input[type="file"], input[type="text"] { width: 100%; box-sizing: border-box; margin: 0.25rem 0; }
+</style>
+</head>
+<body>
+<h1>Gemma 4 E2B Browser Feasibility Spike</h1>
+<p>
+  This is a throwaway test page (not part of the app build) to answer: does Gemma 4 E2B
+  load and run inference in this browser, how long does it take, and is multimodal
+  (image) input supported on the web runtime? Run this on the actual target device/browser
+  (mobile Safari) and record the numbers shown below.
+</p>
+
+<section>
+  <h2>0. Environment check</h2>
+  <div id="env-check"></div>
+</section>
+
+<section>
+  <h2>1. Load model</h2>
+  <p>
+    Download a Gemma 4 E2B web model file yourself first (requires a logged-in, license-accepted
+    Hugging Face session — anonymous fetch from this page won't work since the repo is gated):
+  </p>
+  <ul>
+    <li><code>gemma-4-E2B-it-web.litertlm</code> from
+      <code>litert-community/gemma-4-E2B-it-litert-lm</code> on Hugging Face (try this first —
+      it's the current officially recommended web format).</li>
+    <li>If that fails to support images, also try the older
+      <code>gemma-4-E2B-it-web.task</code> file from the same repo (MediaPipe Tasks GenAI format,
+      "maintenance mode" but historically had multimodal support for similar models).</li>
+  </ul>
+  <input type="file" id="model-file" accept=".litertlm,.task" />
+  <button id="load-btn" disabled>Load model</button>
+  <div id="load-result"></div>
+</section>
+
+<section>
+  <h2>2. Text inference test</h2>
+  <input type="text" id="text-input" value="1 cup cooked oatmeal (234g)" />
+  <button id="text-btn" disabled>Run text inference</button>
+  <div id="text-result"></div>
+</section>
+
+<section>
+  <h2>3. Image inference test (multimodal)</h2>
+  <p>Pick a photo of a nutrition label (or any food photo) to test vision input.</p>
+  <input type="file" id="image-input" accept="image/*" />
+  <button id="image-btn" disabled>Run image inference</button>
+  <div id="image-result"></div>
+</section>
+
+<script type="module">
+  import { FilesetResolver, LlmInference } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/genai_bundle.mjs";
+
+  const NUTRITION_FIELDS_PROMPT = `Extract the following nutrition facts from this label as a single JSON object with these exact keys (numbers only, omit units): servings_per_container, serving_size_grams, calories, total_fat_grams, cholesterol_mg, sodium_mg, total_carbohydrates_g, dietary_fiber_g, total_sugars_g, added_sugars_g, protein_g. Output ONLY the JSON object, no markdown, no explanation.`;
+
+  const TEXT_LOOKUP_SYSTEM = `You are a nutrition expert. Estimate nutritional values for the food the user describes. Output ONLY a JSON object with keys: description, calories, total_fat_grams, saturated_fat_grams, trans_fat_grams, polyunsaturated_fat_grams, monounsaturated_fat_grams, cholesterol_milligrams, sodium_milligrams, total_carbohydrate_grams, dietary_fiber_grams, total_sugars_grams, added_sugars_grams, protein_grams.`;
+
+  const envCheckEl = document.getElementById("env-check");
+  const loadBtn = document.getElementById("load-btn");
+  const modelFileInput = document.getElementById("model-file");
+  const loadResultEl = document.getElementById("load-result");
+  const textBtn = document.getElementById("text-btn");
+  const textInput = document.getElementById("text-input");
+  const textResultEl = document.getElementById("text-result");
+  const imageBtn = document.getElementById("image-btn");
+  const imageInput = document.getElementById("image-input");
+  const imageResultEl = document.getElementById("image-result");
+
+  let llmInference = null;
+  let modelSupportsImages = false;
+
+  function log(el, html) {
+    el.innerHTML = html;
+  }
+
+  function tryParseJson(text) {
+    // Models often wrap JSON in markdown fences or prose; try to extract the first {...} block.
+    const match = text.match(/\{[\s\S]*\}/);
+    const candidate = match ? match[0] : text;
+    try {
+      return { ok: true, value: JSON.parse(candidate) };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  async function checkEnv() {
+    const lines = [];
+    lines.push(`User agent: ${navigator.userAgent}`);
+    if (!("gpu" in navigator)) {
+      lines.push(`<span class="err">navigator.gpu is undefined — WebGPU not available in this browser.</span>`);
+    } else {
+      try {
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) {
+          lines.push(`<span class="err">navigator.gpu.requestAdapter() returned null — no WebGPU adapter found.</span>`);
+        } else {
+          const info = adapter.info ? JSON.stringify(adapter.info) : "(no adapter.info)";
+          lines.push(`<span class="metric">WebGPU adapter available.</span> ${info}`);
+          const limits = adapter.limits;
+          lines.push(`maxStorageBufferBindingSize: ${limits.maxStorageBufferBindingSize} bytes`);
+          loadBtn.disabled = false;
+        }
+      } catch (e) {
+        lines.push(`<span class="err">navigator.gpu.requestAdapter() threw: ${e.message}</span>`);
+      }
+    }
+    log(envCheckEl, lines.join("<br>"));
+  }
+
+  modelFileInput.addEventListener("change", () => {
+    loadBtn.disabled = !modelFileInput.files.length || !("gpu" in navigator);
+  });
+
+  loadBtn.addEventListener("click", async () => {
+    const file = modelFileInput.files[0];
+    if (!file) return;
+    loadBtn.disabled = true;
+    log(loadResultEl, `Reading file (${(file.size / 1e6).toFixed(0)} MB)...`);
+    const t0 = performance.now();
+    try {
+      const buffer = await file.arrayBuffer();
+      const tReadDone = performance.now();
+
+      const genai = await FilesetResolver.forGenAiTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm",
+      );
+      const tFilesetDone = performance.now();
+
+      // Try creating with multimodal options enabled; if the runtime/model
+      // doesn't support it, this should still succeed for text-only use,
+      // but we record whether maxNumImages was honored by probing later.
+      llmInference = await LlmInference.createFromOptions(genai, {
+        baseOptions: { modelAssetBuffer: new Uint8Array(buffer) },
+        maxTokens: 1024,
+        topK: 40,
+        temperature: 0.8,
+        randomSeed: 101,
+        maxNumImages: 1,
+      });
+      const tLoadDone = performance.now();
+      modelSupportsImages = true; // optimistic; image test below will confirm/refute
+
+      log(
+        loadResultEl,
+        [
+          `<span class="metric">Model loaded.</span>`,
+          `File read: ${(tReadDone - t0).toFixed(0)} ms`,
+          `Fileset resolve (WASM): ${(tFilesetDone - tReadDone).toFixed(0)} ms`,
+          `LlmInference.createFromOptions: ${(tLoadDone - tFilesetDone).toFixed(0)} ms`,
+          `Total: ${(tLoadDone - t0).toFixed(0)} ms`,
+        ].join("<br>"),
+      );
+      textBtn.disabled = false;
+      imageBtn.disabled = false;
+    } catch (e) {
+      log(loadResultEl, `<span class="err">Failed to load model: ${e.message}</span><pre>${e.stack || ""}</pre>`);
+      // Retry hint: if maxNumImages caused the failure, multimodal isn't supported by this model/runtime.
+    } finally {
+      loadBtn.disabled = false;
+    }
+  });
+
+  textBtn.addEventListener("click", async () => {
+    if (!llmInference) return;
+    textBtn.disabled = true;
+    log(textResultEl, "Running inference...");
+    const prompt = `<start_of_turn>user\n${TEXT_LOOKUP_SYSTEM}\n\n${textInput.value}<end_of_turn>\n<start_of_turn>model\n`;
+    const t0 = performance.now();
+    try {
+      const response = await llmInference.generateResponse(prompt);
+      const elapsed = performance.now() - t0;
+      const parsed = tryParseJson(response);
+      log(
+        textResultEl,
+        [
+          `<span class="metric">Latency: ${elapsed.toFixed(0)} ms</span>`,
+          `JSON parseable: <span class="${parsed.ok ? "metric" : "err"}">${parsed.ok}</span>${parsed.ok ? "" : ` (${parsed.error})`}`,
+          `<pre>${response}</pre>`,
+        ].join("<br>"),
+      );
+    } catch (e) {
+      log(textResultEl, `<span class="err">Inference failed: ${e.message}</span>`);
+    } finally {
+      textBtn.disabled = false;
+    }
+  });
+
+  imageBtn.addEventListener("click", async () => {
+    if (!llmInference) return;
+    const file = imageInput.files[0];
+    if (!file) {
+      log(imageResultEl, `<span class="err">Choose an image file first.</span>`);
+      return;
+    }
+    imageBtn.disabled = true;
+    log(imageResultEl, "Running multimodal inference...");
+    const t0 = performance.now();
+    try {
+      const bitmap = await createImageBitmap(file);
+      const prompt = [
+        "<start_of_turn>user\n",
+        NUTRITION_FIELDS_PROMPT,
+        { imageSource: bitmap },
+        "<end_of_turn>\n<start_of_turn>model\n",
+      ];
+      const response = await llmInference.generateResponse(prompt);
+      const elapsed = performance.now() - t0;
+      const parsed = tryParseJson(response);
+      log(
+        imageResultEl,
+        [
+          `<span class="metric">Multimodal input accepted. Latency: ${elapsed.toFixed(0)} ms</span>`,
+          `JSON parseable: <span class="${parsed.ok ? "metric" : "err"}">${parsed.ok}</span>${parsed.ok ? "" : ` (${parsed.error})`}`,
+          `<pre>${response}</pre>`,
+        ].join("<br>"),
+      );
+    } catch (e) {
+      log(
+        imageResultEl,
+        `<span class="err">Image inference failed: ${e.message}</span><br>` +
+          `This likely means the loaded model/runtime build is text-only. Try the .task file variant instead, or report this as a hard blocker for client-side image scan.`,
+      );
+    } finally {
+      imageBtn.disabled = false;
+    }
+  });
+
+  checkEnv();
+</script>
+</body>
+</html>
