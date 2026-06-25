@@ -114,6 +114,7 @@
 		FDC7061A95C4415E8B38997A /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 932B4E41AB204DEABDD9332F /* AppEnvironment.swift */; };
 		K5L6M7N8O9P0Q1R2S3T4U5V6 /* WeeklyStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = M2N3O4P5Q6R7S8T9U0V1W2X3 /* WeeklyStatsTests.swift */; };
 		Y3Z4A5B6C7D8E9F0G1H2I3J4 /* WeeklyStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A2B3D4E5F6G7H8I9J0K1L2 /* WeeklyStats.swift */; };
+		5C36875CEE0F17C87C0DCCB0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EBDEDC6B30BD96790F3294BC /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -134,6 +135,7 @@
 		088B6FB0F5E34C3EB538C554 /* AuthState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthState.swift; sourceTree = "<group>"; };
 		091E3329EBD34411C76B569D /* ItemDetailViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ItemDetailViewModel.swift; path = ../FoodDiary/Features/Items/ItemDetailViewModel.swift; sourceTree = "<group>"; };
 		097D20A7DD684143B98F17A4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		EBDEDC6B30BD96790F3294BC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0A5F9E0A74F6473EA30E09D5 /* OIDCClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OIDCClient.swift; sourceTree = "<group>"; };
 		0A70442DE866FA27BDB0D631 /* RecipeDetailViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeDetailViewModelTests.swift; path = ../FoodDiaryTests/RecipeDetailViewModelTests.swift; sourceTree = "<group>"; };
 		0FB05C94337FE140EBB3BEE1 /* DiaryListViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiaryListViewModelTests.swift; sourceTree = "<group>"; };
@@ -403,6 +405,7 @@
 				38EF2152C37E47E2AFA8F5CC /* Router.swift */,
 				097D20A7DD684143B98F17A4 /* Info.plist */,
 				DD00D0A9A7EDB5955EB21E18 /* AdaptiveRootView.swift */,
+				EBDEDC6B30BD96790F3294BC /* Assets.xcassets */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -643,6 +646,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5C36875CEE0F17C87C0DCCB0 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
