@@ -41,9 +41,9 @@ struct ProfileView: View {
             }
 
             if viewModel.supportsOnDeviceLLM {
-                Section("On-device AI") {
+                Section("On-device LLM") {
                     Toggle(
-                        "Use on-device AI",
+                        "Use on-device LLM",
                         isOn: Binding(
                             get: { viewModel.useOnDeviceLLM },
                             set: { viewModel.setUseOnDeviceLLM($0) }))
