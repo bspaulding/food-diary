@@ -26,11 +26,21 @@ actor OnDeviceLLMEngine: OnDeviceLLMInferring {
         case inferenceFailed(String)
     }
 
+    /// GPU is the production default; `.cpu` exists so eval tests
+    /// (`OnDeviceLLMEvalTests.swift`) can run against real inference on
+    /// hosts/simulators without relying on Metal-accelerated LLM inference.
+    enum ComputeBackend {
+        case gpu
+        case cpu
+    }
+
     private var engine: Engine?
     private let modelPath: URL
+    private let computeBackend: ComputeBackend
 
-    init(modelPath: URL) {
+    init(modelPath: URL, computeBackend: ComputeBackend = .gpu) {
         self.modelPath = modelPath
+        self.computeBackend = computeBackend
     }
 
     /// Releases the loaded model (memory pressure / backgrounding, plan §6).
@@ -72,7 +82,7 @@ actor OnDeviceLLMEngine: OnDeviceLLMInferring {
         if let engine { return engine }
         let config = try EngineConfig(
             modelPath: modelPath.path,
-            backend: .gpu,
+            backend: computeBackend == .gpu ? .gpu : .cpu(),
             visionBackend: .cpu(),
             maxNumTokens: 512,
             cacheDir: NSTemporaryDirectory())

@@ -10,6 +10,7 @@ on:
       - "nutrition-fact-labeller-v*"
       - "mcp-server-v*"
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -123,6 +124,53 @@ jobs:
         with:
           name: ios-test-results
           path: ios/TestResults.xcresult
+
+  eval-ios-on-device-llm:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
+    env:
+      TZ: America/Los_Angeles
+      RUN_ON_DEVICE_LLM_EVALS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode 16
+        run: |
+          LATEST_XCODE=$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)
+          echo "Selecting $LATEST_XCODE"
+          sudo xcode-select -s "$LATEST_XCODE"
+          xcodebuild -version
+
+      - name: Cache on-device LLM model
+        id: cache-model
+        uses: actions/cache@v4
+        with:
+          path: ios/.cache/on-device-llm
+          key: on-device-llm-model-v1
+
+      - name: Download model
+        if: steps.cache-model.outputs.cache-hit != 'true'
+        run: ./scripts/download-on-device-model.sh
+
+      - name: Run evals
+        run: |
+          xcodebuild test \
+            -project FoodDiary.xcodeproj \
+            -scheme FoodDiary \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.6' \
+            -only-testing:FoodDiaryTests/OnDeviceLLMEvalTests \
+            -resultBundlePath EvalResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-on-device-llm-eval-results
+          path: ios/EvalResults.xcresult
 
   test-graphql-engine:
     needs: changes

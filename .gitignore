@@ -24,6 +24,9 @@ nutrition-fact-labeller/vlm-models/
 # llm-nutrition-api
 llm-nutrition-api/*.gguf
 
+# ios on-device LLM eval model (downloaded by ios/scripts/download-on-device-model.sh)
+ios/.cache/
+
 # git worktrees
 .worktrees/
 

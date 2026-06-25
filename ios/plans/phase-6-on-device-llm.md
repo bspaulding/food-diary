@@ -252,7 +252,34 @@ CI runners) — keep the same "pure logic tested, UI/integration not" line from
   correct client chosen — test as a pure function extracted from
   `AppEnvironment`, not by exercising the DI container.
 - Explicitly **not** unit tested: actual `Engine`/`Conversation` behavior,
-  real model accuracy. Cover those in the manual test plan instead.
+  real model accuracy. Cover those in the manual test plan instead — except
+  for the opt-in real-inference evals below, which do cover them.
+
+**Real-inference evals (`OnDeviceLLMEvalTests.swift`):** opt-in smoke tests
+that run the actual LiteRT-LM engine against canonical examples (a few
+well-known foods for text lookup; real label photos reused from
+`nutrition-fact-labeller/images/` + `test_cases.csv` for label scan) and
+assert results land within a loose tolerance range — catches "the model
+returns garbage/zeros" regressions, not exact-value correctness. Gated
+behind `RUN_ON_DEVICE_LLM_EVALS=1` plus the model file being present (via
+`@Suite(.enabled(if:))`), so they're skipped — not failed — in the normal
+`test-ios` CI job and in local runs without the flag set. `OnDeviceLLMEngine`
+takes a `computeBackend` (`.gpu` default, `.cpu` for evals) so these can run
+on hosted runners/simulators without Metal-accelerated inference.
+
+Run locally:
+
+```
+ios/scripts/download-on-device-model.sh
+RUN_ON_DEVICE_LLM_EVALS=1 xcodebuild test \
+    -project FoodDiary.xcodeproj -scheme FoodDiary \
+    -destination 'platform=iOS Simulator,name=iPhone 16' \
+    -only-testing:FoodDiaryTests/OnDeviceLLMEvalTests
+```
+
+In CI, the `eval-ios-on-device-llm` job (`ci-cd.yml`) runs the same thing on
+`workflow_dispatch` only — manual trigger, not on every PR/push, since the
+2.6 GB download and real inference are too slow/costly for that.
 
 ## 10. Manual test plan additions (`testing.md` §3)
 
