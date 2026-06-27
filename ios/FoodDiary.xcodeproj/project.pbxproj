@@ -1033,8 +1033,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/google-ai-edge/LiteRT-LM";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.12.0;
+				kind = exactVersion;
+				version = 0.12.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

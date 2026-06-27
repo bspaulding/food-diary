@@ -311,6 +311,12 @@ gating-ineligible device (or simulator).
 - **No checksum verification** of the downloaded model (§3) — low risk given
   HTTPS + a single official source, but revisit if Hugging Face starts
   publishing hashes.
+- **LiteRT-LM releases can have broken git-lfs assets:** `0.13.1`/`0.13.0`
+  failed CI with "remote missing object" on a prebuilt Android `.so` (an
+  artifact this iOS-only target never even links) — pinned the SPM
+  dependency to an exact `0.12.0` instead of `upToNextMajorVersion` to avoid
+  the resolver picking up a broken later tag. Revisit the pin if a future
+  release is confirmed good, or if `0.12.0` itself breaks upstream.
 
 ## 12. Definition of done
 
