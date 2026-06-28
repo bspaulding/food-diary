@@ -41,7 +41,7 @@ struct RecipeFormView: View {
             }
             Section("Items") {
                 if viewModel.items.isEmpty {
-                    Text("No items in recipe.").foregroundStyle(.secondary)
+                    Text("No items in recipe.").foregroundStyle(Theme.textSecondary)
                 } else {
                     ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { index, item in
                         HStack {
@@ -70,13 +70,19 @@ struct RecipeFormView: View {
                     Button {
                         viewModel.addItem(result)
                     } label: {
-                        Text(result.name)
+                        HStack {
+                            Text("⊕").foregroundStyle(Theme.accent)
+                            Text(result.name).foregroundStyle(Theme.textPrimary)
+                        }
                     }
                 }
             }
             Section {
                 Button("Save Recipe") { Task { await viewModel.save() } }
+                    .buttonStyle(.webPrimary)
+                    .listRowBackground(Color.clear)
             }
         }
+        .webListStyle()
     }
 }

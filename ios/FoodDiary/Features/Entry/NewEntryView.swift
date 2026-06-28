@@ -20,6 +20,7 @@ struct NewEntryView: View {
                 searchContent
             }
         }
+        .webListStyle()
         .navigationTitle("Add Entry")
         .task {
             await viewModel.loadSuggestions()
@@ -50,7 +51,7 @@ struct NewEntryView: View {
             }
         }
         if viewModel.hasNoSuggestions {
-            Text("No suggestions available").foregroundStyle(.secondary)
+            Text("No suggestions available").foregroundStyle(Theme.textMuted)
         }
     }
 
@@ -92,9 +93,17 @@ private struct LoggableItemRow: View {
                 isExpanded.toggle()
             } label: {
                 HStack {
-                    Text(name)
+                    Text("⊕")
+                        .font(.title2)
+                        .foregroundStyle(Theme.accent)
+                        .rotationEffect(.degrees(isExpanded ? 45 : 0))
+                    Text(name).foregroundStyle(Theme.textPrimary)
                     if kind == .recipe {
-                        Text("RECIPE").font(.caption2).foregroundStyle(.secondary)
+                        Text("RECIPE")
+                            .font(.caption2)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Theme.badgeBackground, in: RoundedRectangle(cornerRadius: 4))
+                            .foregroundStyle(Theme.badgeForeground)
                     }
                 }
             }
@@ -102,11 +111,12 @@ private struct LoggableItemRow: View {
                 Stepper("Servings: \(servings.formatted())", value: $servings, in: 0.1...50, step: 0.1)
                 DatePicker("Consumed at", selection: $consumedAt)
                 if let saveError = viewModel.saveError {
-                    Text(saveError).foregroundStyle(.red)
+                    Text(saveError).foregroundStyle(Theme.red600)
                 }
                 Button(isSaving ? "Saving..." : "Save") {
                     Task { await save() }
                 }
+                .buttonStyle(.webPrimary)
                 .disabled(isSaving)
             }
         }

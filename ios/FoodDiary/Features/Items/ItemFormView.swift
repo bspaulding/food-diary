@@ -46,7 +46,7 @@ struct ItemFormView: View {
                 if viewModel.lookupState == .loading {
                     ProgressView("Looking up...")
                 } else if case .error(let message) = viewModel.lookupState {
-                    Text(message).foregroundStyle(.red)
+                    Text(message).foregroundStyle(Theme.red600)
                 }
 
                 Button("Scan Label") { showCamera = true }
@@ -54,7 +54,7 @@ struct ItemFormView: View {
                 if viewModel.scanState == .loading {
                     ProgressView("Scanning label...")
                 } else if case .error(let message) = viewModel.scanState {
-                    Text(message).foregroundStyle(.red)
+                    Text(message).foregroundStyle(Theme.red600)
                 }
             }
             Section {
@@ -77,8 +77,11 @@ struct ItemFormView: View {
             }
             Section {
                 Button("Save") { Task { await viewModel.save() } }
+                    .buttonStyle(.webPrimary)
+                    .listRowBackground(Color.clear)
             }
         }
+        .webListStyle()
     }
 
     private func numericField(_ title: String, value: Binding<Double>) -> some View {

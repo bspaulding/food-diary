@@ -33,7 +33,10 @@ struct EditEntryView: View {
             Stepper("Servings: \(viewModel.servings.formatted())", value: $viewModel.servings, in: 0.1...50, step: 0.1)
             DatePicker("Consumed at", selection: $viewModel.consumedAt)
             Button("Save") { Task { await viewModel.save() } }
+                .buttonStyle(.webPrimary)
+                .listRowBackground(Color.clear)
             Button("Delete", role: .destructive) { Task { await viewModel.delete() } }
         }
+        .webListStyle()
     }
 }

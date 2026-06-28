@@ -96,7 +96,7 @@ struct CameraCaptureView: View {
         NavigationStack {
             ZStack {
                 if let configurationError {
-                    Text(configurationError).foregroundStyle(.red).padding()
+                    Text(configurationError).foregroundStyle(Theme.red600).padding()
                 } else {
                     CameraPreviewView(session: controller.session)
                         .ignoresSafeArea()

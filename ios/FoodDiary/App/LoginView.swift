@@ -7,6 +7,7 @@ struct LoginView: View {
         VStack(spacing: 24) {
             Text("Food Diary")
                 .font(.largeTitle.bold())
+                .foregroundStyle(Theme.textPrimary)
 
             switch authService.state {
             case .signingIn:
@@ -15,9 +16,11 @@ struct LoginView: View {
                 Button("Log In") {
                     Task { await authService.login() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.webPrimary)
             }
         }
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .webScreenStyle()
     }
 }

@@ -46,13 +46,17 @@ struct ItemDetailView: View {
             macroRow("Added Sugars (g)", item.addedSugarsGrams)
             macroRow("Protein (g)", item.proteinGrams, bold: true)
         }
+        .webListStyle()
     }
 
     private func macroRow(_ title: String, _ value: Double, bold: Bool = false) -> some View {
         HStack {
-            Text(title).fontWeight(bold ? .semibold : .regular)
+            Text(title)
+                .fontWeight(bold ? .semibold : .regular)
+                .foregroundStyle(Theme.textPrimary)
             Spacer()
             Text(value.formatted())
+                .foregroundStyle(Theme.textPrimary)
         }
     }
 }

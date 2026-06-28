@@ -12,6 +12,7 @@ struct DateBadge: View {
             Text(DateBadgeFormatting.monthAbbreviation(date))
                 .font(.system(size: 16, weight: .semibold))
         }
+        .foregroundStyle(Theme.textPrimary)
         .multilineTextAlignment(.center)
     }
 }

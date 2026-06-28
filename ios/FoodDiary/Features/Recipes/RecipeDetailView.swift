@@ -46,18 +46,19 @@ struct RecipeDetailView: View {
             }
             Section("Ingredients") {
                 if recipe.recipeItems.isEmpty {
-                    Text("No recipe items.").foregroundStyle(.secondary)
+                    Text("No recipe items.").foregroundStyle(Theme.textSecondary)
                 } else {
                     ForEach(recipe.recipeItems, id: \.nutritionItem.id) { item in
                         VStack(alignment: .leading) {
                             Text(item.nutritionItem.description)
                             Text("\(item.servings.formatted()) servings - \(Int(viewModel.calories(for: item).rounded())) kcal")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textSecondary)
                         }
                     }
                 }
             }
         }
+        .webListStyle()
     }
 }

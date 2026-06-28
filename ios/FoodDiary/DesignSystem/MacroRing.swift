@@ -43,7 +43,7 @@ struct MacroRing: View {
             Text(label)
                 .font(.caption)
                 .textCase(.uppercase)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
         }
     }
 }
