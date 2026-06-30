@@ -28,28 +28,28 @@ struct TrendsView: View {
     private var content: some View {
         if viewModel.trends.isEmpty {
             Text("No data available yet. Add some diary entries to see trends!")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .padding()
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     chartSection(
                         title: "Average Daily Calories (per week)",
-                        color: .blue,
+                        color: Theme.chartBlue,
                         target: viewModel.targets.calories
                     ) { trend in
                         (trend.weekOfYear, trend.calories)
                     }
                     chartSection(
                         title: "Average Daily Protein (g per week)",
-                        color: .green,
+                        color: Theme.chartGreen,
                         target: viewModel.targets.proteinGrams
                     ) { trend in
                         (trend.weekOfYear, trend.protein)
                     }
                     chartSection(
                         title: "Average Daily Added Sugar (g per week)",
-                        color: .red,
+                        color: Theme.chartRed,
                         target: viewModel.targets.addedSugarsGrams
                     ) { trend in
                         (trend.weekOfYear, trend.addedSugar)
@@ -57,6 +57,7 @@ struct TrendsView: View {
                 }
                 .padding()
             }
+            .webScreenStyle()
         }
     }
 
@@ -81,9 +82,11 @@ struct TrendsView: View {
                     .foregroundStyle(color)
                 }
                 RuleMark(y: .value("Target", target))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.chartGridline)
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
             }
+            .chartXAxis { AxisMarks { _ in AxisGridLine().foregroundStyle(Theme.chartGridline) } }
+            .chartYAxis { AxisMarks { _ in AxisGridLine().foregroundStyle(Theme.chartGridline) } }
             .frame(height: 200)
         }
     }

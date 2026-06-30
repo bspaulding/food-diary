@@ -9,8 +9,9 @@ struct ErrorRetryView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text(message).foregroundStyle(.red)
+            Text(message).foregroundStyle(Theme.red600)
             Button("Retry", action: retry)
+                .buttonStyle(.webPrimary)
         }
     }
 }

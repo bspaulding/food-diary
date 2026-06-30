@@ -31,6 +31,7 @@ struct AdaptiveRootView<Sidebar: View, Detail: View>: View {
                         description: Text("Choose an entry, item, or recipe to see details."))
                 }
             }
+            .webScreenStyle()
         } else {
             NavigationStack(path: Bindable(router).path) {
                 sidebar()
@@ -38,6 +39,7 @@ struct AdaptiveRootView<Sidebar: View, Detail: View>: View {
                         destination(route)
                     }
             }
+            .webScreenStyle()
         }
     }
 }

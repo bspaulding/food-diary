@@ -39,8 +39,11 @@ struct TargetsView: View {
             }
             Section {
                 Button("Save Targets") { Task { await viewModel.save() } }
+                    .buttonStyle(.webPrimary)
+                    .listRowBackground(Color.clear)
             }
         }
+        .webListStyle()
     }
 
     private func numericField(_ title: String, value: Binding<Double>) -> some View {

@@ -46,7 +46,7 @@ struct DiaryListView: View {
             }
             if viewModel.groupedEntries.isEmpty {
                 Text("No entries this week.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textMuted)
             } else {
                 ForEach(viewModel.groupedEntries) { group in
                     Section {
@@ -59,6 +59,7 @@ struct DiaryListView: View {
             }
             pagingControls
         }
+        .webListStyle()
     }
 
     private func weeklyStatsHeader(_ stats: WeeklyStatsTotals) -> some View {
@@ -68,13 +69,16 @@ struct DiaryListView: View {
         return HStack {
             VStack {
                 Text("\(sevenDayAvg) kcal/day")
-                Text("Last 7 Days").font(.caption).foregroundStyle(.secondary)
+                Text("Last 7 Days").font(.caption).foregroundStyle(Theme.textSecondary)
             }
             Spacer()
             VStack {
                 Text("\(fourWeekAvg) kcal/day")
-                Text("4 Week Avg").font(.caption).foregroundStyle(.secondary)
+                Text("4 Week Avg").font(.caption).foregroundStyle(Theme.textSecondary)
             }
+            Spacer()
+            Button("View Trends") { router.push(.trends) }
+                .buttonStyle(.webLink)
         }
     }
 
@@ -111,9 +115,10 @@ struct DiaryListView: View {
             HStack {
                 Text("\(servingsLabel(entry.servings)) at \(entry.consumedAt.formatted(date: .omitted, time: .shortened))")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                 Spacer()
                 Button("Edit") { router.push(.editEntry(entry.id)) }
+                    .buttonStyle(.webLink)
                 Button("Delete", role: .destructive) {
                     Task { await viewModel.delete(entry) }
                 }
@@ -122,8 +127,8 @@ struct DiaryListView: View {
                 Text("RECIPE")
                     .font(.caption2)
                     .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(.secondary, in: RoundedRectangle(cornerRadius: 4))
-                    .foregroundStyle(.white)
+                    .background(Theme.badgeBackground, in: RoundedRectangle(cornerRadius: 4))
+                    .foregroundStyle(Theme.badgeForeground)
             }
         }
     }
@@ -135,10 +140,12 @@ struct DiaryListView: View {
     private var pagingControls: some View {
         HStack {
             Button("← Previous Week") { Task { await viewModel.goToPreviousWeek() } }
+                .buttonStyle(.webLink)
                 .disabled(viewModel.state == .loading)
             Spacer()
             if viewModel.canGoToNextWeek {
                 Button("Next Week →") { Task { await viewModel.goToNextWeek() } }
+                    .buttonStyle(.webLink)
                     .disabled(viewModel.state == .loading)
             }
         }

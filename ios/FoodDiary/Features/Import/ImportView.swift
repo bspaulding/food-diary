@@ -13,11 +13,13 @@ struct ImportView: View {
         Form {
             Section {
                 Button("Choose CSV File") { isPickingFile = true }
+                    .buttonStyle(.webPrimary)
+                    .listRowBackground(Color.clear)
             }
             if !viewModel.parseErrors.isEmpty {
                 Section("Errors") {
                     ForEach(Array(viewModel.parseErrors.enumerated()), id: \.offset) { _, message in
-                        Text(message).foregroundStyle(.red)
+                        Text(message).foregroundStyle(Theme.red600)
                     }
                 }
             }
@@ -29,12 +31,15 @@ struct ImportView: View {
                 }
                 Section {
                     Button("Import") { Task { await viewModel.confirm() } }
+                        .buttonStyle(.webPrimary)
+                        .listRowBackground(Color.clear)
                 }
             }
             if let errorMessage = viewModel.errorMessage {
                 ErrorRetryView(message: errorMessage) { Task { await viewModel.confirm() } }
             }
         }
+        .webListStyle()
         .navigationTitle("Import Entries")
         .fileImporter(isPresented: $isPickingFile, allowedContentTypes: [.commaSeparatedText]) { result in
             if let url = try? result.get(), let csv = try? String(contentsOf: url, encoding: .utf8) {

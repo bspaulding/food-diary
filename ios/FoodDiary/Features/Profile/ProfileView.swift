@@ -23,21 +23,26 @@ struct ProfileView: View {
                     }
                     .frame(width: 64, height: 64)
                     .clipShape(Circle())
+                    .overlay(Circle().stroke(Theme.textPrimary, lineWidth: 1))
                 }
                 Text(viewModel.name ?? "Signed in")
                     .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
                 if let email = viewModel.email {
-                    Text(email).foregroundStyle(.secondary)
+                    Text(email).foregroundStyle(Theme.textSecondary)
                 }
             }
 
             Section {
                 Button("Edit Nutrition Targets", action: onEditTargets)
+                    .buttonStyle(.webLink)
             }
 
             Section("Data") {
                 Button("Export Entries", action: onExport)
+                    .buttonStyle(.webLink)
                 Button("Import Entries", action: onImport)
+                    .buttonStyle(.webLink)
             }
 
             #if DEBUG
@@ -46,7 +51,7 @@ struct ProfileView: View {
                     Text("Using custom backend").foregroundStyle(.orange)
                     Button("Reset to Production") { viewModel.resetToProductionBackend() }
                 } else {
-                    Text("Using production backend").foregroundStyle(.secondary)
+                    Text("Using production backend").foregroundStyle(Theme.textSecondary)
                 }
                 TextField("LAN host", text: $customHost)
                     .keyboardType(.URL)
@@ -64,6 +69,7 @@ struct ProfileView: View {
                 }
             }
         }
+        .webListStyle()
         .navigationTitle("Profile")
     }
 }

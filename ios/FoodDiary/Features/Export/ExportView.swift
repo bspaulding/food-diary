@@ -18,11 +18,14 @@ struct ExportView: View {
             }
             Section {
                 Button("Export") { Task { await viewModel.export() } }
+                    .buttonStyle(.webPrimary)
+                    .listRowBackground(Color.clear)
                 if let errorMessage = viewModel.errorMessage {
                     ErrorRetryView(message: errorMessage) { Task { await viewModel.export() } }
                 }
             }
         }
+        .webListStyle()
         .navigationTitle("Export Entries")
         .fileExporter(
             isPresented: $isExporting,
