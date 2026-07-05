@@ -5,7 +5,7 @@ import { http, HttpResponse } from "msw";
 import { sign, decode } from "jsonwebtoken";
 import { app, extractBearerToken } from "./index.js";
 import { generateCodeChallenge, generateRandom, storePendingAuthorization, storePendingCode } from "./oauth.js";
-import { issueAccessToken } from "./token.js";
+import { issueAccessToken, issueRefreshToken, validateRefreshToken } from "./token.js";
 
 const SECRET = "test-secret-key";
 const AUDIENCE = "https://direct-satyr-14.hasura.app/v1/graphql";
@@ -21,9 +21,22 @@ function makeIdToken(sub = "auth0|user-123") {
 }
 
 const mswServer = setupServer(
-  http.post(`https://${AUTH0_DOMAIN}/oauth/token`, () =>
-    HttpResponse.json({ id_token: makeIdToken(), access_token: "opaque-at", token_type: "Bearer" })
-  ),
+  http.post(`https://${AUTH0_DOMAIN}/oauth/token`, async ({ request }) => {
+    const body = (await request.json()) as { grant_type?: string };
+    if (body.grant_type === "refresh_token") {
+      return HttpResponse.json({
+        access_token: "refreshed-at",
+        refresh_token: "rotated-a0-rt",
+        token_type: "Bearer",
+      });
+    }
+    return HttpResponse.json({
+      id_token: makeIdToken(),
+      access_token: "opaque-at",
+      refresh_token: "a0-rt",
+      token_type: "Bearer",
+    });
+  }),
   http.post(AUDIENCE, () => HttpResponse.json({ data: {} }))
 );
 
@@ -87,6 +100,12 @@ describe("GET /.well-known/oauth-authorization-server", () => {
     expect(res.body.authorization_endpoint).toMatch(/\/mcp\/authorize$/);
     expect(res.body.code_challenge_methods_supported).toContain("S256");
   });
+
+  it("advertises the refresh_token grant", async () => {
+    const res = await supertest(app).get("/.well-known/oauth-authorization-server");
+    expect(res.body.grant_types_supported).toContain("authorization_code");
+    expect(res.body.grant_types_supported).toContain("refresh_token");
+  });
 });
 
 // ─── GET /mcp/authorize ───────────────────────────────────────────────────────
@@ -133,6 +152,15 @@ describe("GET /mcp/authorize", () => {
     // Our state (not the client's state)
     expect(url.searchParams.get("state")).not.toBe("client-state");
     expect(url.searchParams.get("audience")).toBe(AUDIENCE);
+  });
+
+  it("requests offline_access from Auth0 so a refresh token is issued", async () => {
+    const res = await supertest(app).get(
+      "/mcp/authorize?response_type=code&client_id=claude&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&code_challenge=abc&code_challenge_method=S256&state=s"
+    );
+    expect(res.status).toBe(302);
+    const url = new URL(res.headers.location as string);
+    expect(url.searchParams.get("scope")).toContain("offline_access");
   });
 });
 
@@ -322,6 +350,156 @@ describe("POST /mcp/token", () => {
     expect(res.status).toBe(200);
     expect(res.body.access_token).toBe(expectedToken);
   });
+
+  it("omits refresh_token when the pending code has none (no offline access)", async () => {
+    const verifier = generateRandom();
+    const code = generateRandom();
+    storePendingCode(code, {
+      accessToken: issueAccessToken("auth0|user-123"),
+      codeChallenge: generateCodeChallenge(verifier),
+    });
+
+    const res = await supertest(app)
+      .post("/mcp/token")
+      .send({ grant_type: "authorization_code", code, code_verifier: verifier });
+    expect(res.status).toBe(200);
+    expect(res.body.refresh_token).toBeUndefined();
+  });
+});
+
+// ─── POST /mcp/token (grant_type=refresh_token) ──────────────────────────────
+
+describe("POST /mcp/token with grant_type=refresh_token", () => {
+  const refreshBody = (refresh_token: string) => ({ grant_type: "refresh_token", refresh_token });
+
+  it("issues a new access token carrying the refreshed Auth0 token", async () => {
+    const refreshToken = issueRefreshToken("auth0|user-123", "a0-rt");
+    const res = await supertest(app).post("/mcp/token").send(refreshBody(refreshToken));
+    expect(res.status).toBe(200);
+    expect(res.body.token_type).toBe("Bearer");
+    expect(res.body.expires_in).toBe(3600);
+    const claims = decode(res.body.access_token as string) as { sub?: string; a0t?: string };
+    expect(claims.sub).toBe("auth0|user-123");
+    expect(claims.a0t).toBe("refreshed-at");
+  });
+
+  it("returns a re-wrapped refresh token containing the rotated Auth0 refresh token", async () => {
+    const refreshToken = issueRefreshToken("auth0|user-123", "a0-rt");
+    const res = await supertest(app).post("/mcp/token").send(refreshBody(refreshToken));
+    expect(res.status).toBe(200);
+    const rewrapped = validateRefreshToken(res.body.refresh_token as string);
+    expect(rewrapped.sub).toBe("auth0|user-123");
+    // The msw handler rotates: the new wrapper must hold the rotated token
+    expect(rewrapped.auth0RefreshToken).toBe("rotated-a0-rt");
+  });
+
+  it("sends the decrypted Auth0 refresh token to Auth0", async () => {
+    let auth0Body: Record<string, unknown> = {};
+    mswServer.use(
+      http.post(`https://${AUTH0_DOMAIN}/oauth/token`, async ({ request }) => {
+        auth0Body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ access_token: "refreshed-at" });
+      })
+    );
+
+    const refreshToken = issueRefreshToken("auth0|user-123", "original-a0-rt");
+    const res = await supertest(app).post("/mcp/token").send(refreshBody(refreshToken));
+    expect(res.status).toBe(200);
+    expect(auth0Body.grant_type).toBe("refresh_token");
+    expect(auth0Body.refresh_token).toBe("original-a0-rt");
+  });
+
+  it("re-wraps the original Auth0 refresh token when Auth0 does not rotate", async () => {
+    mswServer.use(
+      http.post(`https://${AUTH0_DOMAIN}/oauth/token`, () =>
+        HttpResponse.json({ access_token: "refreshed-at" })
+      )
+    );
+
+    const refreshToken = issueRefreshToken("auth0|user-123", "stable-a0-rt");
+    const res = await supertest(app).post("/mcp/token").send(refreshBody(refreshToken));
+    expect(res.status).toBe(200);
+    expect(validateRefreshToken(res.body.refresh_token as string).auth0RefreshToken).toBe("stable-a0-rt");
+  });
+
+  it("returns invalid_grant for a garbage refresh token", async () => {
+    const res = await supertest(app).post("/mcp/token").send(refreshBody("not-a-jwt"));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_grant");
+  });
+
+  it("returns invalid_grant when the refresh token is missing", async () => {
+    const res = await supertest(app).post("/mcp/token").send({ grant_type: "refresh_token" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_grant");
+  });
+
+  it("returns invalid_grant when an access token is passed as a refresh token", async () => {
+    const res = await supertest(app)
+      .post("/mcp/token")
+      .send(refreshBody(issueAccessToken("auth0|user-123", "a0-at")));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_grant");
+  });
+
+  it("returns invalid_grant when Auth0 rejects the refresh token", async () => {
+    mswServer.use(
+      http.post(`https://${AUTH0_DOMAIN}/oauth/token`, () =>
+        HttpResponse.json({ error: "invalid_grant" }, { status: 403 })
+      )
+    );
+
+    const refreshToken = issueRefreshToken("auth0|user-123", "revoked-a0-rt");
+    const res = await supertest(app).post("/mcp/token").send(refreshBody(refreshToken));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_grant");
+  });
+
+  it("returns server_error when Auth0 is down, so the client keeps its refresh token", async () => {
+    mswServer.use(
+      http.post(`https://${AUTH0_DOMAIN}/oauth/token`, () => HttpResponse.json({}, { status: 500 }))
+    );
+
+    const refreshToken = issueRefreshToken("auth0|user-123", "a0-rt");
+    const res = await supertest(app).post("/mcp/token").send(refreshBody(refreshToken));
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe("server_error");
+  });
+
+  it("returns server_error when the Auth0 request fails at the network level", async () => {
+    mswServer.use(
+      http.post(`https://${AUTH0_DOMAIN}/oauth/token`, () => HttpResponse.error())
+    );
+
+    const refreshToken = issueRefreshToken("auth0|user-123", "a0-rt");
+    const res = await supertest(app).post("/mcp/token").send(refreshBody(refreshToken));
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe("server_error");
+  });
+
+  it("returns server_error when Auth0 responds with malformed JSON", async () => {
+    mswServer.use(
+      http.post(`https://${AUTH0_DOMAIN}/oauth/token`, () =>
+        new HttpResponse("not-json", { status: 200, headers: { "Content-Type": "application/json" } })
+      )
+    );
+
+    const refreshToken = issueRefreshToken("auth0|user-123", "a0-rt");
+    const res = await supertest(app).post("/mcp/token").send(refreshBody(refreshToken));
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe("server_error");
+  });
+
+  it("returns server_error when Auth0 responds without an access_token", async () => {
+    mswServer.use(
+      http.post(`https://${AUTH0_DOMAIN}/oauth/token`, () => HttpResponse.json({}))
+    );
+
+    const refreshToken = issueRefreshToken("auth0|user-123", "a0-rt");
+    const res = await supertest(app).post("/mcp/token").send(refreshBody(refreshToken));
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe("server_error");
+  });
 });
 
 // ─── Full OAuth flow ──────────────────────────────────────────────────────────
@@ -344,7 +522,7 @@ describe("full OAuth flow (authorize → callback → token → mcp)", () => {
       .send(`grant_type=authorization_code&code=${ourCode}&code_verifier=${verifier}`)
       .set("Content-Type", "application/x-www-form-urlencoded");
     expect(tokenRes.status).toBe(200);
-    return tokenRes.body as { access_token: string };
+    return tokenRes.body as { access_token: string; refresh_token?: string };
   }
 
   it("results in a working MCP Bearer token", async () => {
@@ -375,6 +553,43 @@ describe("full OAuth flow (authorize → callback → token → mcp)", () => {
     const claims = decode(access_token) as { a0t?: string };
     expect(claims?.a0t).toBe("opaque-at");
   });
+
+  it("returns a refresh token that silently renews the access token", async () => {
+    const { refresh_token } = await runFullOAuthFlow();
+    expect(refresh_token).toBeTruthy();
+    expect(validateRefreshToken(refresh_token!).auth0RefreshToken).toBe("a0-rt");
+
+    // Simulate Claude renewing after the 1h access token expires
+    const refreshRes = await supertest(app)
+      .post("/mcp/token")
+      .send(`grant_type=refresh_token&refresh_token=${refresh_token}`)
+      .set("Content-Type", "application/x-www-form-urlencoded");
+    expect(refreshRes.status).toBe(200);
+
+    const mcpRes = await supertest(app)
+      .post("/mcp")
+      .set("Authorization", `Bearer ${refreshRes.body.access_token}`)
+      .set("Accept", "application/json, text/event-stream")
+      .send({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "1" } },
+      });
+    expect(mcpRes.status).toBe(200);
+  });
+
+  it("omits the refresh token when Auth0 does not grant offline access", async () => {
+    mswServer.use(
+      http.post(`https://${AUTH0_DOMAIN}/oauth/token`, () =>
+        HttpResponse.json({ id_token: makeIdToken(), access_token: "opaque-at" })
+      )
+    );
+
+    const { access_token, refresh_token } = await runFullOAuthFlow();
+    expect(access_token).toBeTruthy();
+    expect(refresh_token).toBeUndefined();
+  });
 });
 
 // ─── POST /mcp auth ───────────────────────────────────────────────────────────
@@ -384,6 +599,9 @@ describe("POST /mcp", () => {
     const res = await supertest(app).post("/mcp").send({});
     expect(res.status).toBe(401);
     expect(res.body.error).toMatch(/Missing/);
+    expect(res.headers["www-authenticate"]).toMatch(
+      /^Bearer resource_metadata=".*\/\.well-known\/oauth-protected-resource"$/
+    );
   });
 
   it("returns 401 when Authorization is not a Bearer token", async () => {
@@ -395,6 +613,15 @@ describe("POST /mcp", () => {
     const res = await supertest(app).post("/mcp").set("Authorization", "Bearer not-a-valid-jwt").send({});
     expect(res.status).toBe(401);
     expect(res.body.error).toMatch(/Invalid/);
+    expect(res.headers["www-authenticate"]).toContain('error="invalid_token"');
+    expect(res.headers["www-authenticate"]).toContain("/.well-known/oauth-protected-resource");
+  });
+
+  it("returns 401 with WWW-Authenticate when the JWT is expired", async () => {
+    const expired = sign({ sub: "user-123" }, SECRET, { audience: AUDIENCE, expiresIn: -60 });
+    const res = await supertest(app).post("/mcp").set("Authorization", `Bearer ${expired}`).send({});
+    expect(res.status).toBe(401);
+    expect(res.headers["www-authenticate"]).toContain('error="invalid_token"');
   });
 
   it("passes a valid token through to the MCP transport", async () => {
