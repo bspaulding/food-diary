@@ -10,6 +10,7 @@ interface PendingAuthorization {
 
 interface PendingCode {
   accessToken: string;
+  refreshToken?: string;
   codeChallenge: string;
   expiresAt: number;
 }

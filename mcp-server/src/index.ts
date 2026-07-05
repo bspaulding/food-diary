@@ -14,7 +14,7 @@ import {
   storePendingCode,
   consumePendingCode,
 } from "./oauth.js";
-import { issueAccessToken } from "./token.js";
+import { issueAccessToken, issueRefreshToken, validateRefreshToken } from "./token.js";
 
 const PORT = parseInt(process.env.PORT ?? "3032", 10);
 const SERVER_URL = process.env.MCP_SERVER_URL ?? `http://localhost:${PORT}/mcp`;
@@ -56,7 +56,7 @@ app.get("/.well-known/oauth-authorization-server", (_req, res) => {
     authorization_endpoint: AUTHORIZATION_ENDPOINT,
     token_endpoint: TOKEN_ENDPOINT,
     response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
     code_challenge_methods_supported: ["S256"],
   });
 });
@@ -89,7 +89,9 @@ app.get(new URL(AUTHORIZATION_ENDPOINT).pathname, (req, res) => {
     redirect_uri: CALLBACK_ENDPOINT,
     state: ourState,
     audience: AUTH0_AUDIENCE,
-    scope: "openid profile email",
+    // offline_access asks Auth0 for a refresh token (requires "Allow Offline
+    // Access" on the API; silently ignored otherwise).
+    scope: "openid profile email offline_access",
   });
 
   res.redirect(`https://${AUTH0_DOMAIN}/authorize?${params.toString()}`);
@@ -116,6 +118,7 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
 
   let sub: string;
   let auth0AccessToken = "";
+  let auth0RefreshToken = "";
   try {
     const tokenRes = await fetch(`https://${AUTH0_DOMAIN}/oauth/token`, {
       method: "POST",
@@ -131,10 +134,15 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
 
     if (!tokenRes.ok) throw new Error(`Auth0 token exchange failed: ${tokenRes.status}`);
 
-    const tokenData = (await tokenRes.json()) as { id_token?: string; access_token?: string };
+    const tokenData = (await tokenRes.json()) as {
+      id_token?: string;
+      access_token?: string;
+      refresh_token?: string;
+    };
     if (!tokenData.id_token) throw new Error("No id_token in Auth0 response");
 
     auth0AccessToken = tokenData.access_token ?? "";
+    auth0RefreshToken = tokenData.refresh_token ?? "";
 
     // Decode without re-verifying — we received this directly from Auth0 over HTTPS
     const decoded = jwt.decode(tokenData.id_token) as { sub?: string } | null;
@@ -149,10 +157,11 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
   }
 
   const accessToken = issueAccessToken(sub, auth0AccessToken);
+  const refreshToken = auth0RefreshToken ? issueRefreshToken(sub, auth0RefreshToken) : undefined;
   const ourCode = generateRandom();
-  storePendingCode(ourCode, { accessToken, codeChallenge: pending.clientCodeChallenge });
+  storePendingCode(ourCode, { accessToken, refreshToken, codeChallenge: pending.clientCodeChallenge });
 
-  logger.info("callback: issued code", { sub });
+  logger.info("callback: issued code", { sub, hasRefreshToken: Boolean(refreshToken) });
 
   const p = new URLSearchParams({ code: ourCode });
   if (pending.clientState) p.set("state", pending.clientState);
@@ -160,8 +169,14 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
 });
 
 // Step 3: Claude.ai exchanges our code for our access token, proving they hold the PKCE verifier.
-app.post(new URL(TOKEN_ENDPOINT).pathname, (req, res) => {
-  const { code, code_verifier, grant_type } = req.body as Record<string, string>;
+// Also handles grant_type=refresh_token so the client can renew silently.
+app.post(new URL(TOKEN_ENDPOINT).pathname, async (req, res) => {
+  const { code, code_verifier, grant_type, refresh_token } = req.body as Record<string, string>;
+
+  if (grant_type === "refresh_token") {
+    await handleRefreshGrant(refresh_token, res);
+    return;
+  }
 
   if (grant_type !== "authorization_code") {
     res.status(400).json({ error: "unsupported_grant_type" });
@@ -182,8 +197,80 @@ app.post(new URL(TOKEN_ENDPOINT).pathname, (req, res) => {
   }
 
   logger.info("token: access token issued");
-  res.json({ access_token: pending.accessToken, token_type: "Bearer", expires_in: 3600 });
+  res.json({
+    access_token: pending.accessToken,
+    token_type: "Bearer",
+    expires_in: 3600,
+    ...(pending.refreshToken ? { refresh_token: pending.refreshToken } : {}),
+  });
 });
+
+async function handleRefreshGrant(refreshToken: string, res: express.Response): Promise<void> {
+  let sub: string;
+  let auth0RefreshToken: string;
+  try {
+    ({ sub, auth0RefreshToken } = validateRefreshToken(refreshToken));
+  } catch (e) {
+    logger.warn("token: invalid refresh token", { error: (e as Error).message });
+    res.status(400).json({ error: "invalid_grant" });
+    return;
+  }
+
+  let auth0Res: Response;
+  try {
+    auth0Res = await fetch(`https://${AUTH0_DOMAIN}/oauth/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "refresh_token",
+        client_id: auth0ClientId(),
+        client_secret: auth0ClientSecret(),
+        refresh_token: auth0RefreshToken,
+      }),
+    });
+  } catch (e) {
+    logger.error("token: auth0 refresh request failed", { error: (e as Error).message });
+    res.status(500).json({ error: "server_error" });
+    return;
+  }
+
+  // 4xx means the Auth0 refresh token is revoked/expired/reused — the client
+  // must re-authorize. 5xx is transient: the client keeps its token and retries.
+  if (!auth0Res.ok) {
+    if (auth0Res.status >= 400 && auth0Res.status < 500) {
+      logger.warn("token: auth0 rejected refresh token", { status: auth0Res.status, sub });
+      res.status(400).json({ error: "invalid_grant" });
+    } else {
+      logger.error("token: auth0 refresh error", { status: auth0Res.status });
+      res.status(500).json({ error: "server_error" });
+    }
+    return;
+  }
+
+  let data: { access_token?: string; refresh_token?: string };
+  try {
+    data = (await auth0Res.json()) as { access_token?: string; refresh_token?: string };
+  } catch (e) {
+    logger.error("token: malformed auth0 refresh response", { error: (e as Error).message });
+    res.status(500).json({ error: "server_error" });
+    return;
+  }
+  if (!data.access_token) {
+    logger.error("token: no access_token in auth0 refresh response");
+    res.status(500).json({ error: "server_error" });
+    return;
+  }
+
+  logger.info("token: refreshed access token", { sub });
+  res.json({
+    access_token: issueAccessToken(sub, data.access_token),
+    // Re-wrap whichever Auth0 refresh token is now current (rotated or not);
+    // the client replaces its stored refresh token with this one.
+    refresh_token: issueRefreshToken(sub, data.refresh_token ?? auth0RefreshToken),
+    token_type: "Bearer",
+    expires_in: 3600,
+  });
+}
 
 export function extractBearerToken(req: express.Request): string | null {
   const auth = req.headers.authorization;
@@ -194,9 +281,14 @@ export function extractBearerToken(req: express.Request): string | null {
 async function handleMcp(req: express.Request, res: express.Response): Promise<void> {
   logger.info("request", { method: req.method, path: req.path });
 
+  // RFC 9728: point the client at our protected-resource metadata so it can
+  // re-run OAuth discovery instead of failing hard on an expired token.
+  const resourceMetadata = `resource_metadata="${BASE_URL}/.well-known/oauth-protected-resource"`;
+
   const token = extractBearerToken(req);
   if (!token) {
     logger.warn("auth rejected: missing token", { method: req.method, path: req.path });
+    res.set("WWW-Authenticate", `Bearer ${resourceMetadata}`);
     res.status(401).json({ error: "Missing Authorization header" });
     return;
   }
@@ -206,6 +298,7 @@ async function handleMcp(req: express.Request, res: express.Response): Promise<v
     decoded = validateJWT(token);
   } catch (e) {
     logger.warn("auth rejected: invalid token", { error: (e as Error).message });
+    res.set("WWW-Authenticate", `Bearer error="invalid_token", ${resourceMetadata}`);
     res.status(401).json({ error: "Invalid or expired token" });
     return;
   }

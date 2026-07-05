@@ -53,7 +53,7 @@ Claude calls a tool:
     → Returns data → MCP server returns tool result → Claude uses in response
 ```
 
-No credential storage on the server. No refresh token management. The JWT lives in Claude.ai's session, valid for the session lifetime. Auth0 handles re-auth when it expires.
+No credential storage on the server. Access tokens are 1-hour stateless JWTs. Alongside each access token the server issues a long-lived refresh token (default 30 days, sliding) so Claude.ai can renew silently via `grant_type=refresh_token` without prompting for login. The refresh token is itself a stateless signed JWT: it carries the Auth0 refresh token in an AES-256-GCM-encrypted `a0rt` claim (key derived from the Hasura JWT secret via HKDF), uses a distinct audience (`food-diary-mcp-refresh`) so it can never be replayed as an access token, and requires no server-side storage — deploys and restarts don't invalidate it. Each refresh round-trips Auth0's token endpoint (so revoking the Auth0 grant kills access) and returns a re-wrapped refresh token, which also makes Auth0 refresh-token rotation work transparently.
 
 ---
 
@@ -68,6 +68,12 @@ The current Auth0 application is a SPA (PKCE, no client secret). Claude.ai's OAu
 **Conclusion for now**: start by reusing the existing app (just add the callback URL). Create a second app later if you want cleaner separation.
 
 The Claude.ai connector callback URL is provided in the connector setup flow — typically `https://claude.ai/oauth/callback`. Add it to the existing app's Allowed Callback URLs in the Auth0 dashboard.
+
+**Refresh token checklist (required for silent renewal — without these, Claude prompts for re-login every hour):**
+
+1. **API** (`https://direct-satyr-14.hasura.app/v1/graphql`) → Settings → enable **"Allow Offline Access"**. Without this, Auth0 silently drops the `offline_access` scope, returns no refresh token, and the server degrades to access-token-only (today's hourly re-auth behavior) — so this can be flipped on before or after deploying the code.
+2. **Application** → Settings → Advanced Settings → Grant Types → ensure **Refresh Token** is checked.
+3. **Application** → Refresh Token Rotation/Expiration: rotation on or off both work (the server re-wraps whatever token Auth0 returns). If rotation is on, set a reuse interval of ~10–30 seconds to tolerate request races. Set idle/absolute lifetimes ≥ 30 days (the server's refresh-token TTL), or accept that Auth0 expiry forces a re-login first — either way the failure mode is a clean `invalid_grant` and Claude re-runs the login flow.
 
 ---
 
@@ -146,6 +152,7 @@ HASURA_GRAPHQL_URL=https://direct-satyr-14.hasura.app/v1/graphql
 HASURA_GRAPHQL_JWT_SECRET={"type":"HS256","key":"<secret>"}
 AUTH0_AUDIENCE=https://direct-satyr-14.hasura.app/v1/graphql
 PORT=3032
+REFRESH_TOKEN_TTL=30d   # optional; lifetime of issued refresh tokens (jsonwebtoken duration format)
 ```
 
 Reuses the JWT secret already in the cluster's secret store. No admin secret. No user credentials. The user's JWT comes from Claude.ai's session on each request and is used for both JWT validation and Hasura calls.
@@ -183,7 +190,7 @@ Claude.ai detects the MCP server requires OAuth (via the `/.well-known/oauth-pro
 
 ### Every subsequent use
 
-Claude.ai presents the stored JWT on each tool call. The MCP server validates it and calls Hasura. When the JWT expires, Claude.ai re-auths with Auth0 transparently (or prompts you to re-authorize, depending on the session length).
+Claude.ai presents the stored JWT on each tool call. The MCP server validates it and calls Hasura. When the 1-hour access token expires, the server's 401 carries a `WWW-Authenticate` header pointing at the OAuth metadata, and Claude.ai silently exchanges its refresh token at `/token` (`grant_type=refresh_token`) for a fresh access token — the server renews the upstream Auth0 token in the same exchange and hands back a re-wrapped refresh token. No login prompt. A full interactive re-authorization is only needed if the refresh token itself expires (default 30 days idle), the Auth0 grant is revoked, or Auth0's refresh-token lifetime is exceeded.
 
 ### Using it in Claude
 
