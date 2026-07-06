@@ -12,6 +12,7 @@ import { useAuth } from "./Auth0";
 import { parseAndFormatTime, parseAndFormatDay, pluralize } from "./Util";
 import DateBadge from "./DateBadge";
 import ButtonLink from "./ButtonLink";
+import PullToRefresh from "./PullToRefresh";
 import CircleProgress from "./CircleProgress";
 import { useNutritionTargets } from "./NutritionTargets";
 import {
@@ -93,7 +94,7 @@ const DiaryList: Component = () => {
     startOfDay(subDays(now, PAGE_DAYS - 1 + page * PAGE_DAYS)).toISOString();
 
   const [page, setPage] = createSignal(0);
-  const [getEntriesQuery, { mutate }] = createAuthorizedResource(
+  const [getEntriesQuery, { mutate, refetch }] = createAuthorizedResource(
     page,
     (token: string, pageNumber: number) =>
       fetchEntries(
@@ -108,9 +109,10 @@ const DiaryList: Component = () => {
   const sevenDaysAgoStart = startOfDay(subDays(now, 7)).toISOString();
   const fourWeeksAgoStart = startOfDay(subWeeks(now, 4)).toISOString();
 
-  const [weeklyStatsQuery] = createAuthorizedResource((token: string) =>
-    fetchWeeklyStats(token, sevenDaysAgoStart, todayStart, fourWeeksAgoStart),
-  );
+  const [weeklyStatsQuery, { refetch: refetchWeeklyStats }] =
+    createAuthorizedResource((token: string) =>
+      fetchWeeklyStats(token, sevenDaysAgoStart, todayStart, fourWeeksAgoStart),
+    );
 
   // Rolling 7-day window for consistent daily average
   const currentWeekDays = 7;
@@ -135,8 +137,10 @@ const DiaryList: Component = () => {
     );
   };
 
+  const refresh = () => Promise.all([refetch(), refetchWeeklyStats()]);
+
   return (
-    <>
+    <PullToRefresh onRefresh={refresh}>
       <div class="flex space-x-4 mb-4">
         <ButtonLink href="/diary_entry/new">Add New Entry</ButtonLink>
         <ButtonLink href="/nutrition_item/new">Add Item</ButtonLink>
@@ -311,7 +315,7 @@ const DiaryList: Component = () => {
           </button>
         </Show>
       </div>
-    </>
+    </PullToRefresh>
   );
 };
 
