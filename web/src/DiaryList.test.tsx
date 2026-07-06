@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@solidjs/testing-library";
+import { render, screen, waitFor, fireEvent } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "./test-setup";
@@ -818,6 +818,70 @@ describe("DiaryList", () => {
     });
     expect(screen.queryByText("Older Meal")).toBeFalsy();
     expect(screen.queryByText(/Next Week/)).toBeFalsy();
+  });
+
+  it("should refetch entries when pulled to refresh", async () => {
+    let entriesRequests = 0;
+
+    server.use(
+      http.post("/api/v1/graphql", async ({ request }) => {
+        const body = (await request.json()) as { query?: string };
+        if (body.query?.includes("GetEntries")) {
+          entriesRequests += 1;
+          if (entriesRequests === 1) {
+            return HttpResponse.json({
+              data: { food_diary_diary_entry: [] },
+            });
+          }
+          return HttpResponse.json({
+            data: {
+              food_diary_diary_entry: [
+                {
+                  id: 1,
+                  consumed_at: new Date().toISOString(),
+                  servings: 1,
+                  calories: 95,
+                  nutrition_item: {
+                    id: 1,
+                    description: "Apple",
+                    calories: 95,
+                    protein_grams: 0.5,
+                    added_sugars_grams: 0,
+                    total_fat_grams: 0.3,
+                    dietary_fiber_grams: 2.4,
+                  },
+                  recipe: null,
+                },
+              ],
+            },
+          });
+        }
+        return HttpResponse.json({
+          data: {
+            current_week: { aggregate: { sum: { calories: 0 } } },
+            past_four_weeks: { aggregate: { sum: { calories: 0 } } },
+          },
+        });
+      }),
+    );
+
+    render(() => <DiaryList />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No entries this week.")).toBeTruthy();
+    });
+
+    // Simulate a pull-down gesture from the top of the page past the
+    // refresh threshold (finger movement is damped by half).
+    const container = screen.getByTestId("pull-to-refresh");
+    fireEvent.touchStart(container, { touches: [{ clientY: 0 }] });
+    fireEvent.touchMove(container, { touches: [{ clientY: 200 }] });
+    fireEvent.touchEnd(container);
+
+    await waitFor(() => {
+      expect(screen.getByText("Apple")).toBeTruthy();
+    });
+    expect(entriesRequests).toBe(2);
   });
 
   it("should sort entries by time within a day", async () => {
