@@ -45,6 +45,20 @@ struct ProfileView: View {
                     .buttonStyle(.webLink)
             }
 
+            if viewModel.supportsOnDeviceLLM {
+                Section("On-device LLM") {
+                    Toggle(
+                        "Use on-device LLM",
+                        isOn: Binding(
+                            get: { viewModel.useOnDeviceLLM },
+                            set: { viewModel.setUseOnDeviceLLM($0) }))
+
+                    if viewModel.useOnDeviceLLM, let manager = viewModel.onDeviceModelManager {
+                        onDeviceModelControls(manager)
+                    }
+                }
+            }
+
             #if DEBUG
             Section("Developer") {
                 if viewModel.isUsingCustomBackend {
@@ -71,5 +85,29 @@ struct ProfileView: View {
         }
         .webListStyle()
         .navigationTitle("Profile")
+    }
+
+    @ViewBuilder
+    private func onDeviceModelControls(_ manager: OnDeviceModelManager) -> some View {
+        switch manager.state {
+        case .notDownloaded:
+            Button("Download model (2.6 GB)") {
+                Task { await manager.download() }
+            }
+        case .downloading(let progress):
+            ProgressView(value: progress)
+            Text("Downloading model…").foregroundStyle(.secondary)
+        case .ready:
+            Text("Model ready").foregroundStyle(.secondary)
+            Button("Delete model (frees 2.6 GB)", role: .destructive) {
+                manager.deleteModel()
+                viewModel.setUseOnDeviceLLM(false)
+            }
+        case .failed(let message):
+            Text("Download failed: \(message)").foregroundStyle(.red)
+            Button("Retry Download") {
+                Task { await manager.download() }
+            }
+        }
     }
 }

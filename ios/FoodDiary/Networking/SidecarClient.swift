@@ -66,21 +66,7 @@ struct SidecarClient: NutritionAutofillClient {
 
         let envelope = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? nil
         let item = (envelope?["item"] as? [String: Any]) ?? [:]
-        return NutritionItemInput(
-            description: string(item, "description"),
-            calories: number(item, "calories"),
-            totalFatGrams: number(item, "total_fat_grams"),
-            saturatedFatGrams: number(item, "saturated_fat_grams"),
-            transFatGrams: number(item, "trans_fat_grams"),
-            polyunsaturatedFatGrams: number(item, "polyunsaturated_fat_grams"),
-            monounsaturatedFatGrams: number(item, "monounsaturated_fat_grams"),
-            cholesterolMilligrams: number(item, "cholesterol_milligrams"),
-            sodiumMilligrams: number(item, "sodium_milligrams"),
-            totalCarbohydrateGrams: number(item, "total_carbohydrate_grams"),
-            dietaryFiberGrams: number(item, "dietary_fiber_grams"),
-            totalSugarsGrams: number(item, "total_sugars_grams"),
-            addedSugarsGrams: number(item, "added_sugars_grams"),
-            proteinGrams: number(item, "protein_grams"))
+        return NutritionJSONMapping.parse(item)
     }
 
     /// `POST /labeller/upload` multipart `{ image: <jpeg> }` ->
@@ -124,20 +110,20 @@ struct SidecarClient: NutritionAutofillClient {
         let envelope = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? nil
         let image = (envelope?["image"] as? [String: Any]) ?? [:]
         return NutritionItemInput(
-            description: string(image, "description"),
-            calories: number(image, "calories"),
-            totalFatGrams: number(image, "total_fat_grams"),
+            description: JSONFieldCoercion.string(image, "description"),
+            calories: JSONFieldCoercion.number(image, "calories"),
+            totalFatGrams: JSONFieldCoercion.number(image, "total_fat_grams"),
             saturatedFatGrams: 0,
             transFatGrams: 0,
             polyunsaturatedFatGrams: 0,
             monounsaturatedFatGrams: 0,
-            cholesterolMilligrams: number(image, "cholesterol_mg"),
-            sodiumMilligrams: number(image, "sodium_mg"),
-            totalCarbohydrateGrams: number(image, "total_carbohydrates_g"),
-            dietaryFiberGrams: number(image, "dietary_fiber_g"),
-            totalSugarsGrams: number(image, "total_sugars_g"),
-            addedSugarsGrams: number(image, "added_sugars_g"),
-            proteinGrams: number(image, "protein_g"))
+            cholesterolMilligrams: JSONFieldCoercion.number(image, "cholesterol_mg"),
+            sodiumMilligrams: JSONFieldCoercion.number(image, "sodium_mg"),
+            totalCarbohydrateGrams: JSONFieldCoercion.number(image, "total_carbohydrates_g"),
+            dietaryFiberGrams: JSONFieldCoercion.number(image, "dietary_fiber_g"),
+            totalSugarsGrams: JSONFieldCoercion.number(image, "total_sugars_g"),
+            addedSugarsGrams: JSONFieldCoercion.number(image, "added_sugars_g"),
+            proteinGrams: JSONFieldCoercion.number(image, "protein_g"))
     }
 
     private func multipartBody(boundary: String, imageData: Data) -> Data {
@@ -157,15 +143,5 @@ struct SidecarClient: NutritionAutofillClient {
             return error
         }
         return "HTTP \(statusCode) \(HTTPURLResponse.localizedString(forStatusCode: statusCode))"
-    }
-
-    private func string(_ dict: [String: Any], _ key: String) -> String {
-        dict[key] as? String ?? ""
-    }
-
-    private func number(_ dict: [String: Any], _ key: String) -> Double {
-        if let value = dict[key] as? Double { return value }
-        if let value = dict[key] as? Int { return Double(value) }
-        return 0
     }
 }

@@ -25,6 +25,7 @@ out-of-band setup.
 | [`phase-3-native-capture.md`](phase-3-native-capture.md) | §11 Phase 3 (label scan + LLM autofill) | Phase 3 |
 | [`phase-4-data-portability.md`](phase-4-data-portability.md) | §11 Phase 4 (CSV import/export) | Phase 4 |
 | [`phase-5-platform-polish.md`](phase-5-platform-polish.md) | §11 Phase 5 (iPad, cache, widgets, HealthKit, App Store) | Phase 5+ |
+| [`phase-6-on-device-llm.md`](phase-6-on-device-llm.md) | Extends §11 Phase 3 / §4.4 with an on-device Gemma 4 E2B path (not yet in the PRD) | Phase 6 |
 
 ## Locked decisions (from PRD §2) that constrain every plan
 
@@ -37,6 +38,8 @@ out-of-band setup.
   state moved server-side (§9).
 - Single `NavigationStack` rooted at the diary list; toolbar menu for add/profile.
 - iPhone-only, portrait-first. Backend base URL switchable via build config.
+- **Zero third-party dependencies** is waived once, for Phase 6 only, to add
+  `google-ai-edge/LiteRT-LM` (no on-device path to Gemma 4 on iOS otherwise).
 
 ## Suggested execution order
 
