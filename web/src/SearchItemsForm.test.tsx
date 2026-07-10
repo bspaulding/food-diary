@@ -123,6 +123,51 @@ describe("SearchItemsForm", () => {
     });
   });
 
+  it("should clear the search text when the clear button is clicked", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.post("*/api/v1/graphql", async () => {
+        return HttpResponse.json({
+          data: {
+            food_diary_search_nutrition_items: [
+              { id: 1, description: "Test Item" },
+            ],
+            food_diary_search_recipes: [],
+          },
+        });
+      }),
+    );
+
+    render(() => (
+      <SearchItemsForm>
+        {({ nutritionItem, recipe }) => (
+          <li>{nutritionItem?.description || recipe?.name}</li>
+        )}
+      </SearchItemsForm>
+    ));
+
+    const searchInput = screen.getByPlaceholderText(
+      "Search Previous Items",
+    ) as HTMLInputElement;
+
+    expect(screen.queryByLabelText("Clear search")).toBeNull();
+
+    await user.type(searchInput, "test");
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Clear search")).toBeTruthy();
+    });
+
+    await user.click(screen.getByLabelText("Clear search"));
+
+    expect(searchInput.value).toBe("");
+    expect(screen.queryByLabelText("Clear search")).toBeNull();
+    expect(
+      screen.getByText("Search for an item or recipe you've previously added."),
+    ).toBeTruthy();
+  });
+
   it("should use ItemsOnly query type when specified", async () => {
     const user = userEvent.setup();
     let queryCalled = false;
