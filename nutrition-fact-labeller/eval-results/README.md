@@ -23,10 +23,10 @@ Harnesses:
 | 2026-07-11 01:42 | `7745229` | MiniCPM-V-4.6-Q4_K_M | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-11-minicpm-v-4.6-q4_k_m.md](2026-07-11-minicpm-v-4.6-q4_k_m.md) |
 | 2026-07-11 03:15 | `a1db43e` | MiniCPM-V-4.6-Q4_K_M | OCR-only, original line-based parser | 0/33 | ▼ −9 | [2026-07-11-minicpm-v-4.6-ocr-only.md](2026-07-11-minicpm-v-4.6-ocr-only.md) |
 | 2026-07-11 17:11 | `0003ea0` | MiniCPM-V-4.6-Q4_K_M | OCR-only, resilient parser (blob fallback) | **11/33** | **▲ +2** | [2026-07-11-minicpm-v-4.6-ocr-only.md](2026-07-11-minicpm-v-4.6-ocr-only.md) |
-| _pending_ | _pending_ | SmolVLM-256M-Instruct-Q8_0 | Full JSON extraction | _pending_ | | |
-| _pending_ | _pending_ | SmolVLM-500M-Instruct-Q8_0 | Full JSON extraction | _pending_ | | |
-| _pending_ | _pending_ | SmolVLM-256M-Instruct-Q8_0 | OCR-only, resilient parser | _pending_ | | |
-| _pending_ | _pending_ | SmolVLM-500M-Instruct-Q8_0 | OCR-only, resilient parser | _pending_ | | |
+| 2026-07-11 17:53 | `cd37241` | SmolVLM-256M-Instruct-Q8_0 | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
+| 2026-07-11 17:53 | `cd37241` | SmolVLM-500M-Instruct-Q8_0 | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
+| 2026-07-11 18:08 | `cd37241` | SmolVLM-256M-Instruct-Q8_0 | OCR-only, resilient parser | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
+| 2026-07-11 18:08 | `cd37241` | SmolVLM-500M-Instruct-Q8_0 | OCR-only, resilient parser | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
 | — | — | PaddleOCR (baseline) | OCR + regex, unmodified | 9/33 | = | not independently re-verified here; see caveat above |
 
 Commit = the code state the run was actually executed against (usually the commit that lands
@@ -66,6 +66,20 @@ right after the run, since reports are written and committed once results are in
    and the 33-case test set is far too small to fine-tune on directly (and using it as training
    data would remove the only eval set available). Worth revisiting only if structured-output /
    coercion fixes for issue #1 leave a value-*accuracy* gap rather than a formatting gap.
+
+5. **Model-size capability cliff, not just a formatting problem.** SmolVLM-256M/500M scored 0/33 on
+   *both* approaches, but not for MiniCPM's reasons. On full-JSON extraction they invent their own
+   nested JSON structure instead of following the requested flat schema (a shape failure, not a
+   type failure). On OCR-only they either caption/describe the label in prose instead of
+   transcribing it verbatim, or fall into a degenerate repetition loop (e.g. "110 calories per
+   serving." repeated ~60 times) until hitting the token budget. Neither failure mode is something
+   `fill_gaps_from_blob` or a JSON coercion layer can fix — there's no real content to recover.
+   Conclusion: below some model-size threshold between SmolVLM (256M/500M) and MiniCPM-V 4.6
+   (~8B), instruction-following for "transcribe verbatim" / "match this exact schema" breaks down
+   entirely, not just gets formatted wrong. Worth testing something in between — dedicated small
+   OCR/document models (PaddleOCR-VL-0.9B, LightOnOCR-2-1B, GLM-OCR-0.9B) or LFM2-VL-450M are
+   likely better bets than another general-purpose chat VLM at a similar size, since they're
+   trained specifically for dense-text transcription rather than captioning/chat.
 
 ## Adding a new model to this table
 
