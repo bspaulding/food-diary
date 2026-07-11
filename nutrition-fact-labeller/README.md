@@ -58,16 +58,29 @@ VLM_MMPROJ_PATH=nutrition-fact-labeller/vlm-models/gemma-4-e2b/mmproj-F16.gguf
 
 If no VLM env vars are set, the service starts in OCR-only mode.
 
-### VLM Benchmark
+### VLM Benchmarks
 
-`src/bin/vlm_benchmark.rs` runs local llama.cpp VLM backends against `test_cases.csv` / `images/`
-and compares against the PaddleOCR baseline:
+Two harnesses run local llama.cpp VLM backends against `test_cases.csv` / `images/` and compare
+against the PaddleOCR baseline. Past results are recorded in [`eval-results/`](eval-results/).
+
+`src/bin/vlm_benchmark.rs` — the VLM does the full image → structured JSON extraction itself:
 
 ```bash
 cargo run --release --bin vlm_benchmark -- \
   --model /path/to/model.gguf \
   --mmproj /path/to/mmproj.gguf \
   --model-name "my-model" \
+  --threads 4
+```
+
+`src/bin/vlm_ocr_benchmark.rs` — the VLM is used purely as an OCR engine (image → transcribed
+text), and its output is fed through the same regex/spellcheck parser the PaddleOCR backend uses:
+
+```bash
+cargo run --release --bin vlm_ocr_benchmark -- \
+  --model /path/to/model.gguf \
+  --mmproj /path/to/mmproj.gguf \
+  --model-name "my-model-ocr" \
   --threads 4
 ```
 
