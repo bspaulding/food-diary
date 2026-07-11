@@ -10,11 +10,21 @@ Harnesses:
 - `cargo run --release --bin vlm_benchmark` — VLM does the full image → structured JSON extraction.
 - `cargo run --release --bin vlm_ocr_benchmark` — VLM is used purely as OCR; output goes through
   the shared `parsing::parse_facts_from_lines` regex/spellcheck parser (same one PaddleOCR uses).
+  Both binaries accept `--limit N` to cap the number of images processed (useful for a quick smoke
+  test — see below).
 - PaddleOCR baseline — the default non-LLM backend (`run_ocr_rgb` + `parse_facts_from_regions` in
   `main.rs`), scored via the `check_test_cases` test. **Not independently re-verified in this
   environment** — that test needs local PaddleOCR ONNX model weight files
   (`paddleocr-models/*.onnx`) that aren't present in this sandbox. The 9/33 baseline figure is
   taken from the pre-existing `BASELINE_PASS`/`BASELINE_TOTAL` constants in `vlm_benchmark.rs`.
+
+**Model manifest:** [`models.toml`](../models.toml) is the single source of truth for every model
+this project is tracking — HF repo, filenames, confirmed llama.cpp projector-type support, and
+notes/status per model. `scripts/fetch-model.sh <key>` downloads a model's files from the
+manifest; `scripts/run-eval.sh <key> [--smoke [N]]` fetches (if needed) and runs both harnesses.
+`--smoke` runs just 2 images (or N) to verify a model loads and produces real output without
+committing to a full 33-image run — see "Smoke-tested, not yet fully evaluated" below for models
+that are ready for a full run whenever compute allows.
 
 ## Results
 
@@ -31,6 +41,33 @@ Harnesses:
 
 Commit = the code state the run was actually executed against (usually the commit that lands
 right after the run, since reports are written and committed once results are in hand).
+
+## Smoke-tested, not yet fully evaluated
+
+These 9 models (see `models.toml` for full details, HF repos, and per-model notes) were verified
+to load and run via `scripts/run-eval.sh <key> --smoke` (2 images, OCR-only harness) on 2026-07-11
+at commit `6b14913`, but **no full 33-image eval has been run for any of them** — that's next, on
+faster hardware. Ranked by smoke-test signal:
+
+| Model | Size | Category | Smoke result | Signal |
+|---|---|---|---|---|
+| LightOnOCR-1B-1025 | 1B | dedicated OCR | 1/2 pass, clean bilingual markdown-table transcription | 🟢 strong |
+| GLM-OCR | 0.9B | dedicated OCR | 1/2 pass, other miss off by exactly 1 field (label-layout edge case) | 🟢 strong |
+| LFM2.5-VL-1.6B | 1.6B | general | 1/2 pass, solid bilingual transcription | 🟢 strong |
+| InternVL3-1B-Instruct | 1B | general | 1/2 pass, other degrades into repetition partway through | 🟡 mixed |
+| GLM-Edge-V-2B | 2B | general | 1/2 pass, other miss summarizes in prose instead of transcribing | 🟡 mixed |
+| LFM2-VL-450M | 450M | general | 0/2, but real/mostly-accurate transcription | 🟡 mixed |
+| PaddleOCR-VL-0.9B | 0.9B | dedicated OCR | 0/2, degenerate "Only text." repetition — likely a chat-template gap, not capability (see notes) | 🟡 inconclusive |
+| Qwen2-VL-2B-Instruct | 2B | general | 0/2, emits grounding/bbox tokens instead of text — likely a prompt-wording issue (see notes) | 🟡 inconclusive |
+| moondream2 | 1.9B | general | 0/2, explicitly refuses to transcribe in prose | 🔴 weak |
+
+None of these crashed or hit an `unknown projector type` error — all 9 vision projector types
+(`paddleocr`, `lightonocr`, `glm4v`, `lfm2` ×2, `mlp`, `internvl`, `qwen2vl_merger`, `adapter`) are
+confirmed supported by the vendored llama.cpp. Suggested order for the full run: LightOnOCR-1B,
+GLM-OCR, and LFM2.5-VL-1.6B first (clearest positive signal), then the "mixed" tier, then
+PaddleOCR-VL and Qwen2-VL-2B only after trying the prompt/template fixes noted in `models.toml`
+(their smoke failures look environmental rather than capability-based), with moondream2 lowest
+priority given its outright refusal behavior.
 
 ## Known issues (synthesized across runs — update as new patterns show up)
 
@@ -83,13 +120,19 @@ right after the run, since reports are written and committed once results are in
 
 ## Adding a new model to this table
 
-1. Download the model + mmproj GGUF (must have `llama.cpp` mtmd support for the model's vision
-   projector type — check `llama-cpp-sys-2`'s vendored `clip-impl.h` `PROJECTOR_TYPE_NAMES` if
-   unsure, or just try it and read the `unknown projector type: ...` error if it fails).
-2. Run `vlm_benchmark` and/or `vlm_ocr_benchmark` (see harness commands above) from
-   `nutrition-fact-labeller/`.
-3. Note `git rev-parse HEAD` (short form is fine) and the current UTC time.
-4. Write a dated report (`eval-results/YYYY-MM-DD-<model>-<approach>.md`) following the existing
+1. Add a `[models.<key>]` entry to [`models.toml`](../models.toml) with the HF repo and exact
+   model/mmproj filenames (check the repo's file listing). Note the vision projector type if you
+   can find it — check `llama-cpp-sys-2`'s vendored `clip-impl.h` `PROJECTOR_TYPE_NAMES` map for
+   whether it's supported at all; if unsure, just try it and read the `unknown projector type:
+   ...` error if it fails, or the `load_hparams: projector: <name>` line it logs on success.
+2. `./scripts/run-eval.sh <key> --smoke` first — cheap (2 images), confirms the model loads and
+   produces real output before committing to a full run. Update the model's `status` and `notes`
+   in `models.toml` with what you saw (see the "Smoke-tested" entries above for the expected
+   level of detail), and add a row to the smoke-test table above if it's a new model.
+3. `./scripts/run-eval.sh <key>` for the full 33-image run once you're ready to commit the compute.
+4. Note `git rev-parse HEAD` (short form is fine) and the current UTC time.
+5. Write a dated report (`eval-results/YYYY-MM-DD-<model>-<approach>.md`) following the existing
    reports' structure: Result table, Diagnosis of failure modes, Takeaway, How to re-run.
-5. Append a row to the Results table above, and fold any newly-discovered failure pattern into
-   Known Issues (or update an existing entry if it's the same root cause recurring).
+6. Append a row to the Results table above (and remove it from the "Smoke-tested, not yet fully
+   evaluated" table), and fold any newly-discovered failure pattern into Known Issues (or update
+   an existing entry if it's the same root cause recurring).

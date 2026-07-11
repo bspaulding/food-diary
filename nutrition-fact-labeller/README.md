@@ -65,6 +65,20 @@ against the PaddleOCR baseline. Past results are tracked in the living summary a
 [`eval-results/README.md`](eval-results/README.md) — check it before re-running an eval someone
 else already ran, and add to it after any new run.
 
+The easiest way to run either harness is via [`models.toml`](models.toml) — a manifest of every
+model this project tracks (HF repo, filenames, confirmed llama.cpp support, notes) — and the
+scripts that key off it:
+
+```bash
+./scripts/fetch-model.sh <key>            # download a model listed in models.toml
+./scripts/run-eval.sh <key> --smoke       # quick 2-image smoke test (does it load and run?)
+./scripts/run-eval.sh <key>               # full 33-image eval, both harnesses
+```
+
+To add a new model, add a `[models.<key>]` entry to `models.toml` and run the two commands above.
+
+Both binaries can also be run directly with explicit paths, if you're not using the manifest:
+
 `src/bin/vlm_benchmark.rs` — the VLM does the full image → structured JSON extraction itself:
 
 ```bash
@@ -72,7 +86,8 @@ cargo run --release --bin vlm_benchmark -- \
   --model /path/to/model.gguf \
   --mmproj /path/to/mmproj.gguf \
   --model-name "my-model" \
-  --threads 4
+  --threads 4 \
+  --limit 2  # optional: cap the number of images for a quick smoke test
 ```
 
 `src/bin/vlm_ocr_benchmark.rs` — the VLM is used purely as an OCR engine (image → transcribed
@@ -83,10 +98,9 @@ cargo run --release --bin vlm_ocr_benchmark -- \
   --model /path/to/model.gguf \
   --mmproj /path/to/mmproj.gguf \
   --model-name "my-model-ocr" \
-  --threads 4
+  --threads 4 \
+  --limit 2  # optional
 ```
-
-Past results are recorded in [`eval-results/`](eval-results/).
 
 ### Run
 
