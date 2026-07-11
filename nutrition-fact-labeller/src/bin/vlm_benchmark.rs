@@ -30,6 +30,12 @@ struct Args {
     /// Number of CPU threads for inference.
     #[arg(long, default_value_t = 4)]
     threads: i32,
+
+    /// Only run the first N test cases (e.g. --limit 2 for a quick smoke test that a
+    /// model loads and produces output, without running the full suite). Baseline
+    /// comparison is skipped when this is set, since it's only meaningful over all 33.
+    #[arg(long)]
+    limit: Option<usize>,
 }
 
 const BASELINE_PASS: usize = 9;
@@ -88,8 +94,13 @@ fn main() -> anyhow::Result<()> {
         anyhow::bail!("Provide at least one --model / --mmproj pair");
     }
 
-    let cases = load_test_cases(&args.csv);
-    println!("Loaded {} test cases", cases.len());
+    let mut cases = load_test_cases(&args.csv);
+    if let Some(limit) = args.limit {
+        cases.truncate(limit);
+        println!("Loaded {} test cases (--limit {limit}: smoke test, not a full eval)", cases.len());
+    } else {
+        println!("Loaded {} test cases", cases.len());
+    }
 
     let mut results: Vec<BenchResult> = Vec::new();
 
@@ -118,16 +129,22 @@ fn main() -> anyhow::Result<()> {
     println!("\n{}", "─".repeat(55));
     println!("{:<32} {:>5} {:>5}  {}", "Model", "Pass", "Fail", "Score");
     println!("{}", "─".repeat(55));
-    println!(
-        "{:<32} {:>5} {:>5}  {}/{} (baseline)",
-        "PaddleOCR",
-        BASELINE_PASS,
-        BASELINE_TOTAL - BASELINE_PASS,
-        BASELINE_PASS,
-        BASELINE_TOTAL,
-    );
+    if args.limit.is_some() {
+        println!("(baseline comparison skipped: --limit was set, this isn't a full run)");
+    } else {
+        println!(
+            "{:<32} {:>5} {:>5}  {}/{} (baseline)",
+            "PaddleOCR",
+            BASELINE_PASS,
+            BASELINE_TOTAL - BASELINE_PASS,
+            BASELINE_PASS,
+            BASELINE_TOTAL,
+        );
+    }
     for r in &results {
-        let vs_baseline = if r.pass > BASELINE_PASS {
+        let vs_baseline = if args.limit.is_some() {
+            String::new()
+        } else if r.pass > BASELINE_PASS {
             format!(" ▲ +{}", r.pass - BASELINE_PASS)
         } else if r.pass < BASELINE_PASS {
             format!(" ▼ -{}", BASELINE_PASS - r.pass)
