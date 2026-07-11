@@ -45,19 +45,31 @@ const SearchItemsForm: Component<Props> = (props: Props) => {
 
   return (
     <section class="flex flex-col mt-5">
-      <input
-        class="border rounded px-2 text-lg"
-        type="search"
-        placeholder="Search Previous Items"
-        name="entry-item-search"
-        onInput={debounce((event: InputEvent): void => {
-          const target = event.target;
-          if (target instanceof HTMLInputElement) {
-            setSearch(target.value);
-          }
-        }, 500)}
-        value={search()}
-      />
+      <div class="relative">
+        <input
+          class="border rounded px-2 pr-8 text-lg w-full"
+          type="search"
+          placeholder="Search Previous Items"
+          name="entry-item-search"
+          onInput={debounce((event: InputEvent): void => {
+            const target = event.target;
+            if (target instanceof HTMLInputElement) {
+              setSearch(target.value);
+            }
+          }, 500)}
+          value={search()}
+        />
+        <Show when={search().length}>
+          <button
+            type="button"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xl leading-none"
+            onClick={clear}
+            aria-label="Clear search"
+          >
+            ✕
+          </button>
+        </Show>
+      </div>
       <div class="px-1">
         <Show when={!search().length}>
           <p class="text-center mt-4 text-slate-400">
