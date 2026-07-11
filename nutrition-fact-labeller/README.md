@@ -61,7 +61,9 @@ If no VLM env vars are set, the service starts in OCR-only mode.
 ### VLM Benchmarks
 
 Two harnesses run local llama.cpp VLM backends against `test_cases.csv` / `images/` and compare
-against the PaddleOCR baseline. Past results are recorded in [`eval-results/`](eval-results/).
+against the PaddleOCR baseline. Past results are tracked in the living summary at
+[`eval-results/README.md`](eval-results/README.md) — check it before re-running an eval someone
+else already ran, and add to it after any new run.
 
 `src/bin/vlm_benchmark.rs` — the VLM does the full image → structured JSON extraction itself:
 
