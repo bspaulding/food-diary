@@ -13,7 +13,7 @@ use llama_cpp_2::mtmd::{mtmd_default_marker, MtmdBitmap, MtmdContext, MtmdContex
 use llama_cpp_2::sampling::LlamaSampler;
 
 use crate::{ParsedNutritionFacts, VlmBackend};
-use super::{extract_json, NUTRITION_PROMPT};
+use super::{extract_json, NUTRITION_PROMPT, OCR_TRANSCRIBE_PROMPT};
 
 /// A VLM backend for LLaVA-style GGUF models (moondream2, llava-phi3, etc.).
 /// Loads the model once and creates fresh contexts per inference call.
@@ -47,12 +47,11 @@ impl LlavaBackend {
     }
 }
 
-impl VlmBackend for LlavaBackend {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn infer(&self, image_path: &Path) -> anyhow::Result<ParsedNutritionFacts> {
+impl LlavaBackend {
+    /// Runs the model on `image_path` with the given text prompt and returns the raw
+    /// generated text (up to 512 tokens, greedy sampling). Shared by `infer` (which
+    /// expects JSON back) and `transcribe` (which expects raw label text back).
+    fn generate(&self, image_path: &Path, prompt_text: &str) -> anyhow::Result<String> {
         let marker = mtmd_default_marker().to_string();
 
         // Load vision encoder
@@ -86,11 +85,8 @@ impl VlmBackend for LlavaBackend {
             .context("Failed to load image bitmap")?;
 
         // Build prompt: image marker + instruction
-        let prompt = format!("{marker}{NUTRITION_PROMPT}");
+        let prompt = format!("{marker}{prompt_text}");
 
-        // Try the model's built-in chat template; fall back to the Gemma 4 turn
-        // format if the embedded Jinja2 renderer can't handle it (e.g., Gemma 4's
-        // template uses features unsupported by llama.cpp's renderer).
         // Try the model's built-in chat template; fall back to raw prompt if the
         // embedded Jinja2 renderer can't handle it (e.g., Gemma 4's template uses
         // features unsupported by llama.cpp's renderer).
@@ -123,7 +119,7 @@ impl VlmBackend for LlavaBackend {
             .eval_chunks(&mtmd_ctx, &mut context, 0, 0, 1, true)
             .context("Failed to eval chunks")?;
 
-        // Decode (generate JSON output)
+        // Decode (generate output)
         let mut sampler = LlamaSampler::chain_simple([LlamaSampler::greedy()]);
         let mut output = String::new();
         let mut decoder = UTF_8.new_decoder();
@@ -145,6 +141,23 @@ impl VlmBackend for LlavaBackend {
             context.decode(&mut batch).context("decode failed")?;
         }
 
+        Ok(output)
+    }
+
+    /// Uses the model purely as an OCR engine: transcribes the label's visible text and
+    /// returns it raw (one line per line of output), without asking for or parsing JSON.
+    pub fn transcribe(&self, image_path: &Path) -> anyhow::Result<String> {
+        self.generate(image_path, OCR_TRANSCRIBE_PROMPT)
+    }
+}
+
+impl VlmBackend for LlavaBackend {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn infer(&self, image_path: &Path) -> anyhow::Result<ParsedNutritionFacts> {
+        let output = self.generate(image_path, NUTRITION_PROMPT)?;
         let json_str = extract_json(&output).unwrap_or(output.trim());
         serde_json::from_str::<ParsedNutritionFacts>(json_str)
             .with_context(|| format!("Failed to parse VLM JSON output:\n{output}"))
