@@ -2,6 +2,8 @@ use std::path::Path;
 
 use serde_derive::{Deserialize, Serialize};
 
+pub mod parsing;
+pub mod spellcheck;
 pub mod vlm;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
