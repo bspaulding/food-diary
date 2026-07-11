@@ -61,6 +61,8 @@ impl VlmBackend for LlavaBackend {
             print_timings: false,
             n_threads: self.n_threads,
             media_marker: CString::new(marker.clone())?,
+            image_min_tokens: -1,
+            image_max_tokens: -1,
         };
         let mtmd_ctx = MtmdContext::init_from_file(
             self.mmproj_path.to_str().context("mmproj path not valid UTF-8")?,
@@ -80,7 +82,7 @@ impl VlmBackend for LlavaBackend {
 
         // Load image as bitmap
         let image_str = image_path.to_str().context("Image path not valid UTF-8")?;
-        let bitmap = MtmdBitmap::from_file(&mtmd_ctx, image_str)
+        let bitmap = MtmdBitmap::from_file(&mtmd_ctx, image_str, false)
             .context("Failed to load image bitmap")?;
 
         // Build prompt: image marker + instruction

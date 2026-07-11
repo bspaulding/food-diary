@@ -58,6 +58,21 @@ VLM_MMPROJ_PATH=nutrition-fact-labeller/vlm-models/gemma-4-e2b/mmproj-F16.gguf
 
 If no VLM env vars are set, the service starts in OCR-only mode.
 
+### VLM Benchmark
+
+`src/bin/vlm_benchmark.rs` runs local llama.cpp VLM backends against `test_cases.csv` / `images/`
+and compares against the PaddleOCR baseline:
+
+```bash
+cargo run --release --bin vlm_benchmark -- \
+  --model /path/to/model.gguf \
+  --mmproj /path/to/mmproj.gguf \
+  --model-name "my-model" \
+  --threads 4
+```
+
+Past results are recorded in [`eval-results/`](eval-results/).
+
 ### Run
 
 ```bash
