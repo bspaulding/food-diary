@@ -63,7 +63,7 @@ echo "--- vlm_benchmark (full JSON extraction) ---"
     --model "$MODEL_PATH" --mmproj "$MMPROJ_PATH" \
     --model-name "$DISPLAY_NAME" \
     --threads "$THREADS" \
-    "${LIMIT_ARGS[@]}"
+    "${LIMIT_ARGS[@]+"${LIMIT_ARGS[@]}"}"
 
 echo
 echo "--- vlm_ocr_benchmark (OCR-only + resilient parser) ---"
@@ -71,4 +71,4 @@ echo "--- vlm_ocr_benchmark (OCR-only + resilient parser) ---"
     --model "$MODEL_PATH" --mmproj "$MMPROJ_PATH" \
     --model-name "${DISPLAY_NAME}-ocr" \
     --threads "$THREADS" \
-    "${LIMIT_ARGS[@]}"
+    "${LIMIT_ARGS[@]+"${LIMIT_ARGS[@]}"}"

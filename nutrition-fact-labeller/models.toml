@@ -71,7 +71,7 @@ model_file = "PaddleOCR-VL-1.6-GGUF.gguf"
 mmproj_file = "PaddleOCR-VL-1.6-GGUF-mmproj.gguf"
 projector_type = "paddleocr"
 category = "dedicated-ocr"
-status = "smoke-tested-ok"
+status = "evaluated"
 notes = """
 0.9B (NaViT vision encoder + ERNIE-4.5-0.3B). Direct descendant of the PaddleOCR
 engine we already use as the non-LLM baseline — a natural "upgrade path" test.
@@ -87,6 +87,13 @@ LlavaBackend only tries the model's *embedded* chat template (model.chat_templat
 with a raw-prompt fallback. Before a full run, worth checking whether this GGUF's
 embedded template is the issue (llava.rs may need a template override path for this
 model specifically) rather than writing this model off as a capability failure.
+FULL EVAL (2026-07-11/12, 33 images): 0/33 full-JSON, 3/33 OCR-only — both below the
+9/33 baseline. The "Only text." degenerate loop from the smoke test was the dominant
+failure mode at scale too, not a 2-image fluke. The templating fix suggested above was
+not attempted in this run — still worth trying before writing this model off, since it
+would explain a flat repetition collapse better than a genuine capability gap for a
+model this closely related to the baseline architecture. See
+eval-results/2026-07-12-dedicated-ocr-candidates-full-eval.md.
 """
 
 [models.lightonocr-1b]
@@ -96,7 +103,7 @@ model_file = "LightOnOCR-1B-1025-Q8_0.gguf"
 mmproj_file = "mmproj-LightOnOCR-1B-1025-Q8_0.gguf"
 projector_type = "lightonocr"
 category = "dedicated-ocr"
-status = "smoke-tested-ok"
+status = "evaluated"
 notes = """
 1B, end-to-end multilingual document OCR model. Upstream docs warn not to quantize
 the mmproj more aggressively than Q8_0/F16 — we already default to that.
@@ -105,6 +112,10 @@ SMOKE TEST (2026-07-11, --smoke, 2 images): loads and runs cleanly (projector
 to do so on the OCR-only harness in this smoke round. Transcribes into well-structured
 bilingual markdown tables (`| Sodium/Sodio 180mg | 8% | 11% |`) with accurate values.
 Top priority for the full 33-image run.
+FULL EVAL (2026-07-11/12, 33 images): 0/33 full-JSON, 6/33 OCR-only — well below the
+9/33 baseline and the largest smoke-vs-full discrepancy in this eval batch, despite
+being the top-priority pick from the smoke round. See
+eval-results/2026-07-12-dedicated-ocr-candidates-full-eval.md.
 """
 
 [models.glm-ocr]
@@ -114,7 +125,7 @@ model_file = "GLM-OCR-Q8_0.gguf"
 mmproj_file = "mmproj-GLM-OCR-Q8_0.gguf"
 projector_type = "glm4v"
 category = "dedicated-ocr"
-status = "smoke-tested-ok"
+status = "evaluated"
 notes = """
 0.9B, glm4 architecture. Released March 2026, tops OmniDocBench (94.62) among
 sub-2B document models per public benchmarks — the strongest specialized-OCR
@@ -126,6 +137,11 @@ word "Calories" next to its two calorie-count columns ("150"/"210" appear bare) 
 label-layout edge case, not a transcription error; every other field matched exactly
 including bilingual text and added-sugars. Alongside LightOnOCR-1B, top priority for
 the full 33-image run — reputation and smoke-test quality both point the same way.
+FULL EVAL (2026-07-11/12, 33 images): 1/33 full-JSON, **19/33 OCR-only** — the
+smoke-test signal held up and then some: this is the second-best result in the
+project's history, well above the 9/33 baseline and beating the previous OCR-only
+leader (MiniCPM-V 4.6, 11/33). The strongest dedicated-OCR candidate found so far.
+See eval-results/2026-07-12-dedicated-ocr-candidates-full-eval.md.
 """
 
 # --- Not yet evaluated: small general-purpose VLMs ---
@@ -139,7 +155,7 @@ model_file = "LFM2-VL-450M-Q8_0.gguf"
 mmproj_file = "mmproj-LFM2-VL-450M-Q8_0.gguf"
 projector_type = "lfm2"
 category = "general-small-vlm"
-status = "smoke-tested-ok"
+status = "evaluated"
 notes = """
 450M, Liquid AI's edge-first VLM line, named directly in ggml-org's own "using OCR
 models with llama.cpp" reference post as one of their small-model examples.
@@ -148,6 +164,10 @@ accepted). 0/2 pass, but the transcription is real and mostly accurate (bilingua
 text, most values correct) — the miss was largely a missed servings_per_container and
 a couple of merged-line issues our resilient parser didn't fully untangle at n=2.
 Promising for its size class; worth the full run.
+FULL EVAL (2026-07-11/12, 33 images): 2/33 full-JSON, 7/33 OCR-only — both below the
+9/33 baseline, matching the smoke test's "real but incomplete" characterization rather
+than its raw 0/2 number. See
+eval-results/2026-07-12-general-small-vlm-candidates-full-eval.md.
 """
 
 [models.lfm25-vl-1_6b]
@@ -157,7 +177,7 @@ model_file = "LFM2.5-VL-1.6B-Q8_0.gguf"
 mmproj_file = "mmproj-LFM2.5-VL-1.6b-Q8_0.gguf"
 projector_type = "lfm2"
 category = "general-small-vlm"
-status = "smoke-tested-ok"
+status = "evaluated"
 notes = """
 1.6B (1.2B LLM + 400M vision encoder). Also has an official ONNX/WebGPU build for
 in-browser deployment (separate from this GGUF/llama.cpp path) — see
@@ -166,6 +186,11 @@ if the in-browser deployment target becomes concrete rather than aspirational.
 SMOKE TEST (2026-07-11, --smoke, 2 images): loads and runs cleanly (projector "lfm2"
 accepted). **Passed 1/2 smoke images outright**; solid bilingual transcription
 quality on the other. A strong general-VLM candidate for the full run.
+FULL EVAL (2026-07-11/12, 33 images): **21/33 full-JSON** (▲+12 over baseline), 15/33
+OCR-only (▲+6) — the second-best result in the project's history, and notably the
+first model where full-JSON extraction beat OCR-only, suggesting this size/training
+tier is capable enough to both read the label and follow the JSON schema at once. See
+eval-results/2026-07-12-general-small-vlm-candidates-full-eval.md.
 """
 
 [models.moondream2]
@@ -175,7 +200,7 @@ model_file = "moondream2-text-model-f16_ct-vicuna.gguf"
 mmproj_file = "moondream2-mmproj-f16-20250414.gguf"
 projector_type = "mlp"
 category = "general-small-vlm"
-status = "smoke-tested-ok"
+status = "evaluated"
 notes = """
 ~1.9B, F16 only (no smaller quant offered upstream for this GGUF release — ~3.6GB
 combined, largest of this batch). Already referenced in our own llava.rs doc comment
@@ -190,6 +215,11 @@ distinct from SmolVLM's captioning tendency or the repetition-loop failures seen
 elsewhere. May respond better to a differently-worded prompt (moondream2 is tuned
 more for Q&A/captioning than literal transcription); worth a prompt variant before
 writing it off, otherwise deprioritize versus the dedicated-OCR candidates above.
+FULL EVAL (2026-07-11/12, 33 images): 0/33 on both full-JSON and OCR-only — the one
+clean confirmation of its smoke signal in this eval batch; the refusal behavior held
+at scale with no partial credit anywhere. Deprioritize versus every other candidate
+in this eval unless the suggested prompt-variant experiment is tried. See
+eval-results/2026-07-12-general-small-vlm-candidates-full-eval.md.
 """
 
 [models.internvl3-1b]
@@ -199,7 +229,7 @@ model_file = "InternVL3-1B-Instruct-Q8_0.gguf"
 mmproj_file = "mmproj-InternVL3-1B-Instruct-Q8_0.gguf"
 projector_type = "internvl"
 category = "general-small-vlm"
-status = "smoke-tested-ok"
+status = "evaluated"
 notes = """
 1B. InternVL's training mix has a strong document/OCR emphasis.
 SMOKE TEST (2026-07-11, --smoke, 2 images): loads and runs cleanly (projector
@@ -208,6 +238,11 @@ starts strong (accurate bilingual text) but fragments into broken partial words
 partway through and degenerates into repeating "350mg" near the end — a milder
 version of the repetition-loop failure mode seen in SmolVLM-500M. Worth the full
 run, but expect some images to hit this degradation.
+FULL EVAL (2026-07-11/12, 33 images): 3/33 full-JSON, 4/33 OCR-only — both below the
+9/33 baseline, another case (like GLM-Edge-V-2B) of a 1/2-smoke-pass result
+overpredicting full-scale performance. The repetition-loop degradation flagged in the
+smoke test appears to have been common enough across the full set to dominate. See
+eval-results/2026-07-12-general-small-vlm-candidates-full-eval.md.
 """
 
 [models.qwen2vl-2b]
@@ -217,7 +252,7 @@ model_file = "Qwen2-VL-2B-Instruct-Q4_K_M.gguf"
 mmproj_file = "mmproj-Qwen2-VL-2B-Instruct-f16.gguf"
 projector_type = "qwen2vl_merger"
 category = "general-small-vlm"
-status = "smoke-tested-ok"
+status = "evaluated"
 notes = """
 2B, at the upper edge of "very small" for this project but included as one data
 point given Qwen's known strength on chart/document understanding. Qwen3-VL-2B may
@@ -232,6 +267,13 @@ wording issue specific to Qwen2-VL's instruction-tuned behaviors (it has dedicat
 grounding capabilities our OCR_TRANSCRIBE_PROMPT's wording may be triggering) rather
 than a capability gap — worth trying a more explicit "read the text, do not describe
 locations" prompt variant before concluding this model can't do the task.
+FULL EVAL (2026-07-11/12, 33 images): **22/33 full-JSON** (▲+13) — the best result in
+the project's history, and a complete reversal of the smoke test's 0/2
+grounding-token failure. OCR-only scored lower (14/33, ▲+5), consistent with the
+theory that the grounding-token failure is specific to the OCR-only harness's
+transcription-style prompt rather than a general capability gap — the full-JSON
+prompt apparently doesn't trigger it. See
+eval-results/2026-07-12-general-small-vlm-candidates-full-eval.md.
 """
 
 [models.glm-edge-v-2b]
@@ -241,7 +283,7 @@ model_file = "ggml-model-Q4_K_M.gguf"
 mmproj_file = "mmproj-model-f16.gguf"
 projector_type = "adapter"
 category = "general-small-vlm"
-status = "smoke-tested-ok"
+status = "evaluated"
 notes = """
 2B, Zhipu's edge/on-device-targeted VLM line.
 SMOKE TEST (2026-07-11, --smoke, 2 images): loads and runs cleanly (projector
@@ -250,4 +292,9 @@ summarize-in-prose failure ("cereal, with 1 cup of milk per serving, provides 25
 the Daily Value...") rather than verbatim transcription — similar in spirit to
 SmolVLM's captioning tendency but far less severe (this model got a real image
 outright right, SmolVLM never did). Worth the full run.
+FULL EVAL (2026-07-11/12, 33 images): 2/33 full-JSON, 8/33 OCR-only — both below the
+9/33 baseline, another 1/2-smoke-pass result that didn't generalize. Also triggered a
+real parser bug (`src/parsing.rs:115` index-underflow on a "calories"-first
+transcription), fixed mid-session; reported numbers are from the post-fix rerun. See
+eval-results/2026-07-12-general-small-vlm-candidates-full-eval.md.
 """

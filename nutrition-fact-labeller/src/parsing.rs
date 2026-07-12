@@ -110,7 +110,7 @@ pub fn parse_facts(content: Vec<&str>) -> ParsedNutritionFacts {
                     value: value.to_string(),
                     unit: None,
                 });
-            } else {
+            } else if i > 0 {
                 // include an inverse pair in case we get 130, Calories
                 let value = content[i - 1];
                 results.push(LabelledValue {

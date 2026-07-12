@@ -37,6 +37,24 @@ that are ready for a full run whenever compute allows.
 | 2026-07-11 17:53 | `cd37241` | SmolVLM-500M-Instruct-Q8_0 | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
 | 2026-07-11 18:08 | `cd37241` | SmolVLM-256M-Instruct-Q8_0 | OCR-only, resilient parser | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
 | 2026-07-11 18:08 | `cd37241` | SmolVLM-500M-Instruct-Q8_0 | OCR-only, resilient parser | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
+| 2026-07-11 23:49 | `2b83b0e` | GLM-OCR-Q8_0 | Full JSON extraction | 1/33 | ▼ −8 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-11 23:49 | `2b83b0e` | GLM-OCR-Q8_0 | OCR-only, resilient parser | **19/33** | **▲ +10** | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-11 23:52 | `2b83b0e` | LFM2.5-VL-1.6B-Q8_0 | Full JSON extraction | **21/33** | **▲ +12** | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-11 23:52 | `2b83b0e` | LFM2.5-VL-1.6B-Q8_0 | OCR-only, resilient parser | 15/33 | ▲ +6 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 00:05 | `2b83b0e` | LightOnOCR-1B-1025-Q8_0 | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-12 00:05 | `2b83b0e` | LightOnOCR-1B-1025-Q8_0 | OCR-only, resilient parser | 6/33 | ▼ −3 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-12 00:33 | `2b83b0e` | GLM-Edge-V-2B-Q4_K_M | Full JSON extraction | 2/33 | ▼ −7 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 00:33 | `2b83b0e` | GLM-Edge-V-2B-Q4_K_M | OCR-only, resilient parser | 8/33 | ▼ −1 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 00:36 | `2b83b0e` | LFM2-VL-450M-Q8_0 | Full JSON extraction | 2/33 | ▼ −7 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 00:36 | `2b83b0e` | LFM2-VL-450M-Q8_0 | OCR-only, resilient parser | 7/33 | ▼ −2 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 01:10 | `2b83b0e` | InternVL3-1B-Instruct-Q8_0 | Full JSON extraction | 3/33 | ▼ −6 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 01:10 | `2b83b0e` | InternVL3-1B-Instruct-Q8_0 | OCR-only, resilient parser | 4/33 | ▼ −5 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 02:09 | `2b83b0e` | PaddleOCR-VL-0.9B | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-12 02:09 | `2b83b0e` | PaddleOCR-VL-0.9B | OCR-only, resilient parser | 3/33 | ▼ −6 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-12 02:19 | `2b83b0e` | moondream2 | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 02:19 | `2b83b0e` | moondream2 | OCR-only, resilient parser | 0/33 | ▼ −9 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 02:37 | `2b83b0e` | Qwen2-VL-2B-Instruct-Q4_K_M | Full JSON extraction | **22/33** | **▲ +13** | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 02:37 | `2b83b0e` | Qwen2-VL-2B-Instruct-Q4_K_M | OCR-only, resilient parser | 14/33 | ▲ +5 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
 | — | — | PaddleOCR (baseline) | OCR + regex, unmodified | 9/33 | = | not independently re-verified here; see caveat above |
 
 Commit = the code state the run was actually executed against (usually the commit that lands
@@ -44,30 +62,14 @@ right after the run, since reports are written and committed once results are in
 
 ## Smoke-tested, not yet fully evaluated
 
-These 9 models (see `models.toml` for full details, HF repos, and per-model notes) were verified
-to load and run via `scripts/run-eval.sh <key> --smoke` (2 images, OCR-only harness) on 2026-07-11
-at commit `6b14913`, but **no full 33-image eval has been run for any of them** — that's next, on
-faster hardware. Ranked by smoke-test signal:
-
-| Model | Size | Category | Smoke result | Signal |
-|---|---|---|---|---|
-| LightOnOCR-1B-1025 | 1B | dedicated OCR | 1/2 pass, clean bilingual markdown-table transcription | 🟢 strong |
-| GLM-OCR | 0.9B | dedicated OCR | 1/2 pass, other miss off by exactly 1 field (label-layout edge case) | 🟢 strong |
-| LFM2.5-VL-1.6B | 1.6B | general | 1/2 pass, solid bilingual transcription | 🟢 strong |
-| InternVL3-1B-Instruct | 1B | general | 1/2 pass, other degrades into repetition partway through | 🟡 mixed |
-| GLM-Edge-V-2B | 2B | general | 1/2 pass, other miss summarizes in prose instead of transcribing | 🟡 mixed |
-| LFM2-VL-450M | 450M | general | 0/2, but real/mostly-accurate transcription | 🟡 mixed |
-| PaddleOCR-VL-0.9B | 0.9B | dedicated OCR | 0/2, degenerate "Only text." repetition — likely a chat-template gap, not capability (see notes) | 🟡 inconclusive |
-| Qwen2-VL-2B-Instruct | 2B | general | 0/2, emits grounding/bbox tokens instead of text — likely a prompt-wording issue (see notes) | 🟡 inconclusive |
-| moondream2 | 1.9B | general | 0/2, explicitly refuses to transcribe in prose | 🔴 weak |
-
-None of these crashed or hit an `unknown projector type` error — all 9 vision projector types
-(`paddleocr`, `lightonocr`, `glm4v`, `lfm2` ×2, `mlp`, `internvl`, `qwen2vl_merger`, `adapter`) are
-confirmed supported by the vendored llama.cpp. Suggested order for the full run: LightOnOCR-1B,
-GLM-OCR, and LFM2.5-VL-1.6B first (clearest positive signal), then the "mixed" tier, then
-PaddleOCR-VL and Qwen2-VL-2B only after trying the prompt/template fixes noted in `models.toml`
-(their smoke failures look environmental rather than capability-based), with moondream2 lowest
-priority given its outright refusal behavior.
+Empty as of 2026-07-12 — the 9 models smoke-tested on 2026-07-11 (see below) all graduated to full
+33-image evals that day/night; see the Results table above and
+[2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) /
+[2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md)
+for the full writeups. **The smoke-test signal turned out to be an unreliable ranking predictor in
+both directions** — see Known Issues #8 below — so treat any future smoke-test-only entries here as
+"loads and produces real output," not as a forecast of full-run rank. New smoke-tested-but-unevaluated
+candidates should be added back to this table as they come in.
 
 ## Known issues (synthesized across runs — update as new patterns show up)
 
@@ -104,19 +106,54 @@ priority given its outright refusal behavior.
    data would remove the only eval set available). Worth revisiting only if structured-output /
    coercion fixes for issue #1 leave a value-*accuracy* gap rather than a formatting gap.
 
-5. **Model-size capability cliff, not just a formatting problem.** SmolVLM-256M/500M scored 0/33 on
-   *both* approaches, but not for MiniCPM's reasons. On full-JSON extraction they invent their own
-   nested JSON structure instead of following the requested flat schema (a shape failure, not a
-   type failure). On OCR-only they either caption/describe the label in prose instead of
-   transcribing it verbatim, or fall into a degenerate repetition loop (e.g. "110 calories per
-   serving." repeated ~60 times) until hitting the token budget. Neither failure mode is something
+5. **Model-size capability cliff, not just a formatting problem — but the cliff has more structure
+   than first thought.** SmolVLM-256M/500M scored 0/33 on *both* approaches (see original text
+   below), and the follow-up batch confirms the cliff is real but not a single threshold: most
+   sub-2B candidates tested since (LightOnOCR-1B, PaddleOCR-VL-0.9B, LFM2-VL-450M, InternVL3-1B,
+   GLM-Edge-V-2B, moondream2) also landed at or below the 9/33 baseline, several with the same
+   captioning/repetition-loop/refusal failure modes described below. **But two models broke
+   through decisively: LFM2.5-VL-1.6B (21/33 full-JSON) and Qwen2-VL-2B-Instruct (22/33
+   full-JSON)** — the two best results in the project's history, both via full-JSON extraction
+   rather than OCR-only. This means the cliff isn't purely about parameter count: GLM-OCR (0.9B) is
+   the best *dedicated-OCR* result (19/33 OCR-only) despite being smaller than several models that
+   failed, and the 1.6B–2B general-purpose models are the first to make full-JSON's
+   schema-following *and* accurate reading both work simultaneously — a capability combination no
+   smaller or mid-size candidate achieved. See
+   [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md)
+   and
+   [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md).
+   Original text, still accurate for SmolVLM specifically: on full-JSON extraction SmolVLM invents
+   its own nested JSON structure instead of following the requested flat schema (a shape failure,
+   not a type failure); on OCR-only it either captions the label in prose instead of transcribing
+   it verbatim, or falls into a degenerate repetition loop (e.g. "110 calories per serving."
+   repeated ~60 times) until hitting the token budget. Neither failure mode is something
    `fill_gaps_from_blob` or a JSON coercion layer can fix — there's no real content to recover.
-   Conclusion: below some model-size threshold between SmolVLM (256M/500M) and MiniCPM-V 4.6
-   (~8B), instruction-following for "transcribe verbatim" / "match this exact schema" breaks down
-   entirely, not just gets formatted wrong. Worth testing something in between — dedicated small
-   OCR/document models (PaddleOCR-VL-0.9B, LightOnOCR-2-1B, GLM-OCR-0.9B) or LFM2-VL-450M are
-   likely better bets than another general-purpose chat VLM at a similar size, since they're
-   trained specifically for dense-text transcription rather than captioning/chat.
+
+6. **`scripts/run-eval.sh` bash-3.2 `unbound variable` bug (fixed 2026-07-11/12).** macOS ships
+   bash 3.2 as `/bin/bash` (the last pre-GPLv3 release; Apple never updated it). Under `set -u`,
+   expanding `"${LIMIT_ARGS[@]}"` when that array is empty throws `unbound variable` in bash <4.4
+   (silent in 4.4+). `--smoke` always populates `LIMIT_ARGS`, so every smoke test worked; a plain
+   full run never did, meaning **no full (non-smoke) run had ever completed on this script before
+   the 2026-07-11/12 session** that produced the 9-model batch above. Fixed with the portable
+   `"${LIMIT_ARGS[@]+"${LIMIT_ARGS[@]}"}"` idiom in both harness invocations in `run-eval.sh`.
+
+7. **`src/parsing.rs:115` index-underflow panic (fixed 2026-07-11/12).** `parse_facts`'s "N,
+   Calories" inverse-pair branch read `content[i - 1]` without checking `i > 0`, panicking
+   ("index out of bounds ... index is 18446744073709551615", i.e. `0usize - 1` wrapped) whenever a
+   transcription's first token was "calories". Crashed GLM-Edge-V-2B's run specifically; fixed by
+   guarding with `else if i > 0`. Any future model whose OCR output happens to open with "calories"
+   would have hit this pre-fix — worth keeping in mind if an older commit is ever re-run.
+
+8. **Smoke-test pass/fail rate is an unreliable predictor of full-run rank, in both directions.**
+   Across the 2026-07-11/12 batch: LightOnOCR-1B and GLM-Edge-V-2B both had strong-looking smoke
+   signal (1/2 pass) but landed at or below baseline at full scale; conversely Qwen2-VL-2B smoke-
+   tested at 0/2 (emitting grounding tokens instead of transcription) but scored 22/33 — the best
+   result in the project — on the full run's full-JSON harness, apparently because the full-JSON
+   prompt doesn't trigger the grounding behavior the OCR-only transcription prompt does. Only
+   moondream2's smoke result (explicit refusal) reliably predicted its full-run result (0/33 both
+   approaches). Treat 2-image smoke tests as a "does it load and produce real output" gate, not a
+   ranking signal — see the model-by-model detail in
+   [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md).
 
 ## Adding a new model to this table
 
