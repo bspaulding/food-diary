@@ -13,6 +13,10 @@ pub const NUTRITION_PROMPT: &str =
      - Use the exact numeric value shown on the label, including 0 when the label says \"0 g\" or \"0 mg\".\n\
      - Use null ONLY if that nutrient field does not appear on the label at all.\n\
      - Do NOT use null when the label shows 0. Use 0 instead.\n\
+     - If the label shows \"<1g\" or \"less than 1g\" for a field, report 1, not 0.\n\
+     - For added_sugars_g: look for a sub-line nested under Total Sugars reading something like \
+     \"Includes Xg Added Sugars\". Report that X value. Do not default to 0, and do not confuse it \
+     with total_sugars_g.\n\
      No explanation. No markdown. No code blocks. JSON only.";
 
 /// Prompt for using a VLM purely as an OCR engine: transcribe the label's text
