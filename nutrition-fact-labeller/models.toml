@@ -14,6 +14,32 @@
 #   ./scripts/run-eval.sh <key> --smoke     # verify it loads/runs (cheap, 2 images)
 #   ./scripts/run-eval.sh <key>              # full 33-image eval, both harnesses
 
+[models.gemma-4-e2b]
+display_name = "Gemma-4-E2B-it-Q4_K_M"
+hf_repo = "bartowski/google_gemma-4-E2B-it-GGUF"
+model_file = "gemma-4-E2B-it-Q4_K_M.gguf"
+mmproj_file = "mmproj-F16.gguf"
+projector_type = "gemma"
+category = "already-evaluated"
+status = "evaluated-adhoc-pending-fresh-run"
+notes = """
+~2B. Already used in production for on-device nutrition autofill/label scan (see
+commit 857535c, "Implement Phase 6: on-device Gemma 4 E2B LLM") and referenced in
+nutrition-fact-labeller/README.md's local-llama.cpp setup instructions — this predates
+the models.toml-driven eval harness. Weights already present locally at
+vlm-models/gemma-4-e2b/ under renamed filenames (no "google_" prefix, unlike the
+upstream HF repo's actual filenames); copied into models/gemma-4-e2b/ under those same
+local names to avoid a redundant ~4GB re-download — `hf_repo`/`model_file` above
+reflect the upstream repo for provenance, but fetch-model.sh will report "already
+have" and skip downloading given the copied files.
+PRIOR AD-HOC RESULT (memory, pre-dates this manifest, not from this harness's logging):
+14/33, after a chat-template fallback + "use 0 not null for explicit zeros" prompt fix
+(initially 7/33 before that fix). Not independently re-verified against the current
+parsing.rs/llava.rs — worth a fresh `./scripts/run-eval.sh gemma-4-e2b` run for a
+result that's directly comparable (same logging, same per-field analysis) to the
+2026-07-12 batch.
+"""
+
 [models.minicpm-v-4_6]
 display_name = "MiniCPM-V-4.6-Q4_K_M"
 hf_repo = "openbmb/MiniCPM-V-4.6-gguf"

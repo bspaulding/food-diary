@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use nutrition_fact_labeller::{load_test_cases, ParsedNutritionFacts, VlmBackend};
+use nutrition_fact_labeller::{load_test_cases, print_field_score, FieldScore, ParsedNutritionFacts, VlmBackend};
 use nutrition_fact_labeller::vlm::llava::LlavaBackend;
 
 #[derive(Parser)]
@@ -48,6 +48,7 @@ struct BenchResult {
     passing_files: Vec<String>,
     #[allow(dead_code)]
     failing_files: Vec<String>,
+    field_score: FieldScore,
 }
 
 fn run_backend(
@@ -57,19 +58,25 @@ fn run_backend(
 ) -> BenchResult {
     let mut passing = Vec::new();
     let mut failing = Vec::new();
+    let mut field_score = FieldScore::default();
 
     for (filename, expected) in cases {
         let image_path = images_dir.join(filename);
         match backend.infer(&image_path) {
-            Ok(actual) if &actual == expected => passing.push(filename.clone()),
+            Ok(actual) if &actual == expected => {
+                field_score.record(actual.field_matches(expected));
+                passing.push(filename.clone());
+            }
             Ok(actual) => {
                 eprintln!("  FAIL {filename}");
                 eprintln!("    got:      {actual:?}");
                 eprintln!("    expected: {expected:?}");
+                field_score.record(actual.field_matches(expected));
                 failing.push(filename.clone());
             }
             Err(e) => {
                 eprintln!("  ERROR {filename}: {e}");
+                field_score.record_miss();
                 failing.push(filename.clone());
             }
         }
@@ -81,6 +88,7 @@ fn run_backend(
         total: cases.len(),
         passing_files: passing,
         failing_files: failing,
+        field_score,
     }
 }
 
@@ -125,8 +133,23 @@ fn main() -> anyhow::Result<()> {
         results.push(result);
     }
 
-    // Print comparison table
+    // Primary metric: "all fields" partial-credit scoring. Prioritize this over
+    // whole-record pass/fail below — models often get most fields right without
+    // matching all 11 simultaneously, so whole-record scoring alone understates real
+    // accuracy (see eval-results/README.md's Results table and Known Issues).
     println!("\n{}", "─".repeat(55));
+    println!("All-fields scoring (primary metric — partial credit per field):");
+    println!("{}", "─".repeat(55));
+    println!("(no PaddleOCR baseline all-fields figure available: the baseline test doesn't emit per-field results in this environment)");
+    for r in &results {
+        println!("\n{}:", r.name);
+        print_field_score(&r.field_score);
+    }
+    println!("{}", "─".repeat(55));
+
+    // Secondary metric: whole-record exact match (all 11 fields correct at once).
+    println!("\nWhole-record scoring (secondary — how many cases were a perfect match):");
+    println!("{}", "─".repeat(55));
     println!("{:<32} {:>5} {:>5}  {}", "Model", "Pass", "Fail", "Score");
     println!("{}", "─".repeat(55));
     if args.limit.is_some() {

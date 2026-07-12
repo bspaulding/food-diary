@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use nutrition_fact_labeller::parsing::parse_facts_from_lines;
 use nutrition_fact_labeller::vlm::llava::LlavaBackend;
-use nutrition_fact_labeller::{load_test_cases, ParsedNutritionFacts};
+use nutrition_fact_labeller::{load_test_cases, print_field_score, FieldScore, ParsedNutritionFacts};
 
 /// Benchmarks a VLM used purely as an OCR engine: image -> transcribed text lines ->
 /// the same regex/spellcheck parser (`parsing::parse_facts_from_lines`) that the
@@ -65,6 +65,7 @@ fn main() -> anyhow::Result<()> {
     let mut pass = 0;
     let mut passing_files: Vec<String> = Vec::new();
     let mut failing_files: Vec<String> = Vec::new();
+    let mut field_score = FieldScore::default();
 
     for (filename, expected) in &cases {
         let image_path: &Path = &args.images_dir.join(filename);
@@ -77,6 +78,7 @@ fn main() -> anyhow::Result<()> {
                     .collect();
                 let actual: ParsedNutritionFacts = parse_facts_from_lines(&lines);
                 if &actual == expected {
+                    field_score.record(actual.field_matches(expected));
                     pass += 1;
                     passing_files.push(filename.clone());
                 } else {
@@ -84,17 +86,31 @@ fn main() -> anyhow::Result<()> {
                     eprintln!("    transcribed: {lines:?}");
                     eprintln!("    got:      {actual:?}");
                     eprintln!("    expected: {expected:?}");
+                    field_score.record(actual.field_matches(expected));
                     failing_files.push(filename.clone());
                 }
             }
             Err(e) => {
                 eprintln!("  ERROR {filename}: {e}");
+                field_score.record_miss();
                 failing_files.push(filename.clone());
             }
         }
     }
 
+    // Primary metric: "all fields" partial-credit scoring — see vlm_benchmark.rs and
+    // eval-results/README.md for why this is prioritized over whole-record pass/fail.
     println!("\n{}", "─".repeat(55));
+    println!("All-fields scoring (primary metric — partial credit per field):");
+    println!("{}", "─".repeat(55));
+    println!("(no PaddleOCR baseline all-fields figure available: the baseline test doesn't emit per-field results in this environment)");
+    println!("\n{}:", args.model_name);
+    print_field_score(&field_score);
+    println!("{}", "─".repeat(55));
+
+    // Secondary metric: whole-record exact match (all 11 fields correct at once).
+    println!("\nWhole-record scoring (secondary — how many cases were a perfect match):");
+    println!("{}", "─".repeat(55));
     println!("{:<32} {:>5} {:>5}  {}", "Model", "Pass", "Fail", "Score");
     println!("{}", "─".repeat(55));
     if args.limit.is_some() {
