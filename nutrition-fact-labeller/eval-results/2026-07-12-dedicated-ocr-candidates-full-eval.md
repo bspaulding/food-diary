@@ -79,10 +79,12 @@ looks more like a harness/prompt mismatch than a hard capability ceiling.
 1. **`scripts/run-eval.sh` bash-3.2 bug (fixed this session).** macOS ships bash 3.2 as `/bin/bash`
    (Apple never updated past the last pre-GPLv3 release). Under `set -u`, expanding
    `"${LIMIT_ARGS[@]}"` when that array is empty throws `unbound variable` in bash <4.4 — silent in
-   4.4+. Every prior smoke test worked because `--smoke` always populates `LIMIT_ARGS`; only a full
-   (non-smoke) run hit this, so **no full run had ever succeeded on this script before this
-   session**. Fixed with the portable `"${LIMIT_ARGS[@]+"${LIMIT_ARGS[@]}"}"` idiom in both harness
-   invocations.
+   4.4+. Every prior smoke test worked regardless of platform because `--smoke` always populates
+   `LIMIT_ARGS`; a full (non-smoke) run only hit this where `bash` resolves to <4.4, as on this
+   local macOS machine — a Linux environment (bash 4+ by default) would never have triggered it, so
+   this was environment-specific rather than a universal failure. Fixed with the portable
+   `"${LIMIT_ARGS[@]+"${LIMIT_ARGS[@]}"}"` idiom in both harness invocations, which now works
+   regardless of the local bash version.
 2. **`src/parsing.rs:115` index-underflow panic (fixed this session).** The "N, Calories" inverse-
    pair branch of `parse_facts` read `content[i - 1]` without checking `i > 0`, panicking
    ("index out of bounds ... index is 18446744073709551615", i.e. `0usize - 1` wrapped) whenever a

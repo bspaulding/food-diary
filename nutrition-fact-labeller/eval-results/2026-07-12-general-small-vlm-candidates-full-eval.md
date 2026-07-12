@@ -112,10 +112,12 @@ a ranking signal for how promising a candidate is at full scale.
 
 1. **`scripts/run-eval.sh` bash-3.2 bug (fixed this session).** macOS ships bash 3.2 as
    `/bin/bash`. Under `set -u`, expanding `"${LIMIT_ARGS[@]}"` when empty throws `unbound variable`
-   in bash <4.4 (silent in 4.4+). Every prior smoke test worked because `--smoke` always populates
-   `LIMIT_ARGS`; only a full (non-smoke) run hit this — meaning **no full run had ever succeeded on
-   this script before this session**, for any model. Fixed with
-   `"${LIMIT_ARGS[@]+"${LIMIT_ARGS[@]}"}"` in both harness invocations.
+   in bash <4.4 (silent in 4.4+). Every prior smoke test worked regardless of platform because
+   `--smoke` always populates `LIMIT_ARGS`; a full (non-smoke) run only hit this where `bash`
+   resolves to <4.4 — the case on this local macOS machine, but not on Linux (bash 4+ by default),
+   so this was environment-specific rather than a universal "no full run has ever worked" bug.
+   Fixed with `"${LIMIT_ARGS[@]+"${LIMIT_ARGS[@]}"}"` in both harness invocations, which is
+   portable across bash versions.
 2. **`src/parsing.rs:115` index-underflow panic (fixed this session).** `parse_facts`'s "N,
    Calories" inverse-pair branch read `content[i - 1]` without checking `i > 0`, panicking whenever
    a transcription's first token was "calories" (`0usize - 1` wraps to `usize::MAX`, then the

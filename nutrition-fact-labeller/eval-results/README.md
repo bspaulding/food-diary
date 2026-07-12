@@ -132,10 +132,12 @@ candidates should be added back to this table as they come in.
 6. **`scripts/run-eval.sh` bash-3.2 `unbound variable` bug (fixed 2026-07-11/12).** macOS ships
    bash 3.2 as `/bin/bash` (the last pre-GPLv3 release; Apple never updated it). Under `set -u`,
    expanding `"${LIMIT_ARGS[@]}"` when that array is empty throws `unbound variable` in bash <4.4
-   (silent in 4.4+). `--smoke` always populates `LIMIT_ARGS`, so every smoke test worked; a plain
-   full run never did, meaning **no full (non-smoke) run had ever completed on this script before
-   the 2026-07-11/12 session** that produced the 9-model batch above. Fixed with the portable
-   `"${LIMIT_ARGS[@]+"${LIMIT_ARGS[@]}"}"` idiom in both harness invocations in `run-eval.sh`.
+   (silent in 4.4+). `--smoke` always populates `LIMIT_ARGS`, so every smoke test worked regardless
+   of platform; a plain full run only failed where `bash` resolves to <4.4 — which is exactly what
+   happened running this locally on macOS. This bug is environment-specific, not universal: a full
+   run of this script on Linux (bash 4+ by default) would never have hit it. Fixed with the
+   portable `"${LIMIT_ARGS[@]+"${LIMIT_ARGS[@]}"}"` idiom in both harness invocations in
+   `run-eval.sh` so it now works everywhere regardless of the local `bash` version.
 
 7. **`src/parsing.rs:115` index-underflow panic (fixed 2026-07-11/12).** `parse_facts`'s "N,
    Calories" inverse-pair branch read `content[i - 1]` without checking `i > 0`, panicking
