@@ -19,9 +19,9 @@ display_name = "Gemma-4-E2B-it-Q4_K_M"
 hf_repo = "bartowski/google_gemma-4-E2B-it-GGUF"
 model_file = "gemma-4-E2B-it-Q4_K_M.gguf"
 mmproj_file = "mmproj-F16.gguf"
-projector_type = "gemma"
+projector_type = "gemma4v"
 category = "already-evaluated"
-status = "evaluated-adhoc-pending-fresh-run"
+status = "evaluated"
 notes = """
 ~2B. Already used in production for on-device nutrition autofill/label scan (see
 commit 857535c, "Implement Phase 6: on-device Gemma 4 E2B LLM") and referenced in
@@ -32,12 +32,14 @@ upstream HF repo's actual filenames); copied into models/gemma-4-e2b/ under thos
 local names to avoid a redundant ~4GB re-download — `hf_repo`/`model_file` above
 reflect the upstream repo for provenance, but fetch-model.sh will report "already
 have" and skip downloading given the copied files.
-PRIOR AD-HOC RESULT (memory, pre-dates this manifest, not from this harness's logging):
-14/33, after a chat-template fallback + "use 0 not null for explicit zeros" prompt fix
-(initially 7/33 before that fix). Not independently re-verified against the current
-parsing.rs/llava.rs — worth a fresh `./scripts/run-eval.sh gemma-4-e2b` run for a
-result that's directly comparable (same logging, same per-field analysis) to the
-2026-07-12 batch.
+FULL EVAL (2026-07-12, 33 images, run before the per-field-scoring feature landed in
+the binaries — per-field numbers below computed from this run's raw logs via the same
+log-scraping method used for the rest of the 2026-07-12 batch): 14/33 whole-record /
+323/363 (89.0%) all-fields on full-JSON extraction — matches the prior ad-hoc score
+(14/33) exactly, and the all-fields number puts it 3rd overall in this project,
+ahead of every dedicated-OCR and general-small-VLM candidate except Qwen2-VL-2B and
+LFM2.5-VL-1.6B. OCR-only: 12/33 whole-record / 265/363 (73.0%) all-fields (new data,
+not previously measured). See eval-results/README.md Results table.
 """
 
 [models.minicpm-v-4_6]

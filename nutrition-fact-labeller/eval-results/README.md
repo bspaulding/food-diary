@@ -28,37 +28,62 @@ that are ready for a full run whenever compute allows.
 
 ## Results
 
-| Date/time (UTC) | Commit | Model | Approach | Score | vs. baseline (9/33) | Report |
-|---|---|---|---|---|---|---|
-| 2026-07-11 01:42 | `7745229` | MiniCPM-V-4.6-Q4_K_M | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-11-minicpm-v-4.6-q4_k_m.md](2026-07-11-minicpm-v-4.6-q4_k_m.md) |
-| 2026-07-11 03:15 | `a1db43e` | MiniCPM-V-4.6-Q4_K_M | OCR-only, original line-based parser | 0/33 | ▼ −9 | [2026-07-11-minicpm-v-4.6-ocr-only.md](2026-07-11-minicpm-v-4.6-ocr-only.md) |
-| 2026-07-11 17:11 | `0003ea0` | MiniCPM-V-4.6-Q4_K_M | OCR-only, resilient parser (blob fallback) | **11/33** | **▲ +2** | [2026-07-11-minicpm-v-4.6-ocr-only.md](2026-07-11-minicpm-v-4.6-ocr-only.md) |
-| 2026-07-11 17:53 | `cd37241` | SmolVLM-256M-Instruct-Q8_0 | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
-| 2026-07-11 17:53 | `cd37241` | SmolVLM-500M-Instruct-Q8_0 | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
-| 2026-07-11 18:08 | `cd37241` | SmolVLM-256M-Instruct-Q8_0 | OCR-only, resilient parser | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
-| 2026-07-11 18:08 | `cd37241` | SmolVLM-500M-Instruct-Q8_0 | OCR-only, resilient parser | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
-| 2026-07-11 23:49 | `2b83b0e` | GLM-OCR-Q8_0 | Full JSON extraction | 1/33 | ▼ −8 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
-| 2026-07-11 23:49 | `2b83b0e` | GLM-OCR-Q8_0 | OCR-only, resilient parser | **19/33** | **▲ +10** | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
-| 2026-07-11 23:52 | `2b83b0e` | LFM2.5-VL-1.6B-Q8_0 | Full JSON extraction | **21/33** | **▲ +12** | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-11 23:52 | `2b83b0e` | LFM2.5-VL-1.6B-Q8_0 | OCR-only, resilient parser | 15/33 | ▲ +6 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 00:05 | `2b83b0e` | LightOnOCR-1B-1025-Q8_0 | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
-| 2026-07-12 00:05 | `2b83b0e` | LightOnOCR-1B-1025-Q8_0 | OCR-only, resilient parser | 6/33 | ▼ −3 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
-| 2026-07-12 00:33 | `2b83b0e` | GLM-Edge-V-2B-Q4_K_M | Full JSON extraction | 2/33 | ▼ −7 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 00:33 | `2b83b0e` | GLM-Edge-V-2B-Q4_K_M | OCR-only, resilient parser | 8/33 | ▼ −1 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 00:36 | `2b83b0e` | LFM2-VL-450M-Q8_0 | Full JSON extraction | 2/33 | ▼ −7 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 00:36 | `2b83b0e` | LFM2-VL-450M-Q8_0 | OCR-only, resilient parser | 7/33 | ▼ −2 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 01:10 | `2b83b0e` | InternVL3-1B-Instruct-Q8_0 | Full JSON extraction | 3/33 | ▼ −6 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 01:10 | `2b83b0e` | InternVL3-1B-Instruct-Q8_0 | OCR-only, resilient parser | 4/33 | ▼ −5 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 02:09 | `2b83b0e` | PaddleOCR-VL-0.9B | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
-| 2026-07-12 02:09 | `2b83b0e` | PaddleOCR-VL-0.9B | OCR-only, resilient parser | 3/33 | ▼ −6 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
-| 2026-07-12 02:19 | `2b83b0e` | moondream2 | Full JSON extraction | 0/33 | ▼ −9 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 02:19 | `2b83b0e` | moondream2 | OCR-only, resilient parser | 0/33 | ▼ −9 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 02:37 | `2b83b0e` | Qwen2-VL-2B-Instruct-Q4_K_M | Full JSON extraction | **22/33** | **▲ +13** | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| 2026-07-12 02:37 | `2b83b0e` | Qwen2-VL-2B-Instruct-Q4_K_M | OCR-only, resilient parser | 14/33 | ▲ +5 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
-| — | — | PaddleOCR (baseline) | OCR + regex, unmodified | 9/33 | = | not independently re-verified here; see caveat above |
+**All-fields is the primary metric, whole-record is secondary.** Whole-record ("Score") requires
+all 11 fields correct simultaneously in one case, which understates real accuracy for models that
+get most fields right but rarely all 11 at once (e.g. InternVL3-1B: 3/33 whole-record but 77.4% of
+individual fields correct). All-fields = total correct fields out of 33 cases × 11 fields (363),
+partial credit per field. `vlm_benchmark`/`vlm_ocr_benchmark` compute and print this natively as of
+the per-field-scoring feature added 2026-07-12 (see Known Issues, and `FieldScore`/`field_matches`
+in `src/lib.rs`); the 2026-07-12 rows below were computed from that session's raw logs using
+equivalent logic before the feature existed in the binaries (verified by cross-checking against
+each row's already-recorded whole-record score). No PaddleOCR baseline all-fields figure is
+available — `check_test_cases` doesn't emit per-field results, so there's nothing to diff against
+for that column; the baseline comparison below only applies to whole-record. Rows predating this
+session (MiniCPM-V 4.6, SmolVLM) show "n/a" for All-fields since their raw logs no longer exist to
+retroactively compute it.
+
+| Date/time (UTC) | Commit | Model | Approach | All-fields (primary) | Whole-record (secondary) | vs. baseline (9/33, whole-record) | Report |
+|---|---|---|---|---|---|---|---|
+| 2026-07-11 01:42 | `7745229` | MiniCPM-V-4.6-Q4_K_M | Full JSON extraction | n/a | 0/33 | ▼ −9 | [2026-07-11-minicpm-v-4.6-q4_k_m.md](2026-07-11-minicpm-v-4.6-q4_k_m.md) |
+| 2026-07-11 03:15 | `a1db43e` | MiniCPM-V-4.6-Q4_K_M | OCR-only, original line-based parser | n/a | 0/33 | ▼ −9 | [2026-07-11-minicpm-v-4.6-ocr-only.md](2026-07-11-minicpm-v-4.6-ocr-only.md) |
+| 2026-07-11 17:11 | `0003ea0` | MiniCPM-V-4.6-Q4_K_M | OCR-only, resilient parser (blob fallback) | n/a | **11/33** | **▲ +2** | [2026-07-11-minicpm-v-4.6-ocr-only.md](2026-07-11-minicpm-v-4.6-ocr-only.md) |
+| 2026-07-11 17:53 | `cd37241` | SmolVLM-256M-Instruct-Q8_0 | Full JSON extraction | n/a | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
+| 2026-07-11 17:53 | `cd37241` | SmolVLM-500M-Instruct-Q8_0 | Full JSON extraction | n/a | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
+| 2026-07-11 18:08 | `cd37241` | SmolVLM-256M-Instruct-Q8_0 | OCR-only, resilient parser | n/a | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
+| 2026-07-11 18:08 | `cd37241` | SmolVLM-500M-Instruct-Q8_0 | OCR-only, resilient parser | n/a | 0/33 | ▼ −9 | [2026-07-11-smolvlm-256m-500m.md](2026-07-11-smolvlm-256m-500m.md) |
+| 2026-07-11 23:49 | `2b83b0e` | GLM-OCR-Q8_0 | Full JSON extraction | 171/363 (47.1%) | 1/33 | ▼ −8 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-11 23:49 | `2b83b0e` | GLM-OCR-Q8_0 | OCR-only, resilient parser | 312/363 (86.0%) | **19/33** | **▲ +10** | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-11 23:52 | `2b83b0e` | LFM2.5-VL-1.6B-Q8_0 | Full JSON extraction | **343/363 (94.5%)** | **21/33** | **▲ +12** | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-11 23:52 | `2b83b0e` | LFM2.5-VL-1.6B-Q8_0 | OCR-only, resilient parser | 314/363 (86.5%) | 15/33 | ▲ +6 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 00:05 | `2b83b0e` | LightOnOCR-1B-1025-Q8_0 | Full JSON extraction | 0/363 (0.0%) | 0/33 | ▼ −9 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-12 00:05 | `2b83b0e` | LightOnOCR-1B-1025-Q8_0 | OCR-only, resilient parser | 289/363 (79.6%) | 6/33 | ▼ −3 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-12 00:33 | `2b83b0e` | GLM-Edge-V-2B-Q4_K_M | Full JSON extraction | 121/363 (33.3%) | 2/33 | ▼ −7 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 00:33 | `2b83b0e` | GLM-Edge-V-2B-Q4_K_M | OCR-only, resilient parser | 278/363 (76.6%) | 8/33 | ▼ −1 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 00:36 | `2b83b0e` | LFM2-VL-450M-Q8_0 | Full JSON extraction | 246/363 (67.8%) | 2/33 | ▼ −7 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 00:36 | `2b83b0e` | LFM2-VL-450M-Q8_0 | OCR-only, resilient parser | 300/363 (82.6%) | 7/33 | ▼ −2 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 01:10 | `2b83b0e` | InternVL3-1B-Instruct-Q8_0 | Full JSON extraction | 281/363 (77.4%) | 3/33 | ▼ −6 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 01:10 | `2b83b0e` | InternVL3-1B-Instruct-Q8_0 | OCR-only, resilient parser | 247/363 (68.0%) | 4/33 | ▼ −5 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 02:09 | `2b83b0e` | PaddleOCR-VL-0.9B | Full JSON extraction | 0/363 (0.0%) | 0/33 | ▼ −9 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-12 02:09 | `2b83b0e` | PaddleOCR-VL-0.9B | OCR-only, resilient parser | 64/363 (17.6%) | 3/33 | ▼ −6 | [2026-07-12-dedicated-ocr-candidates-full-eval.md](2026-07-12-dedicated-ocr-candidates-full-eval.md) |
+| 2026-07-12 02:19 | `2b83b0e` | moondream2 | Full JSON extraction | 10/363 (2.8%) | 0/33 | ▼ −9 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 02:19 | `2b83b0e` | moondream2 | OCR-only, resilient parser | 0/363 (0.0%) | 0/33 | ▼ −9 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 02:37 | `2b83b0e` | Qwen2-VL-2B-Instruct-Q4_K_M | Full JSON extraction | **346/363 (95.3%)** | **22/33** | **▲ +13** | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 02:37 | `2b83b0e` | Qwen2-VL-2B-Instruct-Q4_K_M | OCR-only, resilient parser | 313/363 (86.2%) | 14/33 | ▲ +5 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
+| 2026-07-12 03:30 | `c1eff1b` | Gemma-4-E2B-it-Q4_K_M | Full JSON extraction | 323/363 (89.0%) | 14/33 | ▲ +5 | see models.toml notes (ad-hoc-predecessor result re-verified fresh this session; no standalone report file yet) |
+| 2026-07-12 03:30 | `c1eff1b` | Gemma-4-E2B-it-Q4_K_M | OCR-only, resilient parser | 265/363 (73.0%) | 12/33 | ▲ +3 | see models.toml notes |
+| — | — | PaddleOCR (baseline) | OCR + regex, unmodified | n/a | 9/33 | = | not independently re-verified here; see caveat above |
 
 Commit = the code state the run was actually executed against (usually the commit that lands
 right after the run, since reports are written and committed once results are in hand).
+
+**All-fields reshuffles the ranking significantly vs. whole-record.** By all-fields, the top 5 are
+Qwen2-VL-2B full-JSON (95.3%), LFM2.5-VL-1.6B full-JSON (94.5%), **Gemma-4-E2B full-JSON (89.0%) —
+which jumps to 3rd despite a modest 14/33 whole-record score**, then GLM-OCR OCR-only (86.0%) and
+LFM2.5-VL-1.6B OCR-only (86.5%). Several models whose whole-record score looked close to a total
+failure are actually getting the large majority of individual fields right: LightOnOCR-1B OCR-only
+(79.6% all-fields vs. only 6/33 whole-record) and GLM-Edge-V-2B OCR-only (76.6% vs. 8/33) are the
+starkest examples. See Known Issues for the per-field breakdown and the two weakest fields
+(`dietary_fiber_g`, `added_sugars_g`) that drag down nearly every model regardless of size.
 
 ## Smoke-tested, not yet fully evaluated
 
@@ -156,6 +181,31 @@ candidates should be added back to this table as they come in.
    approaches). Treat 2-image smoke tests as a "does it load and produce real output" gate, not a
    ranking signal — see the model-by-model detail in
    [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md).
+
+9. **Per-field ("all fields") scoring added 2026-07-12 — now the primary metric.** Whole-record
+   exact-match scoring requires all 11 fields correct in the same case, which badly understates
+   real accuracy for models that get most fields right but rarely all 11 simultaneously — see the
+   Results table note above (InternVL3-1B: 3/33 whole-record, 77.4% all-fields; LightOnOCR-1B
+   OCR-only: 6/33 whole-record, 79.6% all-fields). `vlm_benchmark`/`vlm_ocr_benchmark` now compute
+   and print this natively (`FieldScore`/`ParsedNutritionFacts::field_matches` in `src/lib.rs`),
+   prioritized ahead of the whole-record table in each binary's output. Parse failures (`ERROR`
+   cases) count as 0/11 fields correct — a conservative lower bound, since some parse failures
+   (e.g. GLM-Edge-V-2B, GLM-OCR) contain mostly-correct values with only one malformed field; see
+   Issue #1's "conditioned on non-error cases" figures for how much this depresses their scores.
+   **Two fields are the universal weak point across nearly every model that produces any real
+   signal**: `dietary_fiber_g` and `added_sugars_g` are the lowest- or near-lowest-scoring field for
+   almost all 10 models evaluated (both are Qwen2-VL-2B's and LFM2.5-VL-1.6B's single worst field
+   despite their otherwise-excellent 94-95% all-fields scores). Root causes identified by manual
+   inspection: (a) labels showing "<1g" for a field get rounded down to 0 instead of up to 1 by
+   several models; (b) models frequently miss the "Includes Xg Added Sugars" sub-line nested under
+   Total Sugars, returning 0 instead of the sub-line's value. Improving parsing/prompting around
+   these two fields specifically looks like a higher-leverage target than Issue #1's JSON-coercion
+   work, since it's a near-universal gap rather than model-specific.
+   **`serving_size_grams` is also a distinct weak field** (InternVL3-1B: 20/33, GLM-Edge-V-2B:
+   10/33 — likely "which of the two numbers on the label is the gram count" confusion, e.g. "1½ cup
+   (40g)"), **but is explicitly deprioritized for now**: the food-diary app doesn't consume this
+   field yet, so fixing it isn't worth the effort until it is. Revisit if/when the app starts using
+   it.
 
 ## Adding a new model to this table
 
