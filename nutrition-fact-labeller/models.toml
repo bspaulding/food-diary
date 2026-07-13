@@ -21,7 +21,7 @@ model_file = "gemma-4-E4B-it-Q4_K_M.gguf"
 mmproj_file = "mmproj-F16.gguf"
 projector_type = "gemma4v"
 category = "already-evaluated"
-status = "pending-eval"
+status = "evaluated"
 notes = """
 ~4B (elastic/MatFormer line, same family as gemma-4-e2b but the next size up). Not
 previously evaluated in this project at all (unlike gemma-4-e2b, which had a prior
@@ -35,6 +35,15 @@ copied into models/gemma-4-e4b/ under those same local names to avoid a redundan
 provenance (confirmed via the HF API's file listing to have the exact same naming
 pattern as gemma-4-e2b's upstream repo), but fetch-model.sh will report "already have"
 and skip downloading given the copied files.
+FULL EVAL (2026-07-13, 33 images): **excellent result** — 19/33 whole-record / 341/363
+(93.9%) all-fields on full-JSON, 14/33 whole-record / 319/363 (87.9%) all-fields on
+OCR-only. A clean improvement over gemma-4-e2b (14/33/89.0%, 12/33/73.0%) confirming
+the expected size-scaling trend, and puts this model at effectively 3rd-4th place
+overall in the whole project, just behind LFM2.5-VL-1.6B. Notably did NOT get the
+`<1g`/added-sugars NUTRITION_PROMPT fix tested against it (that experiment predates
+this model's addition) — worth trying, given it helped the current #1 model
+(Qwen2-VL-2B) and was neutral for #2 (LFM2.5-VL-1.6B). See eval-results/README.md
+Known Issues #11 for the full E2B/E4B/12B comparison.
 """
 
 [models.gemma-4-12b]
@@ -44,7 +53,7 @@ model_file = "gemma-4-12B-it-Q4_K_M.gguf"
 mmproj_file = "mmproj-gemma-4-12B-it-Q8_0.gguf"
 projector_type = "gemma4v"
 category = "already-evaluated"
-status = "pending-eval"
+status = "evaluated-anomalous-needs-followup"
 notes = """
 ~12B — NOT part of the elastic E2B/E4B line, a separate "full" dense Gemma 4 model
 (same tier as the 31B referenced via OpenRouter in nutrition-fact-labeller/README.md).
@@ -52,13 +61,29 @@ Far above this project's stated CPU/on-device/sub-2B deployment target (see the
 manifest header comment above) — added 2026-07-12 purely for cross-size comparison
 within the Gemma 4 family (2B -> 4B -> 12B), motivated by interest in possibly
 distilling from a model this size down to something deployable for this specific
-task down the road. Expect this to be substantially slower per-image than every other
-candidate in this manifest (roughly 6x the parameters of gemma-4-e2b) — budget
-accordingly for the full 33-image x 2-harness run. No local copy of the weights
-existed; fetched fresh from the HF repo above (verified exact filenames via the HF
-API's file listing rather than guessing, since this repo offers many quantizations
-and an incorrect filename would silently curl-download a 404 error page instead of
-weights).
+task down the road. No local copy of the weights existed; fetched fresh from the HF
+repo above (verified exact filenames via the HF API's file listing rather than
+guessing, since this repo offers many quantizations and an incorrect filename would
+silently curl-download a 404 error page instead of weights).
+FULL EVAL (2026-07-13, 33 images, ~3 hours total — roughly 6x slower per image than
+gemma-4-e2b, as expected for the parameter count): **anomalous, unresolved result.**
+0/33 whole-record on both harnesses; 30/363 (8.3%) all-fields full-JSON, 10/363 (2.8%)
+all-fields OCR-only — dramatically worse than gemma-4-e2b (89.0%/73.0%) and
+gemma-4-e4b (93.9%/87.9%), breaking rather than continuing the E2B->E4B scaling trend.
+Diagnosis so far: all 33 full-JSON cases returned syntactically valid JSON (0 parse
+errors) but the large majority had every field set to null rather than garbled/wrong
+values (a few cases did extract partially-correct real values, so it's not blind to
+the image). Ruled out context overflow (n_ctx=4096 fixed across all models in this
+harness; identical image-token counts as E2B/E4B for the same images, confirmed by
+diffing logs). Leading unresolved hypothesis: mmproj quantization mismatch — E2B/E4B
+use f16 mmproj, but this repo only offers Q8_0/bf16 mmproj and this eval used Q8_0;
+if 12B's vision encoder is more quantization-sensitive than the smaller variants,
+that could explain frequent extraction failures. NOT YET TESTED: re-run with the
+bf16 mmproj variant (mmproj-gemma-4-12B-it-bf16.gguf) before concluding 12B is
+genuinely worse at this task — until that's ruled out, treat this result as
+inconclusive rather than a real capability finding. See eval-results/README.md Known
+Issues #11 for full detail, including the practical implication that gemma-4-e4b
+(not 12B) currently looks like the far more promising distillation-teacher candidate.
 """
 
 [models.gemma-4-e2b]

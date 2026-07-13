@@ -74,6 +74,10 @@ retroactively compute it.
 | 2026-07-12 03:45 | `9addc0a` | Gemma-4-E2B-it-Q4_K_M | Full JSON extraction, `<1g`/added-sugars prompt fix | 316/363 (87.1%) ▼ −7 vs. pre-fix | 14/33 (unchanged) | ▲ +5 | see Known Issues #10 and models.toml notes |
 | 2026-07-12 04:03 | `9addc0a` | LFM2.5-VL-1.6B-Q8_0 | Full JSON extraction, `<1g`/added-sugars prompt fix | 343/363 (94.5%) (unchanged) | 21/33 (unchanged) | ▲ +12 | see Known Issues #10 |
 | 2026-07-12 04:07 | `9addc0a` | Qwen2-VL-2B-Instruct-Q4_K_M | Full JSON extraction, `<1g`/added-sugars prompt fix | **350/363 (96.4%) ▲ +4 vs. pre-fix, new best** | **23/33** | **▲ +14** | see Known Issues #10 |
+| 2026-07-13 02:41 | `64713ef` | Gemma-4-E4B-it-Q4_K_M | Full JSON extraction | **341/363 (93.9%)** | **19/33** | **▲ +10** | see Known Issues #11 and models.toml notes (no standalone report file yet) |
+| 2026-07-13 02:41 | `64713ef` | Gemma-4-E4B-it-Q4_K_M | OCR-only, resilient parser | 319/363 (87.9%) | 14/33 | ▲ +5 | see Known Issues #11 |
+| 2026-07-13 05:55 | `64713ef` | Gemma-4-12B-it-Q4_K_M | Full JSON extraction | 30/363 (8.3%) ▼▼ | 0/33 | ▼ −9 | see Known Issues #11 — unexplained regression, likely technical not capability |
+| 2026-07-13 05:55 | `64713ef` | Gemma-4-12B-it-Q4_K_M | OCR-only, resilient parser | 10/363 (2.8%) ▼▼ | 0/33 | ▼ −9 | see Known Issues #11 |
 | — | — | PaddleOCR (baseline) | OCR + regex, unmodified | n/a | 9/33 | = | not independently re-verified here; see caveat above |
 
 Commit = the code state the run was actually executed against (usually the commit that lands
@@ -81,13 +85,19 @@ right after the run, since reports are written and committed once results are in
 
 **All-fields reshuffles the ranking significantly vs. whole-record.** By all-fields (post prompt-fix
 for the top model), the top 5 are **Qwen2-VL-2B full-JSON (96.4%, current best)**, LFM2.5-VL-1.6B
-full-JSON (94.5%), Gemma-4-E2B full-JSON (89.0% pre-fix / 87.1% post-fix — see Known Issues #10),
-then GLM-OCR OCR-only (86.0%) and LFM2.5-VL-1.6B OCR-only (86.5%). Several models whose whole-record
-score looked close to a total
-failure are actually getting the large majority of individual fields right: LightOnOCR-1B OCR-only
-(79.6% all-fields vs. only 6/33 whole-record) and GLM-Edge-V-2B OCR-only (76.6% vs. 8/33) are the
-starkest examples. See Known Issues for the per-field breakdown and the two weakest fields
-(`dietary_fiber_g`, `added_sugars_g`) that drag down nearly every model regardless of size.
+full-JSON (94.5%), **Gemma-4-E4B full-JSON (93.9%)**, Gemma-4-E2B full-JSON (89.0% pre-fix / 87.1%
+post-fix — see Known Issues #10), then GLM-OCR OCR-only (86.0%). Several models whose whole-record
+score looked close to a total failure are actually getting the large majority of individual fields
+right: LightOnOCR-1B OCR-only (79.6% all-fields vs. only 6/33 whole-record) and GLM-Edge-V-2B
+OCR-only (76.6% vs. 8/33) are the starkest examples. See Known Issues for the per-field breakdown
+and the two weakest fields (`dietary_fiber_g`, `added_sugars_g`) that drag down nearly every model
+regardless of size.
+
+**Gemma 4's cross-size comparison (E2B → E4B → 12B) breaks the "bigger is better" expectation at
+12B — see Known Issues #11.** E2B (89.0%) → E4B (93.9%) scales as expected, but 12B collapses to
+8.3% all-fields, worse than nearly every model in this project including several outright failures.
+This is very likely a technical artifact (see #11) rather than a real capability regression, but
+it's unresolved as of this writing.
 
 ## Smoke-tested, not yet fully evaluated
 
@@ -237,6 +247,46 @@ candidates should be added back to this table as they come in.
     isn't automatically the right call in general (e.g. if the eval's purpose shifts toward finding
     a broadly robust prompt rather than optimizing for one model), so revisit this call if that
     context changes.
+
+11. **Gemma 4 cross-size comparison (2026-07-13): E2B→E4B scales as expected, 12B collapses —
+    unresolved, likely technical.** Ran all three Gemma 4 sizes available for this project
+    (E2B ~2B, E4B ~4B, 12B — a separate "full" dense model, not part of the elastic E2B/E4B line)
+    through the same harness, motivated by interest in possibly distilling from a larger Gemma 4
+    model down to something deployable. **E4B is excellent**: 341/363 (93.9%) full-JSON, 319/363
+    (87.9%) OCR-only — a clean improvement over E2B (89.0%/73.0%) and now effectively tied for 3rd
+    place overall, just behind LFM2.5-VL-1.6B. **12B collapses to 30/363 (8.3%) full-JSON, 10/363
+    (2.8%) OCR-only** — worse than nearly every model in this project, including several outright
+    failures. This breaks the scaling trend entirely rather than continuing it, which is unusual
+    enough to warrant real suspicion of a technical artifact rather than a genuine capability
+    regression at 12B:
+    - Inspected raw output: all 33 full-JSON cases parsed as *valid* JSON (0 `ERROR`s, all `FAIL`),
+      but the overwhelming majority returned **every field as `null`** rather than garbled or
+      wrong-but-present values — a handful of cases did extract partially-correct real values (e.g.
+      one case matched `serving_size_grams`, `total_carbohydrates_g`, and `dietary_fiber_g` exactly),
+      showing the model *can* read the image sometimes, just usually declines to.
+    - Ruled out context-window overflow: `n_ctx = 4096` is the same fixed value used for every
+      model in this harness, and Gemma 4 12B's vision encoder produces the *identical* number of
+      image tokens as E2B/E4B for the same images (`image_tokens->nx = 266`/`210`, confirmed by
+      diffing the logs) — so this isn't 12B needing more context than the harness provides.
+    - **Leading suspect, not yet tested: mmproj quantization mismatch.** E2B/E4B use an `f16` mmproj
+      (`mmproj-F16.gguf`, matching upstream's `mmproj-google_gemma-4-{E2B,E4B}-it-f16.gguf`); the
+      12B repo (`ggml-org/gemma-4-12B-it-GGUF`) doesn't offer an f16 mmproj, only `Q8_0` and `bf16` —
+      this eval used `Q8_0` (`mmproj-gemma-4-12B-it-Q8_0.gguf`). If 12B's larger/different vision
+      encoder is more sensitive to mmproj quantization than E2B/E4B's, that could explain the model
+      frequently failing to extract anything from the image at all. Worth a follow-up run with the
+      `bf16` mmproj variant before concluding 12B is simply worse at this task — this wasn't done in
+      this session due to time/compute constraints.
+    - Chat template was not a clear differentiator: both repos embed a template starting with the
+      same `format_parameters` macro, so no obvious mismatch there, though the two GGUFs come from
+      different converters (bartowski for E2B/E4B, ggml-org for 12B) which could still differ in
+      ways not visible from a quick template-string comparison.
+    **Practical implication for a distillation plan**: if the goal is distilling from a larger Gemma
+    4 model down to something deployable for this specific task, **E4B is the far more promising
+    teacher candidate right now** — it's both smaller (faster to run for generating distillation
+    data) and, as currently configured, dramatically more capable on this task than 12B. Don't treat
+    12B's poor showing as evidence against using a large model as a teacher in general — resolve the
+    mmproj-quantization hypothesis first, since if that's the root cause, 12B's real capability on
+    this task is unknown rather than confirmed-poor.
 
 ## Adding a new model to this table
 
