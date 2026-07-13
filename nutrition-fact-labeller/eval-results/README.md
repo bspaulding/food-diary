@@ -278,23 +278,30 @@ candidates should be added back to this table as they come in.
       (`cholesterol_mg` 1/5, every other field 0/5). Since zero-quantization-loss bf16 reproduces
       `Q8_0`'s failure exactly, mmproj quantization is not the cause. Did not proceed to a full
       33-image bf16 run given this decisive a signal from the 5-image A/B.
-    - Chat template was not a clear differentiator: both repos embed a template starting with the
-      same `format_parameters` macro, so no obvious mismatch there, though the two GGUFs come from
-      different converters (bartowski for E2B/E4B, ggml-org for 12B) which could still differ in
-      ways not visible from a quick template-string comparison — not investigated further since the
-      mmproj test already gave a clean answer to the practical question (see below).
-    **Conclusion: this looks like a genuine property of this specific 12B checkpoint/conversion for
-    this task, not a harness misconfiguration.** Untested alternate explanations (chat-template
-    differences between converters, or the "full" 12B model's instruction-tuning being less suited
-    to literal structured-extraction than the elastic E2B/E4B line's) remain possible but weren't
-    pursued further, since the mmproj test already resolved the question that mattered practically.
+    - **GGUF converter — tested 2026-07-13, ruled out.** The original 12B run used `ggml-org`'s
+      conversion; `bartowski` (the same converter behind `gemma-4-e2b`/`gemma-4-e4b`, both of which
+      scored well) offers its own conversion of the identical `google/gemma-4-12B-it` checkpoint,
+      including — unlike ggml-org's repo — an `f16` mmproj matching E2B/E4B's mmproj precision
+      exactly. Ran the same 5-image diagnostic against `bartowski/gemma-4-12B-it-GGUF`
+      (`gemma-4-12b-bartowski` in `models.toml`): **0/55 (0.0%) all-fields**, the identical failure
+      signature (valid JSON, 0 parse errors, nearly every field null) — slightly worse than
+      ggml-org's 1/55 (1.8%) on the same images, though at this sample size that gap isn't
+      meaningful. This is the third independent configuration (ggml-org+Q8_0 mmproj, ggml-org+bf16
+      mmproj, bartowski+f16 mmproj) to reproduce the same collapse, ruling out both the converter
+      and mmproj precision as explanations.
+    **Conclusion: this is a genuine property of the 12B checkpoint itself for this task, not a
+    harness misconfiguration, mmproj-quantization artifact, or converter-specific bug.** The one
+    remaining untested explanation is that the "full" 12B model's instruction-tuning is less suited
+    to literal structured-extraction than the elastic E2B/E4B line's — plausible given how
+    consistently it fails the same way regardless of conversion, but not directly confirmed.
     **Practical implication for a distillation plan**: if the goal is distilling from a larger Gemma
     4 model down to something deployable for this specific task, **E4B is the far more promising
     teacher candidate** — it's both smaller (faster to run for generating distillation data) and, as
-    measured, dramatically more capable at this task than 12B. This isn't evidence against using a
-    large model as a teacher in general — it's specific to this 12B checkpoint/conversion on this
-    task — but there's no reason to reach for 12B here when E4B already outperforms it substantially
-    while costing less compute to run.
+    measured across three independent configurations, dramatically more capable at this task than
+    12B regardless of which GGUF conversion is used. This isn't evidence against using a large model
+    as a teacher in general — it's specific to this 12B checkpoint on this task — but there's no
+    reason to reach for 12B here when E4B already outperforms it substantially while costing less
+    compute to run.
 
 ## Adding a new model to this table
 

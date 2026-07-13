@@ -99,7 +99,7 @@ model_file = "gemma-4-12B-it-Q4_K_M.gguf"
 mmproj_file = "mmproj-gemma-4-12B-it-f16.gguf"
 projector_type = "gemma4v"
 category = "already-evaluated"
-status = "pending-eval"
+status = "evaluated-smoke-only"
 notes = """
 Same ~12B checkpoint as gemma-4-12b (google/gemma-4-12B-it), but converted by
 bartowski instead of ggml-org — added 2026-07-13 to test whether gemma-4-12b's
@@ -112,6 +112,17 @@ comparison point. Unlike the ggml-org repo, this one offers an f16 mmproj
 (mmproj-gemma-4-12B-it-f16.gguf) matching gemma-4-e2b/e4b's mmproj precision exactly
 (the ggml-org repo only had Q8_0/bf16) — one fewer variable versus the original 12B
 run. Same Q4_K_M quant level as gemma-4-12b for apples-to-apples comparison.
+5-IMAGE DIAGNOSTIC (2026-07-13, same 5 images as the ggml-org mmproj A/B test — a
+full 33-image run was deemed unnecessary given how consistent the signal already is):
+**0/55 (0.0%) all-fields** — same failure signature as ggml-org's conversion (valid
+JSON every time, 0 parse errors, but nearly every field null). Slightly worse than
+ggml-org's 1/55 (1.8%) on the same 5 images, though at this sample size that gap
+isn't meaningful — the takeaway is that it's just as bad, not that one converter is
+measurably better. This is the third independent configuration to reproduce the same
+failure (ggml-org+Q8_0 mmproj, ggml-org+bf16 mmproj, bartowski+f16 mmproj), ruling out
+GGUF converter and mmproj precision as the explanation. See eval-results/README.md
+Known Issues #11 — this strengthens the conclusion that the 12B checkpoint itself
+behaves this way for this task, not a conversion/quantization artifact.
 """
 
 [models.gemma-4-e2b]
