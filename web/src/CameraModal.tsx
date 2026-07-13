@@ -34,7 +34,6 @@ const CameraModal: Component<Props> = (props: Props) => {
   const [isUploading, setIsUploading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [mode, setMode] = createSignal<"camera" | "upload">("camera");
-  const [useVlm, setUseVlm] = createSignal(false);
 
   const startCamera = async (): Promise<void> => {
     try {
@@ -237,9 +236,6 @@ const CameraModal: Component<Props> = (props: Props) => {
       // Create form data and upload
       const formData: FormData = new FormData();
       formData.append("image", imageBlob, "capture.jpg");
-      if (useVlm()) {
-        formData.append("backend", "vlm");
-      }
 
       async function retry(
         times: number,
@@ -475,15 +471,6 @@ const CameraModal: Component<Props> = (props: Props) => {
 
         {/* Footer with Import Button */}
         <div class="p-4 bg-slate-800 flex flex-col items-center gap-3">
-          <label class="flex items-center gap-2 text-slate-400 text-sm select-none cursor-pointer">
-            <input
-              type="checkbox"
-              checked={useVlm()}
-              onChange={(e) => setUseVlm(e.currentTarget.checked)}
-              class="w-4 h-4 rounded accent-indigo-500"
-            />
-            Use VLM (beta)
-          </label>
           {mode() === "camera" && !capturedImage() ? (
             <button
               class="bg-indigo-600 text-white py-3 px-6 text-lg font-semibold rounded-lg flex items-center gap-2 disabled:opacity-50"
