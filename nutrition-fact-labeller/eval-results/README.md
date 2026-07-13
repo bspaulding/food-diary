@@ -71,15 +71,19 @@ retroactively compute it.
 | 2026-07-12 02:37 | `2b83b0e` | Qwen2-VL-2B-Instruct-Q4_K_M | OCR-only, resilient parser | 313/363 (86.2%) | 14/33 | ▲ +5 | [2026-07-12-general-small-vlm-candidates-full-eval.md](2026-07-12-general-small-vlm-candidates-full-eval.md) |
 | 2026-07-12 03:30 | `c1eff1b` | Gemma-4-E2B-it-Q4_K_M | Full JSON extraction | 323/363 (89.0%) | 14/33 | ▲ +5 | see models.toml notes (ad-hoc-predecessor result re-verified fresh this session; no standalone report file yet) |
 | 2026-07-12 03:30 | `c1eff1b` | Gemma-4-E2B-it-Q4_K_M | OCR-only, resilient parser | 265/363 (73.0%) | 12/33 | ▲ +3 | see models.toml notes |
+| 2026-07-12 03:45 | `9addc0a` | Gemma-4-E2B-it-Q4_K_M | Full JSON extraction, `<1g`/added-sugars prompt fix | 316/363 (87.1%) ▼ −7 vs. pre-fix | 14/33 (unchanged) | ▲ +5 | see Known Issues #10 and models.toml notes |
+| 2026-07-12 04:03 | `9addc0a` | LFM2.5-VL-1.6B-Q8_0 | Full JSON extraction, `<1g`/added-sugars prompt fix | 343/363 (94.5%) (unchanged) | 21/33 (unchanged) | ▲ +12 | see Known Issues #10 |
+| 2026-07-12 04:07 | `9addc0a` | Qwen2-VL-2B-Instruct-Q4_K_M | Full JSON extraction, `<1g`/added-sugars prompt fix | **350/363 (96.4%) ▲ +4 vs. pre-fix, new best** | **23/33** | **▲ +14** | see Known Issues #10 |
 | — | — | PaddleOCR (baseline) | OCR + regex, unmodified | n/a | 9/33 | = | not independently re-verified here; see caveat above |
 
 Commit = the code state the run was actually executed against (usually the commit that lands
 right after the run, since reports are written and committed once results are in hand).
 
-**All-fields reshuffles the ranking significantly vs. whole-record.** By all-fields, the top 5 are
-Qwen2-VL-2B full-JSON (95.3%), LFM2.5-VL-1.6B full-JSON (94.5%), **Gemma-4-E2B full-JSON (89.0%) —
-which jumps to 3rd despite a modest 14/33 whole-record score**, then GLM-OCR OCR-only (86.0%) and
-LFM2.5-VL-1.6B OCR-only (86.5%). Several models whose whole-record score looked close to a total
+**All-fields reshuffles the ranking significantly vs. whole-record.** By all-fields (post prompt-fix
+for the top model), the top 5 are **Qwen2-VL-2B full-JSON (96.4%, current best)**, LFM2.5-VL-1.6B
+full-JSON (94.5%), Gemma-4-E2B full-JSON (89.0% pre-fix / 87.1% post-fix — see Known Issues #10),
+then GLM-OCR OCR-only (86.0%) and LFM2.5-VL-1.6B OCR-only (86.5%). Several models whose whole-record
+score looked close to a total
 failure are actually getting the large majority of individual fields right: LightOnOCR-1B OCR-only
 (79.6% all-fields vs. only 6/33 whole-record) and GLM-Edge-V-2B OCR-only (76.6% vs. 8/33) are the
 starkest examples. See Known Issues for the per-field breakdown and the two weakest fields
@@ -206,6 +210,33 @@ candidates should be added back to this table as they come in.
    (40g)"), **but is explicitly deprioritized for now**: the food-diary app doesn't consume this
    field yet, so fixing it isn't worth the effort until it is. Revisit if/when the app starts using
    it.
+
+10. **`NUTRITION_PROMPT` `<1g`/added-sugars fix (2026-07-12): helps the leader, hurts a weaker
+    model — kept anyway.** Added two explicit rules to `NUTRITION_PROMPT` (`src/vlm/mod.rs`,
+    commit `9addc0a`) targeting Issue #9's two universal weak fields: "if the label shows `<1g`,
+    report 1, not 0" and "look for a sub-line reading `Includes Xg Added Sugars` nested under Total
+    Sugars; report that value, don't default to 0." Re-ran the three models where full-JSON was
+    already a working approach (the only ones this fix could plausibly affect, since it doesn't
+    touch `OCR_TRANSCRIBE_PROMPT`):
+    - **Qwen2-VL-2B: genuinely improved** — `dietary_fiber_g` 29→32/33, `added_sugars_g` 27→30/33,
+      all-fields 346→350/363 (95.3%→96.4%, new project best), whole-record 22→23/33. Small
+      collateral cost (calories −2, protein −1 across a couple of cases) but a clear net win.
+    - **LFM2.5-VL-1.6B: a wash** — all-fields and whole-record totals unchanged (343/363, 21/33);
+      `added_sugars_g` +1 but `protein_g` −1, netting zero.
+    - **Gemma-4-E2B: got worse** — all-fields 323→316/363 (89.0%→87.1%), and `added_sugars_g` (the
+      exact targeted field) dropped 24→20/33, plus one new parse failure appeared. Longer/more
+      complex prompts are a known small-model brittleness pattern — extra rules to juggle can cost
+      more than they give back once a model is already near its instruction-following ceiling.
+    **Decision: keep the change.** It strengthens the current best model (Qwen2-VL-2B) further, is
+    neutral for the current #2 (LFM2.5-VL-1.6B), and while it costs the #3 model (Gemma-4-E2B)
+    noticeably, that doesn't change its rank — it was 3rd before and after. Since the practical goal
+    is finding the single best model to ship, optimizing the prompt for the strongest candidate is
+    the right tradeoff, but this regression should NOT be silently absorbed if Gemma 4 E2B is ever
+    reconsidered as a deployment candidate — re-test with the current prompt before relying on its
+    9addc0a-era numbers for a shipping decision. A prompt fix that only helps the strongest model
+    isn't automatically the right call in general (e.g. if the eval's purpose shifts toward finding
+    a broadly robust prompt rather than optimizing for one model), so revisit this call if that
+    context changes.
 
 ## Adding a new model to this table
 
