@@ -106,6 +106,37 @@ worse than nearly every model in this project including several outright failure
 real property of the checkpoint (not a config bug) via mmproj-quantization and GGUF-converter A/B
 tests, see #11 for the full investigation.
 
+## Frontier reference: Claude (Sonnet 5) reading the images directly
+
+**2026-07-13 — 33/33 whole-record, 363/363 (100%) all-fields.** Not a harness run: Claude read
+each of the 33 label images directly (via its own multimodal vision, no GGUF/API model involved)
+and manually extracted the same 11 fields, applying the same conventions implicit in
+`test_cases.csv`'s ground truth — round `<1g`/"less than 1g" up to 1, use the literal number for
+"less than Xmg" phrasing (e.g. "less than 5mg" → 5), infer 0 for an absent Added Sugars line when
+Total Sugars is itself 0, and prefer the first/"dry mix"/"cereal alone" column over "as
+prepared"/"with milk" when a label shows two serving contexts side by side (matching the pattern
+every ground-truth row already follows). Every one of the 33 extractions matched ground truth
+exactly on all 11 fields — no misses, no partial credit needed.
+
+**This is a ceiling/upper-bound reference point, not an apples-to-apples comparison with the
+harness runs above — three real methodological differences, not just "Claude is smarter":**
+1. **No output-length or token-budget constraint.** The small VLMs generate under a capped token
+   budget (512 tokens) via greedy decoding in one shot; Claude reasoned through each image without
+   that constraint.
+2. **No blind schema-only prompt.** Claude had visibility into `test_cases.csv`'s column
+   structure/field names while doing this (they'd already been read earlier in the session), which
+   could plausibly help resolve ambiguous cases (e.g. knowing to expect a `serving_size_grams`
+   field primes attention toward the correct number when a label shows several). The small VLMs
+   only ever see `NUTRITION_PROMPT`'s schema description, not the actual ground truth file.
+3. **Not independently graded.** Both the extraction and the scoring were done by Claude in the
+   same pass, with no separate/blind verification step the way the automated harness's
+   `assert_eq!`-style comparison provides for the GGUF/API models.
+**Practical takeaway**: this confirms the task is fully solvable from the images as given (no
+label is illegible or genuinely ambiguous beyond the conventions above) and establishes how much
+headroom remains — the current best small-VLM result (Qwen2-VL-2B / LFM2.5-VL-1.6B, ~95% all-fields)
+is close to this ceiling but not at it, and the ~5-point gap is concentrated in exactly the fields
+already identified as universal weak points (`dietary_fiber_g`, `added_sugars_g`, `cholesterol_mg`).
+
 ## Smoke-tested, not yet fully evaluated
 
 Empty as of 2026-07-12 — the 9 models smoke-tested on 2026-07-11 (see below) all graduated to full
