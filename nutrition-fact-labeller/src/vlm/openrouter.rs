@@ -128,6 +128,23 @@ impl LlmApiBackend {
     }
 }
 
+impl crate::VlmBackend for LlmApiBackend {
+    fn name(&self) -> &str {
+        &self.model
+    }
+
+    /// Blocking adapter over the async `infer` above, for the synchronous `VlmBackend`
+    /// trait used by the benchmark harness (`vlm_benchmark_api.rs`). Spins up a
+    /// throwaway single-threaded runtime per call — fine for a benchmark run over 33
+    /// images, not meant for the hot path of a real server.
+    fn infer(&self, image_path: &std::path::Path) -> anyhow::Result<ParsedNutritionFacts> {
+        let image_bytes = std::fs::read(image_path)
+            .with_context(|| format!("Failed to read image {image_path:?}"))?;
+        let rt = tokio::runtime::Runtime::new().context("Failed to start tokio runtime")?;
+        rt.block_on(LlmApiBackend::infer(self, &image_bytes))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
