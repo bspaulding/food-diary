@@ -92,6 +92,28 @@ answered: gemma-4-e4b is the far more promising distillation-teacher candidate, 
 See eval-results/README.md Known Issues #11 for full detail.
 """
 
+[models.gemma-4-12b-bartowski]
+display_name = "Gemma-4-12B-it-Q4_K_M-bartowski"
+hf_repo = "bartowski/gemma-4-12B-it-GGUF"
+model_file = "gemma-4-12B-it-Q4_K_M.gguf"
+mmproj_file = "mmproj-gemma-4-12B-it-f16.gguf"
+projector_type = "gemma4v"
+category = "already-evaluated"
+status = "pending-eval"
+notes = """
+Same ~12B checkpoint as gemma-4-12b (google/gemma-4-12B-it), but converted by
+bartowski instead of ggml-org — added 2026-07-13 to test whether gemma-4-12b's
+anomalous 8.3%/2.8% all-fields result (see that entry's notes and
+eval-results/README.md Known Issues #11) is specific to the ggml-org conversion
+(e.g. a chat-template embedding difference) rather than the 12B checkpoint itself.
+bartowski is the same converter used for gemma-4-e2b and gemma-4-e4b, both of which
+scored well (89.0%/93.9% all-fields), so this is also a same-converter, different-size
+comparison point. Unlike the ggml-org repo, this one offers an f16 mmproj
+(mmproj-gemma-4-12B-it-f16.gguf) matching gemma-4-e2b/e4b's mmproj precision exactly
+(the ggml-org repo only had Q8_0/bf16) — one fewer variable versus the original 12B
+run. Same Q4_K_M quant level as gemma-4-12b for apples-to-apples comparison.
+"""
+
 [models.gemma-4-e2b]
 display_name = "Gemma-4-E2B-it-Q4_K_M"
 hf_repo = "bartowski/google_gemma-4-E2B-it-GGUF"
