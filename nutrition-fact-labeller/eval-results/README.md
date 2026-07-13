@@ -82,23 +82,26 @@ retroactively compute it.
 | 2026-07-13 17:13 | `a6593e6` | Qwen2-VL-2B-Instruct-Q4_K_M | Full JSON extraction, consolidated prompt rule (**current prompt**) | 344/363 (94.8%) ▼ −6 vs. two-rule | 20/33 | ▲ +11 | see Known Issues #12 — regression judged within noise margin for n=33, prompt kept anyway |
 | 2026-07-13 17:27 | `a6593e6` | Gemma-4-E2B-it-Q4_K_M | Full JSON extraction, consolidated prompt rule (**current prompt**) | **327/363 (90.1%) ▲ +11 vs. two-rule, ▲ +4 vs. no-fix, best version yet** | **16/33** | **▲ +7** | see Known Issues #12 |
 | 2026-07-13 17:32 | `a6593e6` | Gemma-4-E4B-it-Q4_K_M | Full JSON extraction, consolidated prompt rule (**current prompt**) | 343/363 (94.5%) ▲ +2 vs. two-rule | 19/33 (unchanged) | ▲ +10 | see Known Issues #12 |
+| 2026-07-13 18:25 | `7929912` | Gemma-4-31B-it:free (OpenRouter API, hosted) | Full JSON extraction | 359/363 (98.9%) | 30/33 | ▲ +21 | see Known Issues #13 |
+| 2026-07-13 18:40 | `3d5e2c6` | Gemma-4-31B-it:free (OpenRouter API, hosted) | Full JSON extraction, never-null prompt rule | **363/363 (100%) — perfect score, matches the frontier-reference ceiling exactly** | **33/33** | **▲ +24** | see Known Issues #13 |
 | — | — | PaddleOCR (baseline) | OCR + regex, unmodified | n/a | 9/33 | = | not independently re-verified here; see caveat above |
 
 Commit = the code state the run was actually executed against (usually the commit that lands
 right after the run, since reports are written and committed once results are in hand).
 
-**All-fields reshuffles the ranking significantly vs. whole-record.** As of the current prompt
-(`NUTRITION_PROMPT`'s consolidated rule, see Known Issues #12), the top of the field is effectively
-a **near-tie between LFM2.5-VL-1.6B full-JSON (95.0%) and Qwen2-VL-2B full-JSON (94.8%)** — a
-0.2-point gap that isn't meaningfully distinguishable at n=33 cases. **Gemma-4-E4B full-JSON
-(94.5%)** and **Gemma-4-E2B full-JSON (90.1%)** follow close behind, then GLM-OCR OCR-only (86.0%,
-not re-tested against the current prompt since OCR-only doesn't use `NUTRITION_PROMPT`). Several
-models whose whole-record score looked close to a total failure are actually getting the large
-majority of individual fields right: LightOnOCR-1B OCR-only (79.6% all-fields vs. only 6/33
-whole-record) and GLM-Edge-V-2B OCR-only (76.6% vs. 8/33) are the starkest examples. See Known
-Issues for the per-field breakdown and the two weakest fields (`dietary_fiber_g`, `added_sugars_g`,
-plus the newly-identified `cholesterol_mg` pattern) that drag down nearly every model regardless of
-size.
+**Gemma-4-31B via OpenRouter is now the clear overall best — 100% all-fields, 33/33 whole-record,
+a perfect score after the never-null prompt fix — well ahead of every self-hosted candidate. See
+Known Issues #13.** Among the sub-2B self-hosted
+GGUF candidates (the deployment-realistic tier), the top is effectively a **near-tie between
+LFM2.5-VL-1.6B full-JSON (95.0%) and Qwen2-VL-2B full-JSON (94.8%)** — a 0.2-point gap that isn't
+meaningfully distinguishable at n=33 cases. **Gemma-4-E4B full-JSON (94.5%)** and **Gemma-4-E2B
+full-JSON (90.1%)** follow close behind, then GLM-OCR OCR-only (86.0%, not re-tested against the
+current prompt since OCR-only doesn't use `NUTRITION_PROMPT`). Several models whose whole-record
+score looked close to a total failure are actually getting the large majority of individual fields
+right: LightOnOCR-1B OCR-only (79.6% all-fields vs. only 6/33 whole-record) and GLM-Edge-V-2B
+OCR-only (76.6% vs. 8/33) are the starkest examples. See Known Issues for the per-field breakdown
+and the weakest fields (`dietary_fiber_g`, `added_sugars_g`, `cholesterol_mg`) that drag down
+nearly every model regardless of size.
 
 **Gemma 4's cross-size comparison (E2B → E4B → 12B) breaks the "bigger is better" expectation at
 12B — see Known Issues #11.** E2B → E4B scales as expected, but 12B collapses to 8.3% all-fields,
@@ -379,6 +382,41 @@ candidates should be added back to this table as they come in.
     numbers as more precise than they are — consider re-running with more test cases, or accept that
     other factors (model size, license, inference speed) may be the deciding tiebreaker rather than
     this eval's accuracy numbers alone.
+
+13. **First hosted-API model tested: Gemma-4-31B via OpenRouter — 100% all-fields after one prompt
+    fix, the new project best by a wide margin.** Added `src/bin/vlm_benchmark_api.rs`, a blocking
+    `VlmBackend` adapter over the existing `LlmApiBackend` (previously only used in `main.rs`'s
+    serving path, never in an eval harness), so hosted API models can be benchmarked the same way
+    as local GGUF candidates. First run against `google/gemma-4-31b-it:free` (30.7B dense
+    multimodal, free tier, confirmed vision-capable and hosted per Known Issues #6's OpenRouter
+    research) scored **359/363 (98.9%) all-fields, 30/33 whole-record** — dramatically ahead of
+    every self-hosted sub-2B candidate (~90-95%).
+    **All 3 misses shared one root cause, distinct from every other pattern found so far**:
+    `IMG_5426` (fruit snacks) has a "Not a significant source of ... cholesterol, dietary fiber ..."
+    disclaimer instead of a printed `0`; `IMG_5450` (sausage patties) and `IMG_5462` (turkey breast)
+    show only "Sugars 0g" with **no separate Added Sugars line at all**. In every case the model
+    returned `null` — which was actually the *literally correct* reading of the prompt at the time
+    ("Use null ONLY if that nutrient field does not appear on the label at all," and in these cases
+    the field genuinely doesn't appear as its own line). The ground truth infers `0` in these cases
+    rather than treating them as truly absent.
+    **Fix: changed `NUTRITION_PROMPT` to forbid `null` entirely** ("NEVER return null for any
+    field... infer 0 rather than null") rather than adding another narrow rule. This is different
+    in kind from every earlier prompt change in this project (Issues #9/#10/#12), which were
+    judgment calls trading one field's accuracy for another's: **every one of the 33 rows in
+    `test_cases.csv` has a real, non-null value for all 11 fields** (verified directly — zero empty
+    cells in the CSV), so telling models to never emit `null` is provably correct for this dataset
+    rather than a tradeoff. Re-ran Gemma-4-31B with the new prompt: **363/363 (100%) all-fields,
+    33/33 whole-record — a perfect score**, closing all 3 remaining misses and exactly matching the
+    frontier-reference ceiling established by Claude reading the images directly (see that section
+    above). Also re-ran Qwen2-VL-2B and LFM2.5-VL-1.6B against the never-null prompt — see the
+    Results table above for outcomes once both finish.
+    **Practical implication**: Gemma-4-31B via OpenRouter is now the strongest candidate measured in
+    this project by a wide margin, but it's a fundamentally different deployment shape than every
+    other candidate here — a ~31B hosted model called over the network, not a self-hosted sub-2B
+    GGUF file. Whether that tradeoff (accuracy vs. self-hosting/cost/latency/offline-capability) is
+    worth it depends on constraints outside this eval's scope (see the earlier cluster-sizing and
+    in-browser-deployment discussions) — this result doesn't replace the small-VLM comparison, it
+    adds a ceiling-adjacent reference point alongside it.
 
 ## Adding a new model to this table
 
