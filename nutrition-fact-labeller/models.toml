@@ -53,7 +53,7 @@ model_file = "gemma-4-12B-it-Q4_K_M.gguf"
 mmproj_file = "mmproj-gemma-4-12B-it-Q8_0.gguf"
 projector_type = "gemma4v"
 category = "already-evaluated"
-status = "evaluated-anomalous-needs-followup"
+status = "evaluated"
 notes = """
 ~12B — NOT part of the elastic E2B/E4B line, a separate "full" dense Gemma 4 model
 (same tier as the 31B referenced via OpenRouter in nutrition-fact-labeller/README.md).
@@ -70,20 +70,26 @@ gemma-4-e2b, as expected for the parameter count): **anomalous, unresolved resul
 0/33 whole-record on both harnesses; 30/363 (8.3%) all-fields full-JSON, 10/363 (2.8%)
 all-fields OCR-only — dramatically worse than gemma-4-e2b (89.0%/73.0%) and
 gemma-4-e4b (93.9%/87.9%), breaking rather than continuing the E2B->E4B scaling trend.
-Diagnosis so far: all 33 full-JSON cases returned syntactically valid JSON (0 parse
-errors) but the large majority had every field set to null rather than garbled/wrong
-values (a few cases did extract partially-correct real values, so it's not blind to
-the image). Ruled out context overflow (n_ctx=4096 fixed across all models in this
+Diagnosis: all 33 full-JSON cases returned syntactically valid JSON (0 parse errors)
+but the large majority had every field set to null rather than garbled/wrong values
+(a few cases did extract partially-correct real values, so it's not blind to the
+image). Ruled out context overflow (n_ctx=4096 fixed across all models in this
 harness; identical image-token counts as E2B/E4B for the same images, confirmed by
-diffing logs). Leading unresolved hypothesis: mmproj quantization mismatch — E2B/E4B
-use f16 mmproj, but this repo only offers Q8_0/bf16 mmproj and this eval used Q8_0;
-if 12B's vision encoder is more quantization-sensitive than the smaller variants,
-that could explain frequent extraction failures. NOT YET TESTED: re-run with the
-bf16 mmproj variant (mmproj-gemma-4-12B-it-bf16.gguf) before concluding 12B is
-genuinely worse at this task — until that's ruled out, treat this result as
-inconclusive rather than a real capability finding. See eval-results/README.md Known
-Issues #11 for full detail, including the practical implication that gemma-4-e4b
-(not 12B) currently looks like the far more promising distillation-teacher candidate.
+diffing logs).
+MMPROJ QUANTIZATION RULED OUT (2026-07-13): re-ran the first 5 images with the bf16
+mmproj (mmproj-gemma-4-12B-it-bf16.gguf, zero quantization loss) instead of Q8_0, as
+a direct A/B — identical result, 1/55 (1.8%) all-fields, field-for-field the same as
+Q8_0 on the same 5 images. Since full-precision bf16 reproduces Q8_0's failure
+exactly, mmproj quantization is not the cause; did not proceed to a full 33-image
+bf16 run given how decisive the 5-image signal was.
+CONCLUSION: this looks like a genuine property of this specific 12B checkpoint/
+conversion on this task, not a harness misconfiguration — untested alternates (chat-
+template differences between converters, or the "full" 12B model's instruction-tuning
+being less suited to literal structured-extraction than the elastic E2B/E4B line)
+remain possible but weren't pursued further since the practical question was already
+answered: gemma-4-e4b is the far more promising distillation-teacher candidate, not
+12B — it's smaller, faster, and dramatically more capable at this task as measured.
+See eval-results/README.md Known Issues #11 for full detail.
 """
 
 [models.gemma-4-e2b]

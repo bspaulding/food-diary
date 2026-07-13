@@ -248,8 +248,9 @@ candidates should be added back to this table as they come in.
     a broadly robust prompt rather than optimizing for one model), so revisit this call if that
     context changes.
 
-11. **Gemma 4 cross-size comparison (2026-07-13): E2B→E4B scales as expected, 12B collapses —
-    unresolved, likely technical.** Ran all three Gemma 4 sizes available for this project
+11. **Gemma 4 cross-size comparison (2026-07-13): E2B→E4B scales as expected, 12B collapses — real
+    capability finding, not a config bug (mmproj-quantization hypothesis ruled out).** Ran all three
+    Gemma 4 sizes available for this project
     (E2B ~2B, E4B ~4B, 12B — a separate "full" dense model, not part of the elastic E2B/E4B line)
     through the same harness, motivated by interest in possibly distilling from a larger Gemma 4
     model down to something deployable. **E4B is excellent**: 341/363 (93.9%) full-JSON, 319/363
@@ -268,25 +269,32 @@ candidates should be added back to this table as they come in.
       model in this harness, and Gemma 4 12B's vision encoder produces the *identical* number of
       image tokens as E2B/E4B for the same images (`image_tokens->nx = 266`/`210`, confirmed by
       diffing the logs) — so this isn't 12B needing more context than the harness provides.
-    - **Leading suspect, not yet tested: mmproj quantization mismatch.** E2B/E4B use an `f16` mmproj
+    - **mmproj quantization mismatch — tested 2026-07-13, ruled out.** E2B/E4B use an `f16` mmproj
       (`mmproj-F16.gguf`, matching upstream's `mmproj-google_gemma-4-{E2B,E4B}-it-f16.gguf`); the
-      12B repo (`ggml-org/gemma-4-12B-it-GGUF`) doesn't offer an f16 mmproj, only `Q8_0` and `bf16` —
-      this eval used `Q8_0` (`mmproj-gemma-4-12B-it-Q8_0.gguf`). If 12B's larger/different vision
-      encoder is more sensitive to mmproj quantization than E2B/E4B's, that could explain the model
-      frequently failing to extract anything from the image at all. Worth a follow-up run with the
-      `bf16` mmproj variant before concluding 12B is simply worse at this task — this wasn't done in
-      this session due to time/compute constraints.
+      12B repo (`ggml-org/gemma-4-12B-it-GGUF`) doesn't offer an f16 mmproj, only `Q8_0` and `bf16`,
+      and the original run used `Q8_0`. Re-ran the first 5 images with the `bf16` mmproj (full
+      precision, no quantization loss at all) as a direct A/B test: **identical result** —
+      1/55 (1.8%) all-fields, field-for-field the same as `Q8_0` on the same 5 images
+      (`cholesterol_mg` 1/5, every other field 0/5). Since zero-quantization-loss bf16 reproduces
+      `Q8_0`'s failure exactly, mmproj quantization is not the cause. Did not proceed to a full
+      33-image bf16 run given this decisive a signal from the 5-image A/B.
     - Chat template was not a clear differentiator: both repos embed a template starting with the
       same `format_parameters` macro, so no obvious mismatch there, though the two GGUFs come from
       different converters (bartowski for E2B/E4B, ggml-org for 12B) which could still differ in
-      ways not visible from a quick template-string comparison.
+      ways not visible from a quick template-string comparison — not investigated further since the
+      mmproj test already gave a clean answer to the practical question (see below).
+    **Conclusion: this looks like a genuine property of this specific 12B checkpoint/conversion for
+    this task, not a harness misconfiguration.** Untested alternate explanations (chat-template
+    differences between converters, or the "full" 12B model's instruction-tuning being less suited
+    to literal structured-extraction than the elastic E2B/E4B line's) remain possible but weren't
+    pursued further, since the mmproj test already resolved the question that mattered practically.
     **Practical implication for a distillation plan**: if the goal is distilling from a larger Gemma
     4 model down to something deployable for this specific task, **E4B is the far more promising
-    teacher candidate right now** — it's both smaller (faster to run for generating distillation
-    data) and, as currently configured, dramatically more capable on this task than 12B. Don't treat
-    12B's poor showing as evidence against using a large model as a teacher in general — resolve the
-    mmproj-quantization hypothesis first, since if that's the root cause, 12B's real capability on
-    this task is unknown rather than confirmed-poor.
+    teacher candidate** — it's both smaller (faster to run for generating distillation data) and, as
+    measured, dramatically more capable at this task than 12B. This isn't evidence against using a
+    large model as a teacher in general — it's specific to this 12B checkpoint/conversion on this
+    task — but there's no reason to reach for 12B here when E4B already outperforms it substantially
+    while costing less compute to run.
 
 ## Adding a new model to this table
 
