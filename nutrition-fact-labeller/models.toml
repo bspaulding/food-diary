@@ -14,6 +14,53 @@
 #   ./scripts/run-eval.sh <key> --smoke     # verify it loads/runs (cheap, 2 images)
 #   ./scripts/run-eval.sh <key>              # full 33-image eval, both harnesses
 
+[models.gemma-4-e4b]
+display_name = "Gemma-4-E4B-it-Q4_K_M"
+hf_repo = "bartowski/google_gemma-4-E4B-it-GGUF"
+model_file = "gemma-4-E4B-it-Q4_K_M.gguf"
+mmproj_file = "mmproj-F16.gguf"
+projector_type = "gemma4v"
+category = "already-evaluated"
+status = "pending-eval"
+notes = """
+~4B (elastic/MatFormer line, same family as gemma-4-e2b but the next size up). Not
+previously evaluated in this project at all (unlike gemma-4-e2b, which had a prior
+ad-hoc score) — added 2026-07-12 for a cross-size comparison motivated by possibly
+distilling from a larger Gemma 4 model down to something deployable, and general
+curiosity about how score scales with parameter count within the same model family.
+Weights already present locally at vlm-models/gemma-4-e4b/ under renamed filenames (no
+"google_" prefix, matching the same renaming pattern as gemma-4-e2b's local copy);
+copied into models/gemma-4-e4b/ under those same local names to avoid a redundant
+~5.9GB re-download — `hf_repo`/`model_file` above reflect the upstream repo for
+provenance (confirmed via the HF API's file listing to have the exact same naming
+pattern as gemma-4-e2b's upstream repo), but fetch-model.sh will report "already have"
+and skip downloading given the copied files.
+"""
+
+[models.gemma-4-12b]
+display_name = "Gemma-4-12B-it-Q4_K_M"
+hf_repo = "ggml-org/gemma-4-12B-it-GGUF"
+model_file = "gemma-4-12B-it-Q4_K_M.gguf"
+mmproj_file = "mmproj-gemma-4-12B-it-Q8_0.gguf"
+projector_type = "gemma4v"
+category = "already-evaluated"
+status = "pending-eval"
+notes = """
+~12B — NOT part of the elastic E2B/E4B line, a separate "full" dense Gemma 4 model
+(same tier as the 31B referenced via OpenRouter in nutrition-fact-labeller/README.md).
+Far above this project's stated CPU/on-device/sub-2B deployment target (see the
+manifest header comment above) — added 2026-07-12 purely for cross-size comparison
+within the Gemma 4 family (2B -> 4B -> 12B), motivated by interest in possibly
+distilling from a model this size down to something deployable for this specific
+task down the road. Expect this to be substantially slower per-image than every other
+candidate in this manifest (roughly 6x the parameters of gemma-4-e2b) — budget
+accordingly for the full 33-image x 2-harness run. No local copy of the weights
+existed; fetched fresh from the HF repo above (verified exact filenames via the HF
+API's file listing rather than guessing, since this repo offers many quantizations
+and an incorrect filename would silently curl-download a 404 error page instead of
+weights).
+"""
+
 [models.gemma-4-e2b]
 display_name = "Gemma-4-E2B-it-Q4_K_M"
 hf_repo = "bartowski/google_gemma-4-E2B-it-GGUF"
