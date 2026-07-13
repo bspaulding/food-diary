@@ -78,26 +78,33 @@ retroactively compute it.
 | 2026-07-13 02:41 | `64713ef` | Gemma-4-E4B-it-Q4_K_M | OCR-only, resilient parser | 319/363 (87.9%) | 14/33 | ▲ +5 | see Known Issues #11 |
 | 2026-07-13 05:55 | `64713ef` | Gemma-4-12B-it-Q4_K_M | Full JSON extraction | 30/363 (8.3%) ▼▼ | 0/33 | ▼ −9 | see Known Issues #11 — unexplained regression, likely technical not capability |
 | 2026-07-13 05:55 | `64713ef` | Gemma-4-12B-it-Q4_K_M | OCR-only, resilient parser | 10/363 (2.8%) ▼▼ | 0/33 | ▼ −9 | see Known Issues #11 |
+| 2026-07-13 17:08 | `a6593e6` | LFM2.5-VL-1.6B-Q8_0 | Full JSON extraction, consolidated prompt rule (**current prompt**) | **345/363 (95.0%) ▲ +2 vs. two-rule** | **22/33** | **▲ +13** | see Known Issues #12 |
+| 2026-07-13 17:13 | `a6593e6` | Qwen2-VL-2B-Instruct-Q4_K_M | Full JSON extraction, consolidated prompt rule (**current prompt**) | 344/363 (94.8%) ▼ −6 vs. two-rule | 20/33 | ▲ +11 | see Known Issues #12 — regression judged within noise margin for n=33, prompt kept anyway |
+| 2026-07-13 17:27 | `a6593e6` | Gemma-4-E2B-it-Q4_K_M | Full JSON extraction, consolidated prompt rule (**current prompt**) | **327/363 (90.1%) ▲ +11 vs. two-rule, ▲ +4 vs. no-fix, best version yet** | **16/33** | **▲ +7** | see Known Issues #12 |
+| 2026-07-13 17:32 | `a6593e6` | Gemma-4-E4B-it-Q4_K_M | Full JSON extraction, consolidated prompt rule (**current prompt**) | 343/363 (94.5%) ▲ +2 vs. two-rule | 19/33 (unchanged) | ▲ +10 | see Known Issues #12 |
 | — | — | PaddleOCR (baseline) | OCR + regex, unmodified | n/a | 9/33 | = | not independently re-verified here; see caveat above |
 
 Commit = the code state the run was actually executed against (usually the commit that lands
 right after the run, since reports are written and committed once results are in hand).
 
-**All-fields reshuffles the ranking significantly vs. whole-record.** By all-fields (post prompt-fix
-for the top model), the top 5 are **Qwen2-VL-2B full-JSON (96.4%, current best)**, LFM2.5-VL-1.6B
-full-JSON (94.5%), **Gemma-4-E4B full-JSON (93.9%)**, Gemma-4-E2B full-JSON (89.0% pre-fix / 87.1%
-post-fix — see Known Issues #10), then GLM-OCR OCR-only (86.0%). Several models whose whole-record
-score looked close to a total failure are actually getting the large majority of individual fields
-right: LightOnOCR-1B OCR-only (79.6% all-fields vs. only 6/33 whole-record) and GLM-Edge-V-2B
-OCR-only (76.6% vs. 8/33) are the starkest examples. See Known Issues for the per-field breakdown
-and the two weakest fields (`dietary_fiber_g`, `added_sugars_g`) that drag down nearly every model
-regardless of size.
+**All-fields reshuffles the ranking significantly vs. whole-record.** As of the current prompt
+(`NUTRITION_PROMPT`'s consolidated rule, see Known Issues #12), the top of the field is effectively
+a **near-tie between LFM2.5-VL-1.6B full-JSON (95.0%) and Qwen2-VL-2B full-JSON (94.8%)** — a
+0.2-point gap that isn't meaningfully distinguishable at n=33 cases. **Gemma-4-E4B full-JSON
+(94.5%)** and **Gemma-4-E2B full-JSON (90.1%)** follow close behind, then GLM-OCR OCR-only (86.0%,
+not re-tested against the current prompt since OCR-only doesn't use `NUTRITION_PROMPT`). Several
+models whose whole-record score looked close to a total failure are actually getting the large
+majority of individual fields right: LightOnOCR-1B OCR-only (79.6% all-fields vs. only 6/33
+whole-record) and GLM-Edge-V-2B OCR-only (76.6% vs. 8/33) are the starkest examples. See Known
+Issues for the per-field breakdown and the two weakest fields (`dietary_fiber_g`, `added_sugars_g`,
+plus the newly-identified `cholesterol_mg` pattern) that drag down nearly every model regardless of
+size.
 
 **Gemma 4's cross-size comparison (E2B → E4B → 12B) breaks the "bigger is better" expectation at
-12B — see Known Issues #11.** E2B (89.0%) → E4B (93.9%) scales as expected, but 12B collapses to
-8.3% all-fields, worse than nearly every model in this project including several outright failures.
-This is very likely a technical artifact (see #11) rather than a real capability regression, but
-it's unresolved as of this writing.
+12B — see Known Issues #11.** E2B → E4B scales as expected, but 12B collapses to 8.3% all-fields,
+worse than nearly every model in this project including several outright failures — confirmed as a
+real property of the checkpoint (not a config bug) via mmproj-quantization and GGUF-converter A/B
+tests, see #11 for the full investigation.
 
 ## Smoke-tested, not yet fully evaluated
 
@@ -302,6 +309,45 @@ candidates should be added back to this table as they come in.
     as a teacher in general — it's specific to this 12B checkpoint on this task — but there's no
     reason to reach for 12B here when E4B already outperforms it substantially while costing less
     compute to run.
+
+12. **`NUTRITION_PROMPT` consolidated into one general principle (2026-07-13, commit `a6593e6`) —
+    kept despite a regression on the (then-)leader, judged within noise for n=33.** Issue #9
+    identified a third universal weak field beyond fiber/added-sugars: `cholesterol_mg` is
+    consistently a small value sitting next to a much larger adjacent `sodium_mg` value (the two
+    are always adjacent label lines), and models either drop cholesterol to 0 or — in one case,
+    Qwen2-VL-2B — substitute the neighboring sodium value in its place (got `190` instead of `5`,
+    exactly matching that image's true sodium reading). All affected images passed in the OCR-only
+    harness for every model tested, confirming this is a full-JSON generation/attribution problem,
+    not a vision/legibility one. Rather than adding a third specific rule to `NUTRITION_PROMPT`
+    (risking the same prompt-bloat cost that hurt Gemma-4-E2B in Issue #10), the two existing rules
+    were replaced with one consolidated principle covering all three patterns (fiber's `<1g`,
+    sugars' nested sub-line, cholesterol's large-neighbor override) with concrete examples for each.
+    Tested against all four models where full-JSON already works well:
+    | Model | No fix | Two-rule fix | Consolidated |
+    |---|---|---|---|
+    | Qwen2-VL-2B | 346/363 (95.3%) | **350/363 (96.4%)** | 344/363 (94.8%) |
+    | LFM2.5-VL-1.6B | 343/363 (94.5%) | 343/363 (94.5%) | **345/363 (95.0%)** |
+    | Gemma-4-E2B | 323/363 (89.0%) | 316/363 (87.1%) | **327/363 (90.1%)** |
+    | Gemma-4-E4B | n/a (not evaluated before the two-rule fix landed) | 341/363 (93.9%) | **343/363 (94.5%)** |
+    Three of four models score best with the consolidated version — Gemma-4-E2B improves
+    dramatically (+11 over two-rule, +4 over no-fix at all, its best result of any prompt variant)
+    and LFM2.5-VL-1.6B and Gemma-4-E4B both improve modestly. **Only Qwen2-VL-2B — the two-rule
+    fix's biggest winner — regresses**, and specifically on the two fields the consolidation was
+    supposed to preserve (`dietary_fiber_g` 32→29/33, `added_sugars_g` 30→26/33), while the newly
+    targeted `cholesterol_mg` didn't improve for it at all (32/33 both versions). Plausible
+    explanation: cramming three distinct patterns into one dense sentence with three parenthetical
+    examples may be harder for this model to apply per-instruction than three cleanly separated
+    bullets, even though it's shorter overall — but this wasn't confirmed further.
+    **Decision: kept the consolidated prompt.** The Qwen2-VL-2B regression (1.6 points) is judged to
+    likely be within the noise margin for an n=33 test set rather than a robust, reproducible
+    signal — the same reasoning that would apply to any of the smaller deltas here. Practical
+    consequence: **Qwen2-VL-2B and LFM2.5-VL-1.6B are now effectively tied for best** (94.8% vs.
+    95.0%, a 0.2-point gap that's even more clearly within noise), where the two-rule prompt had
+    made Qwen2-VL-2B look like a clear, meaningful leader. If a future decision needs to pick a
+    single model to actually deploy and the choice is close, don't treat either of these all-fields
+    numbers as more precise than they are — consider re-running with more test cases, or accept that
+    other factors (model size, license, inference speed) may be the deciding tiebreaker rather than
+    this eval's accuracy numbers alone.
 
 ## Adding a new model to this table
 

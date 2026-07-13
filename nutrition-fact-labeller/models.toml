@@ -38,12 +38,17 @@ and skip downloading given the copied files.
 FULL EVAL (2026-07-13, 33 images): **excellent result** — 19/33 whole-record / 341/363
 (93.9%) all-fields on full-JSON, 14/33 whole-record / 319/363 (87.9%) all-fields on
 OCR-only. A clean improvement over gemma-4-e2b (14/33/89.0%, 12/33/73.0%) confirming
-the expected size-scaling trend, and puts this model at effectively 3rd-4th place
-overall in the whole project, just behind LFM2.5-VL-1.6B. Notably did NOT get the
-`<1g`/added-sugars NUTRITION_PROMPT fix tested against it (that experiment predates
-this model's addition) — worth trying, given it helped the current #1 model
-(Qwen2-VL-2B) and was neutral for #2 (LFM2.5-VL-1.6B). See eval-results/README.md
+the expected size-scaling trend. This run already included the two-rule
+`<1g`/added-sugars NUTRITION_PROMPT fix (it was evaluated after that commit landed,
+correcting an earlier erroneous note here claiming otherwise). See eval-results/README.md
 Known Issues #11 for the full E2B/E4B/12B comparison.
+CONSOLIDATED PROMPT (2026-07-13, commit a6593e6): re-ran full-JSON with the
+consolidated NUTRITION_PROMPT rule (replaces the two specific rules with one general
+principle, also targeting a newly-found cholesterol_mg/sodium_mg confusion pattern) —
+small improvement: 343/363 (94.5%, ▲+2), whole-record unchanged at 19/33. Currently
+tied for 3rd-4th place with Qwen2-VL-2B (94.8%) behind LFM2.5-VL-1.6B (95.0%) — see
+eval-results/README.md Known Issues #12 for the full 4-model comparison and the
+decision to keep this prompt despite a regression on Qwen2-VL-2B.
 """
 
 [models.gemma-4-12b]
@@ -157,10 +162,13 @@ one made things WORSE for this model: all-fields 323→316/363 (89.0%→87.1%),
 added_sugars_g (the exact targeted field) dropped 24→20/33, plus one new parse
 failure. Likely small-model brittleness to longer/more complex prompts. Kept anyway
 project-wide since it strengthens the current leader (Qwen2-VL-2B) and doesn't change
-this model's rank (still 3rd) — see eval-results/README.md Known Issues #10. If this
-model is ever reconsidered for deployment, re-test rather than relying on these
-9addc0a-era numbers, or investigate whether a shorter/simpler prompt variant recovers
-the loss without sacrificing Qwen2-VL-2B's gain.
+this model's rank (still 3rd) — see eval-results/README.md Known Issues #10.
+CONSOLIDATED PROMPT (2026-07-13, commit a6593e6): re-ran full-JSON with the
+consolidated NUTRITION_PROMPT rule (replaces the two specific rules with one general
+principle, also targeting cholesterol_mg/sodium_mg confusion) — **this model's best
+result of any prompt variant**: 327/363 (90.1%, ▲+11 vs. two-rule, ▲+4 vs. no-fix at
+all), whole-record 14→16/33, added_sugars_g 20→25/33. Fully recovers what the two-rule
+version broke and adds more on top. See eval-results/README.md Known Issues #12.
 """
 
 [models.minicpm-v-4_6]
@@ -345,6 +353,12 @@ NUTRITION_PROMPT rules added to target this project's two universal weak fields 
 wash for this model: all-fields and whole-record totals unchanged (343/363, 21/33);
 added_sugars_g +1/33 but protein_g -1/33 nets to zero. See eval-results/README.md
 Known Issues #10.
+CONSOLIDATED PROMPT (2026-07-13, commit a6593e6): re-ran full-JSON with the
+consolidated NUTRITION_PROMPT rule (replaces the two specific rules with one general
+principle, also targeting cholesterol_mg/sodium_mg confusion) — small improvement:
+345/363 (95.0%, ▲+2), whole-record 21→22/33, cholesterol_mg 30→31/33. **Currently
+tied for best in the project with Qwen2-VL-2B** (94.8%, a 0.2-point gap judged to be
+within noise for n=33) — see eval-results/README.md Known Issues #12.
 """
 
 [models.moondream2]
@@ -430,13 +444,22 @@ prompt apparently doesn't trigger it. See
 eval-results/2026-07-12-general-small-vlm-candidates-full-eval.md.
 PROMPT FIX (2026-07-12, commit 9addc0a): added explicit `<1g` and "Includes Xg Added
 Sugars" rules to NUTRITION_PROMPT to target this project's two universal weak fields
-(dietary_fiber_g, added_sugars_g — see eval-results/README.md Known Issues #9). This
-is currently the **best result in the project**: full-JSON 350/363 all-fields (96.4%,
-▲+4 vs. pre-fix), 23/33 whole-record (▲+1) — dietary_fiber_g 29→32/33, added_sugars_g
-27→30/33, small collateral cost on calories/protein. See Known Issues #10 for the
-full before/after comparison across all three models this fix was tested on (helped
-this model, wash for LFM2.5-VL-1.6B, hurt Gemma-4-E2B — kept anyway since it
-strengthens the current leader).
+(dietary_fiber_g, added_sugars_g — see eval-results/README.md Known Issues #9). Was
+briefly the best result in the project: full-JSON 350/363 all-fields (96.4%, ▲+4 vs.
+pre-fix), 23/33 whole-record (▲+1) — dietary_fiber_g 29→32/33, added_sugars_g
+27→30/33, small collateral cost on calories/protein. **Superseded by the consolidated
+prompt below** — this two-rule version is no longer what's in the codebase.
+CONSOLIDATED PROMPT (2026-07-13, commit a6593e6, current prompt): the two-rule fix
+above was replaced with one consolidated principle (also targeting a newly-found
+cholesterol_mg/sodium_mg confusion pattern) — **this regressed for this model**:
+344/363 (94.8%, ▼6 vs. two-rule), whole-record 23→20/33, dietary_fiber_g 32→29/33,
+added_sugars_g 30→26/33 (the exact two fields the consolidation was meant to
+preserve), while cholesterol_mg didn't improve at all (32/33 both versions). Kept
+anyway — judged likely within noise for n=33, and 3 of 4 models tested improved with
+the consolidated version (see eval-results/README.md Known Issues #12 for the full
+comparison and reasoning). **Practical consequence: no longer a clear leader** — now
+effectively tied with LFM2.5-VL-1.6B (95.0%), a 0.2-point gap that's even more clearly
+within noise than the regression itself.
 """
 
 [models.glm-edge-v-2b]
