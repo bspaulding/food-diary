@@ -7,9 +7,17 @@ use super::{extract_json, NUTRITION_PROMPT};
 const MAX_TOKENS: u32 = 512;
 const MAX_RETRIES: u32 = 8;
 
-pub const DEFAULT_MODEL: &str = "gemini-2.0-flash";
+/// Operational default as of 2026-07-13: Gemma-4-31B via OpenRouter scored 100%
+/// all-fields / 33/33 whole-record on the full 33-image eval (see
+/// eval-results/README.md Known Issues #13), a wide margin over every self-hosted
+/// candidate — the strongest result found in this project's eval history. Override
+/// with LLM_MODEL/OPENROUTER_MODEL if a different model is ever needed.
+pub const DEFAULT_MODEL: &str = "google/gemma-4-31b-it:free";
 
-const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta/openai";
+/// Paired with DEFAULT_MODEL above — this must stay OpenRouter's endpoint, not
+/// Gemini's, since DEFAULT_MODEL is an OpenRouter-specific model slug. Override with
+/// LLM_BASE_URL/OPENROUTER_BASE_URL only if routing elsewhere intentionally.
+const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 
 pub struct LlmApiBackend {
     pub api_key: String,

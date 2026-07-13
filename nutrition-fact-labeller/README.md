@@ -2,12 +2,12 @@
 
 A Rust/Warp HTTP service that parses nutrition label images. It supports two backends:
 
-- **PaddleOCR** (default) — ONNX-based OCR pipeline; no extra setup required
-- **VLM** (optional) — vision-language model inference; more accurate. Supports two VLM backends selected at runtime via env vars:
-  - **OpenRouter** — calls `google/gemma-4-31b-it:free` (or any vision model) via the [OpenRouter API](https://openrouter.ai); easiest to set up, no local GPU required
-  - **Local llama.cpp** — runs [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) locally via llama.cpp; requires downloading model weights
+- **VLM** (default) — vision-language model inference. Supports two VLM backends selected at runtime via env vars:
+  - **OpenRouter** (default) — calls `google/gemma-4-31b-it:free` via the [OpenRouter API](https://openrouter.ai); scored 100% all-fields / 33/33 whole-record on this project's 33-image eval (see [`eval-results/README.md`](eval-results/README.md) Known Issues #13) — the strongest result found across every candidate tested, self-hosted or hosted. No local GPU or model weights required.
+  - **Local llama.cpp** — runs [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) locally via llama.cpp; requires downloading model weights. Only used as a fallback if `OPENROUTER_API_KEY`/`LLM_API_KEY` isn't set.
+- **PaddleOCR** (legacy, opt-in via `backend=paddleocr`) — ONNX-based OCR pipeline, no VLM involved. **Slated for removal** — see the cleanup plan referenced in Known Issues #13; kept for now as an explicit fallback option only.
 
-When `backend=vlm` is requested, OpenRouter is preferred if `OPENROUTER_API_KEY` is set; otherwise the service falls back to local llama.cpp if `VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` are set. If neither is configured the request returns an error.
+The service defaults every request to the VLM path: OpenRouter is preferred if `OPENROUTER_API_KEY`/`LLM_API_KEY` is set, otherwise it falls back to local llama.cpp if `VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` are set, otherwise the request errors (PaddleOCR is no longer attempted automatically — request `backend=paddleocr` explicitly if you need it).
 
 ## Local Development
 
@@ -20,17 +20,20 @@ rustup install stable
 
 ### VLM Backend Setup (optional)
 
-#### Option A: OpenRouter (recommended)
+#### Option A: OpenRouter (default, recommended)
 
 Set your API key in `.env`:
 
 ```
 OPENROUTER_API_KEY=sk-or-v1-...
-# Optional: override the default model (google/gemma-4-31b-it:free)
+# Optional: override the default model (google/gemma-4-31b-it:free) or routing
 # OPENROUTER_MODEL=google/gemma-4-31b-it:free
+# OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 ```
 
-No model weights to download. Get a free key at [openrouter.ai](https://openrouter.ai).
+No model weights to download. Get a free key at [openrouter.ai](https://openrouter.ai). This is
+already the operational default (`DEFAULT_MODEL`/`DEFAULT_BASE_URL` in `src/vlm/openrouter.rs`) —
+setting just `OPENROUTER_API_KEY` is enough, no other env vars are required.
 
 #### Option B: Local llama.cpp
 

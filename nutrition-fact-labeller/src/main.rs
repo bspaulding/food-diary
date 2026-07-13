@@ -162,7 +162,11 @@ async fn main() {
                 .await
                 .map_err(|_| warp::reject::reject())?;
 
-            let mut backend = "paddleocr".to_string();
+            // Operational default as of 2026-07-13: VLM (OpenRouter Gemma-4-31B by
+            // default, see openrouter.rs's DEFAULT_MODEL/DEFAULT_BASE_URL) rather than
+            // the PaddleOCR baseline — see eval-results/README.md Known Issues #13 for
+            // why. Explicit `backend=paddleocr` still works as an opt-out.
+            let mut backend = "vlm".to_string();
             let mut image_bytes: Option<Vec<u8>> = None;
             for (name, bytes) in parts {
                 match name.as_str() {
