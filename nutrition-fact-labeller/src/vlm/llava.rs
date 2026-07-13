@@ -13,7 +13,7 @@ use llama_cpp_2::mtmd::{mtmd_default_marker, MtmdBitmap, MtmdContext, MtmdContex
 use llama_cpp_2::sampling::LlamaSampler;
 
 use crate::{ParsedNutritionFacts, VlmBackend};
-use super::{extract_json, NUTRITION_PROMPT, OCR_TRANSCRIBE_PROMPT};
+use super::{extract_json, NUTRITION_PROMPT};
 
 /// A VLM backend for LLaVA-style GGUF models (moondream2, llava-phi3, etc.).
 /// Loads the model once and creates fresh contexts per inference call.
@@ -49,8 +49,7 @@ impl LlavaBackend {
 
 impl LlavaBackend {
     /// Runs the model on `image_path` with the given text prompt and returns the raw
-    /// generated text (up to 512 tokens, greedy sampling). Shared by `infer` (which
-    /// expects JSON back) and `transcribe` (which expects raw label text back).
+    /// generated text (up to 512 tokens, greedy sampling).
     fn generate(&self, image_path: &Path, prompt_text: &str) -> anyhow::Result<String> {
         let marker = mtmd_default_marker().to_string();
 
@@ -142,12 +141,6 @@ impl LlavaBackend {
         }
 
         Ok(output)
-    }
-
-    /// Uses the model purely as an OCR engine: transcribes the label's visible text and
-    /// returns it raw (one line per line of output), without asking for or parsing JSON.
-    pub fn transcribe(&self, image_path: &Path) -> anyhow::Result<String> {
-        self.generate(image_path, OCR_TRANSCRIBE_PROMPT)
     }
 }
 

@@ -2,8 +2,6 @@ use std::path::Path;
 
 use serde_derive::{Deserialize, Serialize};
 
-pub mod parsing;
-pub mod spellcheck;
 pub mod vlm;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -107,7 +105,7 @@ impl FieldScore {
 }
 
 /// Prints the "all fields" partial-credit summary line and per-field breakdown for one
-/// model's `FieldScore`. Shared by `vlm_benchmark` and `vlm_ocr_benchmark` so both
+/// model's `FieldScore`. Shared by `vlm_benchmark` and `vlm_benchmark_api` so both
 /// harnesses report this the same way.
 pub fn print_field_score(score: &FieldScore) {
     println!(

@@ -26,27 +26,7 @@ COPY src ./src
 RUN cargo install --path . --locked
 
 # =========================
-# 1. Model Download stage
-# =========================
-FROM public.ecr.aws/docker/library/debian:bookworm-slim AS downloader
-
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /paddleocr-models
-
-# Copy model weights
-RUN curl -L --output ppocrv4_mobile_det.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/ppocrv4_mobile_det.onnx
-RUN curl -L --output en_ppocrv4_mobile_rec.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_ppocrv4_mobile_rec.onnx
-RUN curl -L --output en_dict.txt https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_dict.txt
-RUN curl -L --output pplcnet_x1_0_doc_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_doc_ori.onnx
-RUN curl -L --output pplcnet_x1_0_textline_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_textline_ori.onnx
-RUN curl -L --output uvdoc.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/uvdoc.onnx
-
-# =========================
-# 2. Runtime stage
+# 1. Runtime stage
 # =========================
 FROM public.ecr.aws/docker/library/debian:bookworm-slim AS runtime
 
@@ -61,7 +41,6 @@ RUN apt-get update && apt-get install -y \
 
 # Copy compiled binary from builder
 COPY --from=builder /usr/local/cargo/bin/nutrition-fact-labeller /usr/local/bin/nutrition-fact-labeller
-COPY --from=downloader /paddleocr-models /app/paddleocr-models
 
 # Run as non-root user (optional best practice)
 # RUN useradd -m appuser

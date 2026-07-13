@@ -7,21 +7,21 @@ append a row, link the detailed report, and fold any new failure pattern into th
 section below so it doesn't get rediscovered from scratch next time.
 
 Harnesses:
-- `cargo run --release --bin vlm_benchmark` — VLM does the full image → structured JSON extraction.
-- `cargo run --release --bin vlm_ocr_benchmark` — VLM is used purely as OCR; output goes through
-  the shared `parsing::parse_facts_from_lines` regex/spellcheck parser (same one PaddleOCR uses).
-  Both binaries accept `--limit N` to cap the number of images processed (useful for a quick smoke
-  test — see below).
-- PaddleOCR baseline — the default non-LLM backend (`run_ocr_rgb` + `parse_facts_from_regions` in
-  `main.rs`), scored via the `check_test_cases` test. **Not independently re-verified in this
-  environment** — that test needs local PaddleOCR ONNX model weight files
-  (`paddleocr-models/*.onnx`) that aren't present in this sandbox. The 9/33 baseline figure is
-  taken from the pre-existing `BASELINE_PASS`/`BASELINE_TOTAL` constants in `vlm_benchmark.rs`.
+- `cargo run --release --bin vlm_benchmark` — local llama.cpp VLM does the full image → structured
+  JSON extraction. Accepts `--limit N` to cap the number of images processed (useful for a quick
+  smoke test — see below).
+- `cargo run --release --bin vlm_benchmark_api` — same full-JSON-extraction eval, against hosted
+  API models (e.g. OpenRouter) instead of local GGUF files.
+- PaddleOCR baseline, `vlm_ocr_benchmark` (VLM-as-OCR + regex/spellcheck parser), and the
+  `parsing.rs`/`spellcheck.rs` modules that backed them were **removed 2026-07-13** (see Known
+  Issues #14) once Gemma-4-31B via OpenRouter (100% all-fields) became the operational default —
+  PaddleOCR's 9/33 baseline figure and the OCR-only harness's historical results remain in the
+  Results table below for reference, but neither can be re-run anymore.
 
 **Model manifest:** [`models.toml`](../models.toml) is the single source of truth for every model
 this project is tracking — HF repo, filenames, confirmed llama.cpp projector-type support, and
 notes/status per model. `scripts/fetch-model.sh <key>` downloads a model's files from the
-manifest; `scripts/run-eval.sh <key> [--smoke [N]]` fetches (if needed) and runs both harnesses.
+manifest; `scripts/run-eval.sh <key> [--smoke [N]]` fetches (if needed) and runs `vlm_benchmark`.
 `--smoke` runs just 2 images (or N) to verify a model loads and produces real output without
 committing to a full 33-image run — see "Smoke-tested, not yet fully evaluated" below for models
 that are ready for a full run whenever compute allows.
@@ -84,6 +84,8 @@ retroactively compute it.
 | 2026-07-13 17:32 | `a6593e6` | Gemma-4-E4B-it-Q4_K_M | Full JSON extraction, consolidated prompt rule (**current prompt**) | 343/363 (94.5%) ▲ +2 vs. two-rule | 19/33 (unchanged) | ▲ +10 | see Known Issues #12 |
 | 2026-07-13 18:25 | `7929912` | Gemma-4-31B-it:free (OpenRouter API, hosted) | Full JSON extraction | 359/363 (98.9%) | 30/33 | ▲ +21 | see Known Issues #13 |
 | 2026-07-13 18:40 | `3d5e2c6` | Gemma-4-31B-it:free (OpenRouter API, hosted) | Full JSON extraction, never-null prompt rule | **363/363 (100%) — perfect score, matches the frontier-reference ceiling exactly** | **33/33** | **▲ +24** | see Known Issues #13 |
+| 2026-07-13 19:00 | `3d5e2c6` | LFM2.5-VL-1.6B-Q8_0 | Full JSON extraction, never-null prompt rule | **349/363 (96.1%) ▲ +4 vs. consolidated, new sub-2B best** | **23/33** | **▲ +14** | see Known Issues #13 |
+| 2026-07-13 19:04 | `3d5e2c6` | Qwen2-VL-2B-Instruct-Q4_K_M | Full JSON extraction, never-null prompt rule | 348/363 (95.9%) ▲ +4 vs. consolidated | 21/33 | ▲ +12 | see Known Issues #13 |
 | — | — | PaddleOCR (baseline) | OCR + regex, unmodified | n/a | 9/33 | = | not independently re-verified here; see caveat above |
 
 Commit = the code state the run was actually executed against (usually the commit that lands
@@ -91,12 +93,13 @@ right after the run, since reports are written and committed once results are in
 
 **Gemma-4-31B via OpenRouter is now the clear overall best — 100% all-fields, 33/33 whole-record,
 a perfect score after the never-null prompt fix — well ahead of every self-hosted candidate. See
-Known Issues #13.** Among the sub-2B self-hosted
-GGUF candidates (the deployment-realistic tier), the top is effectively a **near-tie between
-LFM2.5-VL-1.6B full-JSON (95.0%) and Qwen2-VL-2B full-JSON (94.8%)** — a 0.2-point gap that isn't
-meaningfully distinguishable at n=33 cases. **Gemma-4-E4B full-JSON (94.5%)** and **Gemma-4-E2B
-full-JSON (90.1%)** follow close behind, then GLM-OCR OCR-only (86.0%, not re-tested against the
-current prompt since OCR-only doesn't use `NUTRITION_PROMPT`). Several models whose whole-record
+Known Issues #13.** Among the sub-2B self-hosted GGUF candidates (the deployment-realistic tier),
+after the never-null prompt fix (also Known Issues #13) the top is still effectively a **near-tie
+between LFM2.5-VL-1.6B full-JSON (96.1%) and Qwen2-VL-2B full-JSON (95.9%)** — a 0.2-point gap
+that isn't meaningfully distinguishable at n=33 cases, same as before the fix, just both a bit
+higher. **Gemma-4-E4B full-JSON (94.5%, not yet re-tested with never-null)** and **Gemma-4-E2B
+full-JSON (90.1%, also not yet re-tested)** follow close behind, then GLM-OCR OCR-only (86.0%, not
+re-tested against the current prompt since OCR-only doesn't use `NUTRITION_PROMPT`). Several models whose whole-record
 score looked close to a total failure are actually getting the large majority of individual fields
 right: LightOnOCR-1B OCR-only (79.6% all-fields vs. only 6/33 whole-record) and GLM-Edge-V-2B
 OCR-only (76.6% vs. 8/33) are the starkest examples. See Known Issues for the per-field breakdown
@@ -408,15 +411,66 @@ candidates should be added back to this table as they come in.
     rather than a tradeoff. Re-ran Gemma-4-31B with the new prompt: **363/363 (100%) all-fields,
     33/33 whole-record — a perfect score**, closing all 3 remaining misses and exactly matching the
     frontier-reference ceiling established by Claude reading the images directly (see that section
-    above). Also re-ran Qwen2-VL-2B and LFM2.5-VL-1.6B against the never-null prompt — see the
-    Results table above for outcomes once both finish.
+    above). Also re-ran Qwen2-VL-2B and LFM2.5-VL-1.6B against the never-null prompt: both improved
+    by the exact same net amount as Gemma-4-31B — **every model tested gained +4 fields net**:
+    | Model | Consolidated (before) | Never-null (after) |
+    |---|---|---|
+    | Gemma-4-31B (OpenRouter) | 359/363 (98.9%) | **363/363 (100%)** |
+    | LFM2.5-VL-1.6B | 345/363 (95.0%) | **349/363 (96.1%)** |
+    | Qwen2-VL-2B | 344/363 (94.8%) | **348/363 (95.9%)** |
+    Verified directly from each harness run's own printed per-field line (not just the aggregate
+    delta) — Gemma-4-31B and Qwen2-VL-2B are genuinely clean, zero-regression results:
+    Gemma-4-31B gained cholesterol_mg +1, dietary_fiber_g +1, added_sugars_g +2 (reaching a
+    perfect 33/33 on every field); Qwen2-VL-2B gained serving_size_grams +1, sodium_mg +1,
+    dietary_fiber_g +1, added_sugars_g +1, with every other field unchanged. **LFM2.5-VL-1.6B's +4
+    net conceals a real regression**, though: serving_size_grams +2, total_fat_grams +1,
+    total_sugars_g +1, added_sugars_g +1, but protein_g **-1** — a small loss more than offset by
+    the gains elsewhere, but not the uniform zero-regression pattern the other two models show (an
+    earlier version of this note incorrectly claimed zero regressions everywhere and misattributed
+    one of LFM2.5-VL-1.6B's gains to cholesterol_mg, which was actually unchanged — corrected here
+    after re-deriving all three per-field breakdowns directly from the harness's own output rather
+    than from memory). This still stands in clear contrast to the consolidated-prompt experiment
+    (Issue #12), which had real winners *and* losers *in the aggregate score itself* (Qwen2-VL-2B
+    regressed net, not just on one field) — reinforcing that this fix is a different kind of change
+    (correcting a provably-wrong instruction) rather than another judgment-call tradeoff, even
+    though it isn't perfectly clean at the individual-field level for every model.
+    **Not yet re-tested with never-null: Gemma-4-E2B and Gemma-4-E4B** — given the strong track
+    record so far (net gains on all 3 models tested, 2 of 3 with zero regressions), both are likely
+    to improve or at worst hold steady, but this hasn't been verified. **Decision: keep the
+    never-null prompt as the permanent default** (already committed
+    in `3d5e2c6`, and now also the operational default for the production service — see the
+    "make OpenRouter Gemma-4-31B the default" change below).
     **Practical implication**: Gemma-4-31B via OpenRouter is now the strongest candidate measured in
     this project by a wide margin, but it's a fundamentally different deployment shape than every
     other candidate here — a ~31B hosted model called over the network, not a self-hosted sub-2B
     GGUF file. Whether that tradeoff (accuracy vs. self-hosting/cost/latency/offline-capability) is
     worth it depends on constraints outside this eval's scope (see the earlier cluster-sizing and
     in-browser-deployment discussions) — this result doesn't replace the small-VLM comparison, it
-    adds a ceiling-adjacent reference point alongside it.
+    adds a ceiling-adjacent reference point alongside it. As of 2026-07-13, this question has been
+    answered for the actual production service: `main.rs`'s default backend is now VLM via
+    OpenRouter Gemma-4-31B (see `src/vlm/openrouter.rs`'s `DEFAULT_MODEL`/`DEFAULT_BASE_URL`), and
+    the PaddleOCR baseline and its supporting regex/spellcheck parser have since been removed
+    entirely — see Known Issues #14.
+
+14. **PaddleOCR/regex-parser removal (2026-07-13).** Now that Gemma-4-31B via OpenRouter is the
+    project's default backend (Issue #13), the PaddleOCR baseline it replaced — along with
+    everything that existed only to support it — was removed rather than kept as a fallback. This
+    was a deliberate "remove everything, not just deprecate" choice: PaddleOCR never beat any VLM
+    candidate tested in this project (9/33 whole-record vs. 14-33/33 for every VLM, self-hosted or
+    hosted), and keeping dead code around as an unused opt-in path only adds maintenance burden.
+    Removed: `src/parsing.rs` and `src/spellcheck.rs` (the regex/spellcheck parser that turned OCR
+    text regions into `ParsedNutritionFacts`), `src/bin/vlm_ocr_benchmark.rs` (the OCR-only eval
+    harness that fed VLM transcriptions through that same parser), the PaddleOCR init/inference code
+    and `MyTextRegion`/`OCRResult`/`run_ocr_rgb`/`ort_config` in `main.rs`, the `backend=paddleocr`
+    opt-out (the `/label` endpoint is VLM-only now), the `oar-ocr`/`image`/`regex`/`strsim` Cargo
+    dependencies (all had become unused), the `paddleocr-models/` ONNX weights directory, and the
+    Containerfile's model-download stage that baked those weights into the image. Also removed
+    `LlavaBackend::transcribe`/`OCR_TRANSCRIBE_PROMPT` (`src/vlm/mod.rs`/`src/vlm/llava.rs`) — this
+    VLM-as-OCR-engine mode existed solely to feed `vlm_ocr_benchmark.rs`, so it became dead code
+    once that binary was removed. `vlm_benchmark`/`vlm_benchmark_api` (the full-JSON-extraction
+    harnesses, which don't touch any of the removed code) are unaffected and remain the project's
+    eval tooling. Verified with a clean `cargo build --release` (no warnings) and `cargo test
+    --release` (all tests pass) after the removal.
 
 ## Adding a new model to this table
 

@@ -21,17 +21,6 @@ pub const NUTRITION_PROMPT: &str =
      field to 0 or borrow a neighboring line's value.\n\
      No explanation. No markdown. No code blocks. JSON only.";
 
-/// Prompt for using a VLM purely as an OCR engine: transcribe the label's text
-/// verbatim, one line per line of output, with no interpretation. The output is
-/// meant to be fed into the same line-oriented regex parser (`parsing::parse_facts_from_lines`)
-/// that the PaddleOCR backend uses on its detected text regions.
-pub const OCR_TRANSCRIBE_PROMPT: &str =
-    "Transcribe every line of text visible on this nutrition facts label exactly as printed, \
-     top to bottom, one line of output per line of text on the label. \
-     Do not translate, summarize, reformat, or interpret the text. \
-     Do not add labels, explanations, JSON, or punctuation that isn't on the label. \
-     Output only the raw transcribed text.";
-
 /// Extract the first complete `{...}` block from a string.
 /// Handles models that prepend preamble text before the JSON.
 pub fn extract_json(s: &str) -> Option<&str> {

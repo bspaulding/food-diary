@@ -1,7 +1,7 @@
-# Manifest of VLM candidates for the label-parser eval harness (vlm_benchmark /
-# vlm_ocr_benchmark). This is the single source of truth for "which models are we
-# tracking" — see scripts/fetch-model.sh and scripts/run-eval.sh, which both key off
-# the [models.<key>] tables below, and eval-results/README.md for results once run.
+# Manifest of VLM candidates for the label-parser eval harness (vlm_benchmark). This
+# is the single source of truth for "which models are we tracking" — see
+# scripts/fetch-model.sh and scripts/run-eval.sh, which both key off the
+# [models.<key>] tables below, and eval-results/README.md for results once run.
 #
 # Deployment target for all of these: CPU-only, limited memory, potentially in-browser
 # eventually — hence the focus on sub-2B models. See eval-results/README.md's Known
@@ -12,7 +12,7 @@
 # model's HF repo file listing), then:
 #   ./scripts/fetch-model.sh <key>
 #   ./scripts/run-eval.sh <key> --smoke     # verify it loads/runs (cheap, 2 images)
-#   ./scripts/run-eval.sh <key>              # full 33-image eval, both harnesses
+#   ./scripts/run-eval.sh <key>              # full 33-image eval
 
 [models.gemma-4-e4b]
 display_name = "Gemma-4-E4B-it-Q4_K_M"
@@ -49,6 +49,13 @@ small improvement: 343/363 (94.5%, ▲+2), whole-record unchanged at 19/33. Curr
 tied for 3rd-4th place with Qwen2-VL-2B (94.8%) behind LFM2.5-VL-1.6B (95.0%) — see
 eval-results/README.md Known Issues #12 for the full 4-model comparison and the
 decision to keep this prompt despite a regression on Qwen2-VL-2B.
+NOT YET TESTED with the never-null prompt (commit 3d5e2c6, 2026-07-13 — see
+eval-results/README.md Known Issues #13). That fix gained +4 fields net on all three
+models it was tested against (Gemma-4-31B and Qwen2-VL-2B cleanly, zero regressions;
+LFM2.5-VL-1.6B with a small protein_g regression outweighed by larger gains
+elsewhere), so this model would be a reasonable candidate for a future re-test, but
+it wasn't prioritized since Gemma-4-31B via OpenRouter (100% all-fields) is now the
+project's operational default and the self-hosted small-model race is secondary.
 """
 
 [models.gemma-4-12b]
@@ -169,6 +176,13 @@ principle, also targeting cholesterol_mg/sodium_mg confusion) — **this model's
 result of any prompt variant**: 327/363 (90.1%, ▲+11 vs. two-rule, ▲+4 vs. no-fix at
 all), whole-record 14→16/33, added_sugars_g 20→25/33. Fully recovers what the two-rule
 version broke and adds more on top. See eval-results/README.md Known Issues #12.
+NOT YET TESTED with the never-null prompt (commit 3d5e2c6, 2026-07-13 — see
+eval-results/README.md Known Issues #13). Same reasoning as gemma-4-e4b above: this
+fix has gained +4 fields net on all 3 models tested so far (Gemma-4-31B, LFM2.5-VL-1.6B,
+Qwen2-VL-2B — the first two with zero regressions, the third with a small protein_g
+regression outweighed by larger gains), so this model is a plausible future re-test
+candidate, but wasn't prioritized once Gemma-4-31B via OpenRouter (100% all-fields)
+became the project's operational default.
 """
 
 [models.minicpm-v-4_6]
@@ -359,6 +373,17 @@ principle, also targeting cholesterol_mg/sodium_mg confusion) — small improvem
 345/363 (95.0%, ▲+2), whole-record 21→22/33, cholesterol_mg 30→31/33. **Currently
 tied for best in the project with Qwen2-VL-2B** (94.8%, a 0.2-point gap judged to be
 within noise for n=33) — see eval-results/README.md Known Issues #12.
+NEVER-NULL PROMPT (2026-07-13, commit 3d5e2c6, current prompt): re-ran full-JSON with
+NUTRITION_PROMPT changed to forbid null entirely ("infer 0 rather than null") —
+349/363 (96.1%, ▲+4), whole-record 22→23/33. Verified directly from the harness's own
+printed per-field line (not just the aggregate): serving_size_grams 30→32/33 (+2),
+total_fat_grams 31→32/33 (+1), total_sugars_g 32→33/33 (+1), added_sugars_g 29→30/33
+(+1), but **protein_g regressed 32→31/33 (-1)** — net +4 is a real improvement but this
+is not a clean zero-regression result like Gemma-4-31B and Qwen2-VL-2B (an earlier
+version of this note incorrectly claimed "no regressions" and misattributed a gain to
+cholesterol_mg, which was actually unchanged at 31/33 both versions). **Still
+effectively tied for best in the project with Qwen2-VL-2B** (95.9%, 0.2-point gap,
+still within noise) — see eval-results/README.md Known Issues #13.
 """
 
 [models.moondream2]
@@ -460,6 +485,19 @@ the consolidated version (see eval-results/README.md Known Issues #12 for the fu
 comparison and reasoning). **Practical consequence: no longer a clear leader** — now
 effectively tied with LFM2.5-VL-1.6B (95.0%), a 0.2-point gap that's even more clearly
 within noise than the regression itself.
+NEVER-NULL PROMPT (2026-07-13, commit 3d5e2c6, current prompt): re-ran full-JSON with
+NUTRITION_PROMPT changed to forbid null entirely ("infer 0 rather than null") — clean
+improvement, no regressions: 348/363 (95.9%, ▲+4), whole-record 20→21/33. Verified
+directly from the harness's own printed per-field line: serving_size_grams 31→32/33
+(+1), sodium_mg 32→33/33 (+1), dietary_fiber_g 29→30/33 (+1), added_sugars_g 26→27/33
+(+1), every other field unchanged — a genuine zero-regression result (unlike
+LFM2.5-VL-1.6B, which also gained +4 net but with a real protein_g regression offset
+by larger gains elsewhere — see that entry). Also confirmed on the first hosted-API
+model tested this session (Gemma-4-31B via OpenRouter): this exact fix took it to a
+perfect 100% all-fields, zero regressions there too (see eval-results/README.md Known
+Issues #13). **Still effectively tied for best among self-hosted candidates with
+LFM2.5-VL-1.6B** (96.1%, still within noise), but both are now well behind
+Gemma-4-31B's 100% — see Known Issues #13.
 """
 
 [models.glm-edge-v-2b]
