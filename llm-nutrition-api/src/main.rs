@@ -9,6 +9,7 @@ use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::LlamaModel;
 
 mod agent;
+mod auth;
 mod tools;
 
 #[derive(Deserialize)]
@@ -152,9 +153,11 @@ async fn main() {
 
     let lookup = warp::post()
         .and(warp::path("lookup"))
+        .and(auth::require_auth())
         .and(warp::body::json())
         .and(state_filter)
-        .and_then(handle_lookup);
+        .and_then(handle_lookup)
+        .recover(auth::handle_rejection);
 
     let port: u16 = std::env::var("PORT")
         .ok()

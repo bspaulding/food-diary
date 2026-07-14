@@ -11,6 +11,8 @@ use nutrition_fact_labeller::{ParsedNutritionFacts, VlmBackend};
 use nutrition_fact_labeller::vlm::llava::LlavaBackend;
 use nutrition_fact_labeller::vlm::openrouter::{LlmApiBackend, DEFAULT_MODEL};
 
+mod auth;
+
 #[tokio::main]
 async fn main() {
     env_logger::init();
@@ -69,7 +71,8 @@ async fn main() {
         warp::any().map(move || api_backend.clone())
     };
 
-    let upload = vlm_filter
+    let upload = auth::require_auth()
+        .and(vlm_filter)
         .and(api_filter)
         .and(warp::multipart::form().max_length(50 * 1024 * 1024))
         .and_then(|vlm: Option<Arc<LlavaBackend>>, api_backend: Option<Arc<LlmApiBackend>>, form: FormData| async move {
@@ -134,7 +137,9 @@ async fn main() {
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse::<u16>().ok()).unwrap_or(3030);
     info!("running and listening on {port}");
 
-    let server = warp::serve(upload)
+    let routes = upload.recover(auth::handle_rejection);
+
+    let server = warp::serve(routes)
         .bind(([0, 0, 0, 0], port))
         .await
         .run();
