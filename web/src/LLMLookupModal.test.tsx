@@ -38,7 +38,12 @@ describe("LLMLookupModal", () => {
 
   it("renders when isOpen is true", () => {
     render(() => (
-      <LLMLookupModal isOpen={true} onClose={() => {}} onImport={() => {}} />
+      <LLMLookupModal
+        isOpen={true}
+        accessToken="test-token"
+        onClose={() => {}}
+        onImport={() => {}}
+      />
     ));
     expect(screen.getByText("Look Up Nutrition")).toBeTruthy();
     expect(screen.getByText("Look Up")).toBeTruthy();
@@ -46,7 +51,12 @@ describe("LLMLookupModal", () => {
 
   it("does not render when isOpen is false", () => {
     render(() => (
-      <LLMLookupModal isOpen={false} onClose={() => {}} onImport={() => {}} />
+      <LLMLookupModal
+        isOpen={false}
+        accessToken="test-token"
+        onClose={() => {}}
+        onImport={() => {}}
+      />
     ));
     expect(screen.queryByText("Look Up Nutrition")).toBeFalsy();
   });
@@ -56,7 +66,12 @@ describe("LLMLookupModal", () => {
     mockLookup.mockResolvedValue(sampleNutritionData);
 
     render(() => (
-      <LLMLookupModal isOpen={true} onClose={() => {}} onImport={() => {}} />
+      <LLMLookupModal
+        isOpen={true}
+        accessToken="test-token"
+        onClose={() => {}}
+        onImport={() => {}}
+      />
     ));
 
     const textarea = screen.getByPlaceholderText(
@@ -66,7 +81,10 @@ describe("LLMLookupModal", () => {
     await user.click(screen.getByText("Look Up"));
 
     await waitFor(() => {
-      expect(mockLookup).toHaveBeenCalledWith("100g grilled chicken breast");
+      expect(mockLookup).toHaveBeenCalledWith(
+        "test-token",
+        "100g grilled chicken breast",
+      );
     });
   });
 
@@ -80,7 +98,12 @@ describe("LLMLookupModal", () => {
     );
 
     render(() => (
-      <LLMLookupModal isOpen={true} onClose={() => {}} onImport={() => {}} />
+      <LLMLookupModal
+        isOpen={true}
+        accessToken="test-token"
+        onClose={() => {}}
+        onImport={() => {}}
+      />
     ));
 
     const textarea = screen.getByPlaceholderText(
@@ -103,7 +126,12 @@ describe("LLMLookupModal", () => {
     mockLookup.mockResolvedValue(sampleNutritionData);
 
     render(() => (
-      <LLMLookupModal isOpen={true} onClose={onClose} onImport={onImport} />
+      <LLMLookupModal
+        isOpen={true}
+        accessToken="test-token"
+        onClose={onClose}
+        onImport={onImport}
+      />
     ));
 
     const textarea = screen.getByPlaceholderText(
@@ -123,7 +151,12 @@ describe("LLMLookupModal", () => {
     mockLookup.mockRejectedValue(new Error("Service unavailable"));
 
     render(() => (
-      <LLMLookupModal isOpen={true} onClose={() => {}} onImport={() => {}} />
+      <LLMLookupModal
+        isOpen={true}
+        accessToken="test-token"
+        onClose={() => {}}
+        onImport={() => {}}
+      />
     ));
 
     const textarea = screen.getByPlaceholderText(
@@ -142,7 +175,12 @@ describe("LLMLookupModal", () => {
     const onClose = vi.fn();
 
     render(() => (
-      <LLMLookupModal isOpen={true} onClose={onClose} onImport={() => {}} />
+      <LLMLookupModal
+        isOpen={true}
+        accessToken="test-token"
+        onClose={onClose}
+        onImport={() => {}}
+      />
     ));
 
     await user.click(screen.getByLabelText("Close"));

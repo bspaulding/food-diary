@@ -287,7 +287,10 @@ describe("lookupNutritionWithLLM", () => {
       http.post("/llm/lookup", () => HttpResponse.json({ item: snakeItem })),
     );
 
-    const result = await lookupNutritionWithLLM("100g grilled chicken breast");
+    const result = await lookupNutritionWithLLM(
+      "test-token",
+      "100g grilled chicken breast",
+    );
 
     expect(result.description).toBe("Grilled chicken breast");
     expect(result.calories).toBe(165);
@@ -319,7 +322,7 @@ describe("lookupNutritionWithLLM", () => {
       ),
     );
 
-    const result = await lookupNutritionWithLLM("unknown food");
+    const result = await lookupNutritionWithLLM("test-token", "unknown food");
 
     expect(result.description).toBe("Unknown food");
     expect(result.calories).toBe(0);
@@ -334,7 +337,7 @@ describe("lookupNutritionWithLLM", () => {
       ),
     );
 
-    const result = await lookupNutritionWithLLM("some food");
+    const result = await lookupNutritionWithLLM("test-token", "some food");
     expect(result.description).toBe("");
   });
 
@@ -350,9 +353,9 @@ describe("lookupNutritionWithLLM", () => {
       ),
     );
 
-    await expect(lookupNutritionWithLLM("some food")).rejects.toThrow(
-      "Internal Server Error",
-    );
+    await expect(
+      lookupNutritionWithLLM("test-token", "some food"),
+    ).rejects.toThrow("Internal Server Error");
   });
 
   it("throws an error using the message from the JSON error body", async () => {
@@ -368,9 +371,9 @@ describe("lookupNutritionWithLLM", () => {
       ),
     );
 
-    await expect(lookupNutritionWithLLM("some food")).rejects.toThrow(
-      "Model unavailable",
-    );
+    await expect(
+      lookupNutritionWithLLM("test-token", "some food"),
+    ).rejects.toThrow("Model unavailable");
   });
 });
 

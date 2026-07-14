@@ -891,11 +891,15 @@ export async function setNutritionTargets(
 }
 
 export async function lookupNutritionWithLLM(
+  accessToken: string,
   description: string,
 ): Promise<Partial<NutritionItemAttrs>> {
   const response = await fetch("/llm/lookup", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
     body: JSON.stringify({ description }),
   });
   if (!response.ok) {

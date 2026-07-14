@@ -5,6 +5,7 @@ import { lookupNutritionWithLLM } from "./Api";
 
 type Props = {
   isOpen: boolean;
+  accessToken: string;
   onClose: () => void;
   onImport: (nutritionData: Partial<NutritionItemAttrs>) => void;
 };
@@ -20,7 +21,7 @@ const LLMLookupModal: Component<Props> = (props: Props) => {
     setIsLooking(true);
     setError(null);
     try {
-      const result = await lookupNutritionWithLLM(q);
+      const result = await lookupNutritionWithLLM(props.accessToken, q);
       props.onImport(result);
       props.onClose();
     } catch (err: unknown) {

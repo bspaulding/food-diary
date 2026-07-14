@@ -120,7 +120,10 @@ const NewNutritionItemForm: Component<Props> = ({
     try {
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          const result = await lookupNutritionWithLLM(description().trim());
+          const result = await lookupNutritionWithLLM(
+            accessToken(),
+            description().trim(),
+          );
           handleImport(result);
           return;
         } catch (err: unknown) {
