@@ -287,6 +287,16 @@ const CameraModal: Component<Props> = (props: Props) => {
           typeof data.description === "string" ? data.description : "",
         calories: getNumericValue(data, "calories"),
         totalFatGrams: getNumericValue(data, "total_fat_grams"),
+        saturatedFatGrams: getNumericValue(data, "saturated_fat_grams"),
+        transFatGrams: getNumericValue(data, "trans_fat_grams"),
+        polyunsaturatedFatGrams: getNumericValue(
+          data,
+          "polyunsaturated_fat_grams",
+        ),
+        monounsaturatedFatGrams: getNumericValue(
+          data,
+          "monounsaturated_fat_grams",
+        ),
         cholesterolMilligrams: getNumericValue(data, "cholesterol_mg"),
         sodiumMilligrams: getNumericValue(data, "sodium_mg"),
         totalCarbohydrateGrams: getNumericValue(data, "total_carbohydrates_g"),

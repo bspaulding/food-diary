@@ -135,7 +135,7 @@ fn main() -> anyhow::Result<()> {
 
     // Primary metric: "all fields" partial-credit scoring. Prioritize this over
     // whole-record pass/fail below — models often get most fields right without
-    // matching all 11 simultaneously, so whole-record scoring alone understates real
+    // matching all fields simultaneously, so whole-record scoring alone understates real
     // accuracy (see eval-results/README.md's Results table and Known Issues).
     println!("\n{}", "─".repeat(55));
     println!("All-fields scoring (primary metric — partial credit per field):");
@@ -147,7 +147,7 @@ fn main() -> anyhow::Result<()> {
     }
     println!("{}", "─".repeat(55));
 
-    // Secondary metric: whole-record exact match (all 11 fields correct at once).
+    // Secondary metric: whole-record exact match (all fields correct at once).
     println!("\nWhole-record scoring (secondary — how many cases were a perfect match):");
     println!("{}", "─".repeat(55));
     println!("{:<32} {:>5} {:>5}  {}", "Model", "Pass", "Fail", "Score");

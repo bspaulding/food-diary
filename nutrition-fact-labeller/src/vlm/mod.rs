@@ -5,6 +5,8 @@ pub const NUTRITION_PROMPT: &str =
     "Analyze this nutrition facts label. Return ONLY a valid JSON object with these exact fields:\n\
      {\"servings_per_container\": <number>, \"serving_size_grams\": <number>, \
      \"calories\": <integer>, \"total_fat_grams\": <number>, \
+     \"saturated_fat_grams\": <number>, \"trans_fat_grams\": <number>, \
+     \"polyunsaturated_fat_grams\": <number>, \"monounsaturated_fat_grams\": <number>, \
      \"cholesterol_mg\": <number>, \"sodium_mg\": <number>, \
      \"total_carbohydrates_g\": <number>, \"dietary_fiber_g\": <number>, \
      \"total_sugars_g\": <number>, \"added_sugars_g\": <number>, \
@@ -16,9 +18,12 @@ pub const NUTRITION_PROMPT: &str =
      or the label states \"not a significant source of\" a nutrient), infer 0 rather than null.\n\
      - Read each nutrient strictly from its own printed line. A small or near-zero value \
      (e.g. \"<1g\" means 1, not 0), a nested sub-line (e.g. \"Includes Xg Added Sugars\" under \
-     Total Sugars means added_sugars_g is X), or a much larger nearby number (e.g. cholesterol_mg \
-     is often far smaller than the sodium_mg on the next line) should never cause you to default a \
-     field to 0 or borrow a neighboring line's value.\n\
+     Total Sugars means added_sugars_g is X, or \"Saturated Fat Xg\"/\"Trans Fat Xg\" under \
+     Total Fat means saturated_fat_grams/trans_fat_grams is X), or a much larger nearby number \
+     (e.g. cholesterol_mg is often far smaller than the sodium_mg on the next line) should never \
+     cause you to default a field to 0 or borrow a neighboring line's value.\n\
+     - Polyunsaturated and monounsaturated fat are sometimes not printed on the label at all; \
+     infer 0 for either in that case, per the never-null rule above.\n\
      No explanation. No markdown. No code blocks. JSON only.";
 
 /// Extract the first complete `{...}` block from a string.

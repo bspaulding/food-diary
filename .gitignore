@@ -20,6 +20,9 @@ graphql-engine/db_data/
 nutrition-fact-labeller/target/
 nutrition-fact-labeller/vlm-models/
 nutrition-fact-labeller/models/
+nutrition-fact-labeller/.label_review_progress.json
+nutrition-fact-labeller/.review_staging/
+nutrition-fact-labeller/scripts/__pycache__/
 
 # llm-nutrition-api
 llm-nutrition-api/*.gguf

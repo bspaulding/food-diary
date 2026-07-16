@@ -10,6 +10,18 @@ pub struct ParsedNutritionFacts {
     pub serving_size_grams: Option<f64>,
     pub calories: Option<i32>,
     pub total_fat_grams: Option<f64>,
+    /// Added alongside trans/poly/monounsaturated fat below to match the fields already
+    /// tracked by the rest of the product (food_diary.nutrition_item, llm-nutrition-api).
+    /// Older test_cases.csv rows may have these empty during backfill, hence
+    /// `invalid_option` to treat an empty CSV field as `None` rather than a parse error.
+    #[serde(deserialize_with = "csv::invalid_option", default)]
+    pub saturated_fat_grams: Option<f64>,
+    #[serde(deserialize_with = "csv::invalid_option", default)]
+    pub trans_fat_grams: Option<f64>,
+    #[serde(deserialize_with = "csv::invalid_option", default)]
+    pub polyunsaturated_fat_grams: Option<f64>,
+    #[serde(deserialize_with = "csv::invalid_option", default)]
+    pub monounsaturated_fat_grams: Option<f64>,
     pub cholesterol_mg: Option<f64>,
     pub sodium_mg: Option<f64>,
     pub total_carbohydrates_g: Option<f64>,
@@ -21,11 +33,15 @@ pub struct ParsedNutritionFacts {
 
 /// Field names in the same order `field_matches` returns them, for labeling per-field
 /// scoring output.
-pub const FIELD_NAMES: [&str; 11] = [
+pub const FIELD_NAMES: [&str; 15] = [
     "servings_per_container",
     "serving_size_grams",
     "calories",
     "total_fat_grams",
+    "saturated_fat_grams",
+    "trans_fat_grams",
+    "polyunsaturated_fat_grams",
+    "monounsaturated_fat_grams",
     "cholesterol_mg",
     "sodium_mg",
     "total_carbohydrates_g",
@@ -39,16 +55,20 @@ pub const FIELD_COUNT: usize = FIELD_NAMES.len();
 
 impl ParsedNutritionFacts {
     /// Per-field exact-match comparison against `expected`, in `FIELD_NAMES` order.
-    /// Whole-record exact match (`==`) requires all 11 fields correct simultaneously,
-    /// which understates real accuracy for models that get most fields right but rarely
-    /// all of them at once — this backs the "all fields" partial-credit score alongside
-    /// whole-record pass/fail. See eval-results/README.md's Results table.
+    /// Whole-record exact match (`==`) requires all `FIELD_COUNT` fields correct
+    /// simultaneously, which understates real accuracy for models that get most fields
+    /// right but rarely all of them at once — this backs the "all fields" partial-credit
+    /// score alongside whole-record pass/fail. See eval-results/README.md's Results table.
     pub fn field_matches(&self, expected: &ParsedNutritionFacts) -> [bool; FIELD_COUNT] {
         [
             self.servings_per_container == expected.servings_per_container,
             self.serving_size_grams == expected.serving_size_grams,
             self.calories == expected.calories,
             self.total_fat_grams == expected.total_fat_grams,
+            self.saturated_fat_grams == expected.saturated_fat_grams,
+            self.trans_fat_grams == expected.trans_fat_grams,
+            self.polyunsaturated_fat_grams == expected.polyunsaturated_fat_grams,
+            self.monounsaturated_fat_grams == expected.monounsaturated_fat_grams,
             self.cholesterol_mg == expected.cholesterol_mg,
             self.sodium_mg == expected.sodium_mg,
             self.total_carbohydrates_g == expected.total_carbohydrates_g,
