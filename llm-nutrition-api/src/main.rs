@@ -1,6 +1,7 @@
 use clap::Parser;
 use log::info;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use warp::Filter;
 
@@ -168,17 +169,33 @@ async fn main() {
     warp::serve(lookup).run(([0, 0, 0, 0], port)).await;
 }
 
+static NEXT_REQUEST_ID: AtomicU64 = AtomicU64::new(1);
+
 async fn handle_lookup(
     req: LookupRequest,
     state: Arc<AppState>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let reply = match agent::run_agent(Arc::clone(&state.config), req.description).await {
-        Ok(item) => warp::reply::with_status(
-            warp::reply::json(&LookupResponse { item }),
-            warp::http::StatusCode::OK,
-        ),
+    let request_id = NEXT_REQUEST_ID.fetch_add(1, Ordering::Relaxed);
+    info!("[{request_id}] Lookup request: {:?}", req.description);
+    let started = std::time::Instant::now();
+    let description = req.description.clone();
+
+    let reply = match agent::run_agent(Arc::clone(&state.config), request_id, req.description).await {
+        Ok(item) => {
+            info!(
+                "[{request_id}] Lookup succeeded: {description:?} ({:.1}s)",
+                started.elapsed().as_secs_f64()
+            );
+            warp::reply::with_status(
+                warp::reply::json(&LookupResponse { item }),
+                warp::http::StatusCode::OK,
+            )
+        }
         Err(e) => {
-            log::error!("Agent error: {e}");
+            log::error!(
+                "[{request_id}] Lookup failed: {description:?} ({:.1}s): {e}",
+                started.elapsed().as_secs_f64()
+            );
             warp::reply::with_status(
                 warp::reply::json(&ErrorResponse {
                     error: e.to_string(),

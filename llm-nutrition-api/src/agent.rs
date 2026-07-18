@@ -290,6 +290,7 @@ async fn call_api(
 async fn run_agent_local(
     backend: Arc<LlamaBackend>,
     model: Arc<LlamaModel>,
+    request_id: u64,
     description: String,
 ) -> Result<NutritionItem, Box<dyn std::error::Error + Send + Sync>> {
     let mut conversation: Vec<(String, String)> = vec![
@@ -298,7 +299,7 @@ async fn run_agent_local(
     ];
 
     for round in 0..MAX_ROUNDS {
-        log::debug!("Agent round {round}");
+        log::debug!("[{request_id}] Agent round {round}");
 
         let backend_arc = Arc::clone(&backend);
         let model_arc = Arc::clone(&model);
@@ -309,17 +310,17 @@ async fn run_agent_local(
         })
         .await??;
 
-        log::debug!("Model output: {output}");
+        log::debug!("[{request_id}] Model output: {output}");
 
         let json_str = extract_json(&output).unwrap_or(&output);
         if let Ok(call) = serde_json::from_str::<ToolCall>(json_str) {
             match call.action.as_str() {
                 "search_web" if !call.query.is_empty() => {
-                    log::info!("Tool call: search_web({:?})", call.query);
+                    log::info!("[{request_id}] Tool call: search_web({:?})", call.query);
                     let result = match crate::tools::search_web(&call.query).await {
                         Ok(r) => format!("Search results for '{}':\n{r}", call.query),
                         Err(e) => {
-                            log::warn!("search_web failed: {e}");
+                            log::warn!("[{request_id}] search_web failed: {e}");
                             format!("Search failed: {e}. Estimate from nutritional knowledge instead.")
                         }
                     };
@@ -328,11 +329,11 @@ async fn run_agent_local(
                     continue;
                 }
                 "read_webpage" if !call.url.is_empty() => {
-                    log::info!("Tool call: read_webpage({:?})", call.url);
+                    log::info!("[{request_id}] Tool call: read_webpage({:?})", call.url);
                     let result = match crate::tools::read_webpage(&call.url).await {
                         Ok(r) => format!("Page content from {}:\n{r}", call.url),
                         Err(e) => {
-                            log::warn!("read_webpage failed: {e}");
+                            log::warn!("[{request_id}] read_webpage failed: {e}");
                             format!("Page fetch failed: {e}. Estimate from nutritional knowledge instead.")
                         }
                     };
@@ -361,13 +362,14 @@ async fn run_agent_local(
         })
         .await??;
 
-        log::debug!("Final JSON: {final_json}");
+        log::debug!("[{request_id}] Final JSON: {final_json}");
 
         let json_str = extract_json(&final_json).unwrap_or(&final_json);
         let item: NutritionItem = serde_json::from_str(json_str)?;
         return Ok(item);
     }
 
+    log::warn!("[{request_id}] Max agent rounds ({MAX_ROUNDS}) exceeded without a nutrition answer");
     Err("Max agent rounds exceeded without a nutrition answer".into())
 }
 
@@ -376,6 +378,7 @@ async fn run_agent_api(
     api_key: &str,
     model: &str,
     base_url: &str,
+    request_id: u64,
     description: String,
 ) -> Result<NutritionItem, Box<dyn std::error::Error + Send + Sync>> {
     let mut conversation: Vec<(String, String)> = vec![
@@ -384,20 +387,20 @@ async fn run_agent_api(
     ];
 
     for round in 0..MAX_ROUNDS {
-        log::debug!("Agent round {round}");
+        log::debug!("[{request_id}] Agent round {round}");
 
         let output = call_api(client, api_key, model, base_url, &conversation).await?;
-        log::debug!("Model output: {output}");
+        log::debug!("[{request_id}] Model output: {output}");
 
         let json_str = extract_json(&output).unwrap_or(&output);
         if let Ok(call) = serde_json::from_str::<ToolCall>(json_str) {
             match call.action.as_str() {
                 "search_web" if !call.query.is_empty() => {
-                    log::info!("Tool call: search_web({:?})", call.query);
+                    log::info!("[{request_id}] Tool call: search_web({:?})", call.query);
                     let result = match crate::tools::search_web(&call.query).await {
                         Ok(r) => format!("Search results for '{}':\n{r}", call.query),
                         Err(e) => {
-                            log::warn!("search_web failed: {e}");
+                            log::warn!("[{request_id}] search_web failed: {e}");
                             format!("Search failed: {e}. Estimate from nutritional knowledge instead.")
                         }
                     };
@@ -406,11 +409,11 @@ async fn run_agent_api(
                     continue;
                 }
                 "read_webpage" if !call.url.is_empty() => {
-                    log::info!("Tool call: read_webpage({:?})", call.url);
+                    log::info!("[{request_id}] Tool call: read_webpage({:?})", call.url);
                     let result = match crate::tools::read_webpage(&call.url).await {
                         Ok(r) => format!("Page content from {}:\n{r}", call.url),
                         Err(e) => {
-                            log::warn!("read_webpage failed: {e}");
+                            log::warn!("[{request_id}] read_webpage failed: {e}");
                             format!("Page fetch failed: {e}. Estimate from nutritional knowledge instead.")
                         }
                     };
@@ -431,26 +434,28 @@ async fn run_agent_api(
         ));
 
         let final_json = call_api(client, api_key, model, base_url, &final_conv).await?;
-        log::debug!("Final JSON: {final_json}");
+        log::debug!("[{request_id}] Final JSON: {final_json}");
 
         let json_str = extract_json(&final_json).unwrap_or(&final_json);
         let item: NutritionItem = serde_json::from_str(json_str)?;
         return Ok(item);
     }
 
+    log::warn!("[{request_id}] Max agent rounds ({MAX_ROUNDS}) exceeded without a nutrition answer");
     Err("Max agent rounds exceeded without a nutrition answer".into())
 }
 
 pub async fn run_agent(
     config: Arc<BackendConfig>,
+    request_id: u64,
     description: String,
 ) -> Result<NutritionItem, Box<dyn std::error::Error + Send + Sync>> {
     match config.as_ref() {
         BackendConfig::Local { backend, model } => {
-            run_agent_local(Arc::clone(backend), Arc::clone(model), description).await
+            run_agent_local(Arc::clone(backend), Arc::clone(model), request_id, description).await
         }
         BackendConfig::Api { api_key, model, base_url, client } => {
-            run_agent_api(client, api_key, model, base_url, description).await
+            run_agent_api(client, api_key, model, base_url, request_id, description).await
         }
     }
 }
