@@ -301,6 +301,15 @@ async fn run_agent_local(
     for round in 0..MAX_ROUNDS {
         log::debug!("[{request_id}] Agent round {round}");
 
+        if round + 1 == MAX_ROUNDS {
+            conversation.push((
+                "user".to_string(),
+                "This is the final round: you must respond now with ONLY the complete JSON \
+                 nutrition object (all 14 fields), giving your best estimate from whatever \
+                 information you have so far. Do not call any more tools.".to_string(),
+            ));
+        }
+
         let backend_arc = Arc::clone(&backend);
         let model_arc = Arc::clone(&model);
         let conv_snapshot = conversation.clone();
@@ -388,6 +397,15 @@ async fn run_agent_api(
 
     for round in 0..MAX_ROUNDS {
         log::debug!("[{request_id}] Agent round {round}");
+
+        if round + 1 == MAX_ROUNDS {
+            conversation.push((
+                "user".to_string(),
+                "This is the final round: you must respond now with ONLY the complete JSON \
+                 nutrition object (all 14 fields), giving your best estimate from whatever \
+                 information you have so far. Do not call any more tools.".to_string(),
+            ));
+        }
 
         let output = call_api(client, api_key, model, base_url, &conversation).await?;
         log::debug!("[{request_id}] Model output: {output}");
