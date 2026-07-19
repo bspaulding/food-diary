@@ -301,6 +301,15 @@ async fn run_agent_local(
     for round in 0..MAX_ROUNDS {
         log::debug!("[{request_id}] Agent round {round}");
 
+        if round + 1 == MAX_ROUNDS {
+            conversation.push((
+                "user".to_string(),
+                "This is the final round: you must respond now with ONLY the complete JSON \
+                 nutrition object (all 14 fields), giving your best estimate from whatever \
+                 information you have so far. Do not call any more tools.".to_string(),
+            ));
+        }
+
         let backend_arc = Arc::clone(&backend);
         let model_arc = Arc::clone(&model);
         let conv_snapshot = conversation.clone();
@@ -312,22 +321,8 @@ async fn run_agent_local(
 
         log::debug!("[{request_id}] Model output: {output}");
 
-        let is_last_round = round + 1 == MAX_ROUNDS;
         let json_str = extract_json(&output).unwrap_or(&output);
-        let tool_call = serde_json::from_str::<ToolCall>(json_str).ok();
-
-        if is_last_round {
-            if let Some(call) = &tool_call {
-                if (call.action == "search_web" && !call.query.is_empty())
-                    || (call.action == "read_webpage" && !call.url.is_empty())
-                {
-                    log::warn!(
-                        "[{request_id}] Last round requested another tool call ({:?}); forcing a final answer instead",
-                        call.action
-                    );
-                }
-            }
-        } else if let Some(call) = tool_call {
+        if let Ok(call) = serde_json::from_str::<ToolCall>(json_str) {
             match call.action.as_str() {
                 "search_web" if !call.query.is_empty() => {
                     log::info!("[{request_id}] Tool call: search_web({:?})", call.query);
@@ -359,7 +354,7 @@ async fn run_agent_local(
             }
         }
 
-        // No tool call (or last round) — do a focused final pass asking for pure JSON.
+        // No tool call — do a focused final pass asking for pure JSON.
         // Grammar-constrained sampling (json_schema_to_grammar) crashes with this
         // version of llama.cpp; free-form output + extract_json is equally reliable.
         let backend_arc = Arc::clone(&backend);
@@ -403,25 +398,20 @@ async fn run_agent_api(
     for round in 0..MAX_ROUNDS {
         log::debug!("[{request_id}] Agent round {round}");
 
+        if round + 1 == MAX_ROUNDS {
+            conversation.push((
+                "user".to_string(),
+                "This is the final round: you must respond now with ONLY the complete JSON \
+                 nutrition object (all 14 fields), giving your best estimate from whatever \
+                 information you have so far. Do not call any more tools.".to_string(),
+            ));
+        }
+
         let output = call_api(client, api_key, model, base_url, &conversation).await?;
         log::debug!("[{request_id}] Model output: {output}");
 
-        let is_last_round = round + 1 == MAX_ROUNDS;
         let json_str = extract_json(&output).unwrap_or(&output);
-        let tool_call = serde_json::from_str::<ToolCall>(json_str).ok();
-
-        if is_last_round {
-            if let Some(call) = &tool_call {
-                if (call.action == "search_web" && !call.query.is_empty())
-                    || (call.action == "read_webpage" && !call.url.is_empty())
-                {
-                    log::warn!(
-                        "[{request_id}] Last round requested another tool call ({:?}); forcing a final answer instead",
-                        call.action
-                    );
-                }
-            }
-        } else if let Some(call) = tool_call {
+        if let Ok(call) = serde_json::from_str::<ToolCall>(json_str) {
             match call.action.as_str() {
                 "search_web" if !call.query.is_empty() => {
                     log::info!("[{request_id}] Tool call: search_web({:?})", call.query);
@@ -453,7 +443,7 @@ async fn run_agent_api(
             }
         }
 
-        // No tool call (or last round) — final pass requesting pure JSON.
+        // No tool call — final pass requesting pure JSON.
         let mut final_conv = conversation.clone();
         final_conv.push(("assistant".to_string(), output));
         final_conv.push((
