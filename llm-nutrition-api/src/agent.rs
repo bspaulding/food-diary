@@ -312,8 +312,22 @@ async fn run_agent_local(
 
         log::debug!("[{request_id}] Model output: {output}");
 
+        let is_last_round = round + 1 == MAX_ROUNDS;
         let json_str = extract_json(&output).unwrap_or(&output);
-        if let Ok(call) = serde_json::from_str::<ToolCall>(json_str) {
+        let tool_call = serde_json::from_str::<ToolCall>(json_str).ok();
+
+        if is_last_round {
+            if let Some(call) = &tool_call {
+                if (call.action == "search_web" && !call.query.is_empty())
+                    || (call.action == "read_webpage" && !call.url.is_empty())
+                {
+                    log::warn!(
+                        "[{request_id}] Last round requested another tool call ({:?}); forcing a final answer instead",
+                        call.action
+                    );
+                }
+            }
+        } else if let Some(call) = tool_call {
             match call.action.as_str() {
                 "search_web" if !call.query.is_empty() => {
                     log::info!("[{request_id}] Tool call: search_web({:?})", call.query);
@@ -345,7 +359,7 @@ async fn run_agent_local(
             }
         }
 
-        // No tool call — do a focused final pass asking for pure JSON.
+        // No tool call (or last round) — do a focused final pass asking for pure JSON.
         // Grammar-constrained sampling (json_schema_to_grammar) crashes with this
         // version of llama.cpp; free-form output + extract_json is equally reliable.
         let backend_arc = Arc::clone(&backend);
@@ -392,8 +406,22 @@ async fn run_agent_api(
         let output = call_api(client, api_key, model, base_url, &conversation).await?;
         log::debug!("[{request_id}] Model output: {output}");
 
+        let is_last_round = round + 1 == MAX_ROUNDS;
         let json_str = extract_json(&output).unwrap_or(&output);
-        if let Ok(call) = serde_json::from_str::<ToolCall>(json_str) {
+        let tool_call = serde_json::from_str::<ToolCall>(json_str).ok();
+
+        if is_last_round {
+            if let Some(call) = &tool_call {
+                if (call.action == "search_web" && !call.query.is_empty())
+                    || (call.action == "read_webpage" && !call.url.is_empty())
+                {
+                    log::warn!(
+                        "[{request_id}] Last round requested another tool call ({:?}); forcing a final answer instead",
+                        call.action
+                    );
+                }
+            }
+        } else if let Some(call) = tool_call {
             match call.action.as_str() {
                 "search_web" if !call.query.is_empty() => {
                     log::info!("[{request_id}] Tool call: search_web({:?})", call.query);
@@ -425,7 +453,7 @@ async fn run_agent_api(
             }
         }
 
-        // No tool call — final pass requesting pure JSON.
+        // No tool call (or last round) — final pass requesting pure JSON.
         let mut final_conv = conversation.clone();
         final_conv.push(("assistant".to_string(), output));
         final_conv.push((
