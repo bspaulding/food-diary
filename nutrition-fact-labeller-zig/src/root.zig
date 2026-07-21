@@ -1,0 +1,240 @@
+const std = @import("std");
+
+pub const vlm = @import("vlm.zig");
+
+pub const ParsedNutritionFacts = struct {
+    servings_per_container: ?f64 = null,
+    serving_size_grams: ?f64 = null,
+    calories: ?i32 = null,
+    total_fat_grams: ?f64 = null,
+    saturated_fat_grams: ?f64 = null,
+    trans_fat_grams: ?f64 = null,
+    polyunsaturated_fat_grams: ?f64 = null,
+    monounsaturated_fat_grams: ?f64 = null,
+    cholesterol_mg: ?f64 = null,
+    sodium_mg: ?f64 = null,
+    total_carbohydrates_g: ?f64 = null,
+    dietary_fiber_g: ?f64 = null,
+    total_sugars_g: ?f64 = null,
+    added_sugars_g: ?f64 = null,
+    protein_g: ?f64 = null,
+
+    /// Per-field exact-match comparison against `expected`, in `FIELD_NAMES` order.
+    pub fn fieldMatches(self: ParsedNutritionFacts, expected: ParsedNutritionFacts) [FIELD_COUNT]bool {
+        return .{
+            optEql(f64, self.servings_per_container, expected.servings_per_container),
+            optEql(f64, self.serving_size_grams, expected.serving_size_grams),
+            optEql(i32, self.calories, expected.calories),
+            optEql(f64, self.total_fat_grams, expected.total_fat_grams),
+            optEql(f64, self.saturated_fat_grams, expected.saturated_fat_grams),
+            optEql(f64, self.trans_fat_grams, expected.trans_fat_grams),
+            optEql(f64, self.polyunsaturated_fat_grams, expected.polyunsaturated_fat_grams),
+            optEql(f64, self.monounsaturated_fat_grams, expected.monounsaturated_fat_grams),
+            optEql(f64, self.cholesterol_mg, expected.cholesterol_mg),
+            optEql(f64, self.sodium_mg, expected.sodium_mg),
+            optEql(f64, self.total_carbohydrates_g, expected.total_carbohydrates_g),
+            optEql(f64, self.dietary_fiber_g, expected.dietary_fiber_g),
+            optEql(f64, self.total_sugars_g, expected.total_sugars_g),
+            optEql(f64, self.added_sugars_g, expected.added_sugars_g),
+            optEql(f64, self.protein_g, expected.protein_g),
+        };
+    }
+
+    pub fn eql(self: ParsedNutritionFacts, other: ParsedNutritionFacts) bool {
+        for (self.fieldMatches(other)) |m| {
+            if (!m) return false;
+        }
+        return true;
+    }
+};
+
+fn optEql(comptime T: type, a: ?T, b: ?T) bool {
+    if (a == null and b == null) return true;
+    if (a == null or b == null) return false;
+    return a.? == b.?;
+}
+
+/// Field names in the same order `fieldMatches` returns them, for labeling
+/// per-field scoring output.
+pub const FIELD_NAMES = [_][]const u8{
+    "servings_per_container",
+    "serving_size_grams",
+    "calories",
+    "total_fat_grams",
+    "saturated_fat_grams",
+    "trans_fat_grams",
+    "polyunsaturated_fat_grams",
+    "monounsaturated_fat_grams",
+    "cholesterol_mg",
+    "sodium_mg",
+    "total_carbohydrates_g",
+    "dietary_fiber_g",
+    "total_sugars_g",
+    "added_sugars_g",
+    "protein_g",
+};
+
+pub const FIELD_COUNT: usize = FIELD_NAMES.len;
+
+/// Accumulates per-field correct counts across a set of cases for "all fields"
+/// partial-credit scoring. A case that fails to parse at all (see `recordMiss`)
+/// still counts toward the denominator but contributes zero correct fields.
+pub const FieldScore = struct {
+    correct: [FIELD_COUNT]usize = [_]usize{0} ** FIELD_COUNT,
+    total_cases: usize = 0,
+
+    pub fn record(self: *FieldScore, matches: [FIELD_COUNT]bool) void {
+        for (matches, 0..) |m, i| {
+            if (m) self.correct[i] += 1;
+        }
+        self.total_cases += 1;
+    }
+
+    /// Records a case that couldn't be scored at all (e.g. the model's output
+    /// failed to parse into `ParsedNutritionFacts`). Still counts toward the
+    /// denominator.
+    pub fn recordMiss(self: *FieldScore) void {
+        self.total_cases += 1;
+    }
+
+    pub fn totalCorrect(self: FieldScore) usize {
+        var sum: usize = 0;
+        for (self.correct) |c| sum += c;
+        return sum;
+    }
+
+    pub fn totalFields(self: FieldScore) usize {
+        return self.total_cases * FIELD_COUNT;
+    }
+
+    pub fn percent(self: FieldScore) f64 {
+        const total = self.totalFields();
+        if (total == 0) return 0.0;
+        return 100.0 * @as(f64, @floatFromInt(self.totalCorrect())) / @as(f64, @floatFromInt(total));
+    }
+};
+
+/// Prints the "all fields" partial-credit summary line and per-field
+/// breakdown for one model's `FieldScore`.
+pub fn printFieldScore(score: FieldScore) void {
+    const stdout = std.io.getStdOut().writer();
+    stdout.print(
+        "  All-fields: {d}/{d} ({d:.1}%) — prioritize this over whole-record pass/fail\n",
+        .{ score.totalCorrect(), score.totalFields(), score.percent() },
+    ) catch {};
+    stdout.writeAll("  Per-field:  ") catch {};
+    for (FIELD_NAMES, 0..) |field, i| {
+        stdout.print("{s}={d}/{d} ", .{ field, score.correct[i], score.total_cases }) catch {};
+    }
+    stdout.writeAll("\n") catch {};
+}
+
+pub const TestCase = struct {
+    filename: []const u8,
+    expected: ParsedNutritionFacts,
+};
+
+/// Load test cases from a CSV file with columns:
+/// file,servings_per_container,serving_size_grams,calories,total_fat_grams,
+/// saturated_fat_grams,trans_fat_grams,polyunsaturated_fat_grams,
+/// monounsaturated_fat_grams,cholesterol_mg,sodium_mg,total_carbohydrates_g,
+/// dietary_fiber_g,total_sugars_g,added_sugars_g,protein_g
+/// All fields are double-quoted. An empty field parses to `null`.
+pub fn loadTestCases(allocator: std.mem.Allocator, csv_path: []const u8) ![]TestCase {
+    const content = try std.fs.cwd().readFileAlloc(allocator, csv_path, 16 * 1024 * 1024);
+    defer allocator.free(content);
+
+    var cases = std.ArrayList(TestCase).init(allocator);
+    errdefer cases.deinit();
+
+    var lines = std.mem.splitScalar(u8, content, '\n');
+    _ = lines.next(); // header row
+
+    while (lines.next()) |raw_line| {
+        const line = std.mem.trimRight(u8, raw_line, "\r");
+        if (line.len == 0) continue;
+
+        const trimmed = std.mem.trim(u8, line, "\"");
+        var fields = std.mem.splitSequence(u8, trimmed, "\",\"");
+
+        const filename = fields.next() orelse return error.InvalidCsvRow;
+
+        var values: [FIELD_COUNT]?f64 = undefined;
+        for (0..FIELD_COUNT) |i| {
+            const tok = fields.next() orelse return error.InvalidCsvRow;
+            values[i] = if (tok.len == 0) null else try std.fmt.parseFloat(f64, tok);
+        }
+
+        const expected = ParsedNutritionFacts{
+            .servings_per_container = values[0],
+            .serving_size_grams = values[1],
+            .calories = if (values[2]) |v| @intFromFloat(v) else null,
+            .total_fat_grams = values[3],
+            .saturated_fat_grams = values[4],
+            .trans_fat_grams = values[5],
+            .polyunsaturated_fat_grams = values[6],
+            .monounsaturated_fat_grams = values[7],
+            .cholesterol_mg = values[8],
+            .sodium_mg = values[9],
+            .total_carbohydrates_g = values[10],
+            .dietary_fiber_g = values[11],
+            .total_sugars_g = values[12],
+            .added_sugars_g = values[13],
+            .protein_g = values[14],
+        };
+
+        try cases.append(.{
+            .filename = try allocator.dupe(u8, filename),
+            .expected = expected,
+        });
+    }
+
+    return cases.toOwnedSlice();
+}
+
+test "loadTestCases parses quoted CSV rows" {
+    const allocator = std.testing.allocator;
+    const tmp_path = "zig-cache-test-cases.csv";
+    try std.fs.cwd().writeFile(.{ .sub_path = tmp_path, .data =
+        \\"file","servings_per_container","serving_size_grams","calories","total_fat_grams","saturated_fat_grams","trans_fat_grams","polyunsaturated_fat_grams","monounsaturated_fat_grams","cholesterol_mg","sodium_mg","total_carbohydrates_g","dietary_fiber_g","total_sugars_g","added_sugars_g","protein_g"
+        \\"IMG_1.png","8.0","30.0","110","1.5","0.0","0.0","0.0","0.0","0.0","350.0","20.0","1.0","0.0","0.0","3.0"
+        \\
+    });
+    defer std.fs.cwd().deleteFile(tmp_path) catch {};
+
+    const cases = try loadTestCases(allocator, tmp_path);
+    defer {
+        for (cases) |c| allocator.free(c.filename);
+        allocator.free(cases);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), cases.len);
+    try std.testing.expectEqualStrings("IMG_1.png", cases[0].filename);
+    try std.testing.expectEqual(@as(?i32, 110), cases[0].expected.calories);
+    try std.testing.expectEqual(@as(?f64, 8.0), cases[0].expected.servings_per_container);
+    try std.testing.expectEqual(@as(?f64, 20.0), cases[0].expected.total_carbohydrates_g);
+}
+
+test "fieldMatches and eql" {
+    const a = ParsedNutritionFacts{ .calories = 100, .protein_g = 5.0 };
+    const b = ParsedNutritionFacts{ .calories = 100, .protein_g = 5.0 };
+    const c = ParsedNutritionFacts{ .calories = 101, .protein_g = 5.0 };
+
+    try std.testing.expect(a.eql(b));
+    try std.testing.expect(!a.eql(c));
+
+    const matches = a.fieldMatches(c);
+    try std.testing.expect(!matches[2]); // calories differs
+    try std.testing.expect(matches[14]); // protein_g matches
+}
+
+test "FieldScore percent" {
+    var score = FieldScore{};
+    var matches = [_]bool{false} ** FIELD_COUNT;
+    matches[0] = true;
+    matches[1] = true;
+    score.record(matches);
+    score.recordMiss();
+    try std.testing.expectEqual(@as(usize, 2), score.totalCorrect());
+    try std.testing.expectEqual(@as(usize, 2 * FIELD_COUNT), score.totalFields());
+}

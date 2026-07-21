@@ -1,0 +1,11 @@
+.{
+    .name = .nutrition_fact_labeller_zig,
+    .fingerprint = 0xb36a38f4afe03028,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.14.1",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
