@@ -8,6 +8,7 @@ on:
       - "graphql-engine-v*"
       - "llm-nutrition-api-v*"
       - "nutrition-fact-labeller-v*"
+      - "nutrition-fact-labeller-zig-v*"
       - "mcp-server-v*"
   pull_request:
 
@@ -22,6 +23,7 @@ jobs:
       graphql_engine: ${{ steps.filter.outputs.graphql_engine }}
       llm_nutrition_api: ${{ steps.filter.outputs.llm_nutrition_api }}
       nutrition_fact_labeller: ${{ steps.filter.outputs.nutrition_fact_labeller }}
+      nutrition_fact_labeller_zig: ${{ steps.filter.outputs.nutrition_fact_labeller_zig }}
       mcp_server: ${{ steps.filter.outputs.mcp_server }}
       ios: ${{ steps.filter.outputs.ios }}
     steps:
@@ -39,6 +41,8 @@ jobs:
               - "llm-nutrition-api/**"
             nutrition_fact_labeller:
               - "nutrition-fact-labeller/**"
+            nutrition_fact_labeller_zig:
+              - "nutrition-fact-labeller-zig/**"
             mcp_server:
               - "mcp-server/**"
             ios:
@@ -255,6 +259,44 @@ jobs:
       - name: Run tests
         run: cargo test
 
+  test-nutrition-fact-labeller-zig:
+    needs: changes
+    if: |
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
+      needs.changes.outputs.nutrition_fact_labeller_zig == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nutrition-fact-labeller-zig
+    env:
+      ZIG_VERSION: "0.14.1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Zig toolchain
+        id: cache-zig
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/zig
+          key: zig-${{ runner.os }}-${{ env.ZIG_VERSION }}
+
+      - name: Install Zig
+        if: steps.cache-zig.outputs.cache-hit != 'true'
+        run: |
+          curl -fL -o /tmp/zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
+          echo "24aeeec8af16c381934a6cd7d95c807a8cb2cf7df9fa40d359aa884195c4716c  /tmp/zig.tar.xz" | sha256sum -c -
+          tar -xf /tmp/zig.tar.xz -C /usr/local
+          mv "/usr/local/zig-x86_64-linux-${ZIG_VERSION}" /usr/local/zig
+
+      - name: Add Zig to PATH
+        run: echo "/usr/local/zig" >> "$GITHUB_PATH"
+
+      - name: Build
+        run: zig build
+
+      - name: Run tests
+        run: zig build test
+
   test-mcp-server:
     needs: changes
     if: |
@@ -337,6 +379,21 @@ jobs:
       file: nutrition-fact-labeller/Containerfile
     secrets: inherit
 
+  publish-nutrition-fact-labeller-zig:
+    needs: [changes, test-nutrition-fact-labeller-zig]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.nutrition_fact_labeller_zig == 'true'
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      component: nutrition-fact-labeller-zig
+      context: nutrition-fact-labeller-zig
+      file: nutrition-fact-labeller-zig/Containerfile
+    secrets: inherit
+
   publish-mcp-server:
     needs: [changes, test-mcp-server]
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.mcp_server == 'true'
@@ -399,4 +456,14 @@ jobs:
     uses: ./.github/workflows/retag-image.yml
     with:
       component: nutrition-fact-labeller
+    secrets: inherit
+
+  retag-nutrition-fact-labeller-zig:
+    if: startsWith(github.ref, 'refs/tags/nutrition-fact-labeller-zig-v')
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/retag-image.yml
+    with:
+      component: nutrition-fact-labeller-zig
     secrets: inherit

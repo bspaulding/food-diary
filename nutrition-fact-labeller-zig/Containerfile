@@ -1,0 +1,42 @@
+# =========================
+# 0. Builder stage
+# =========================
+FROM public.ecr.aws/docker/library/debian:bookworm-slim AS builder
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    xz-utils \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG ZIG_VERSION=0.14.1
+RUN curl -fL -o /tmp/zig.tar.xz \
+      "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" \
+    && tar -xf /tmp/zig.tar.xz -C /usr/local \
+    && mv "/usr/local/zig-x86_64-linux-${ZIG_VERSION}" /usr/local/zig \
+    && rm /tmp/zig.tar.xz
+ENV PATH="/usr/local/zig:${PATH}"
+
+WORKDIR /app
+
+# Copy build manifests first (for caching), then source.
+COPY build.zig build.zig.zon ./
+COPY src ./src
+
+RUN zig build -Doptimize=ReleaseFast
+
+# =========================
+# 1. Runtime stage
+# =========================
+FROM public.ecr.aws/docker/library/debian:bookworm-slim AS runtime
+
+WORKDIR /app
+
+# ca-certificates: needed for TLS to the OpenRouter API.
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/zig-out/bin/nutrition-fact-labeller /usr/local/bin/nutrition-fact-labeller
+
+ENTRYPOINT ["nutrition-fact-labeller"]
