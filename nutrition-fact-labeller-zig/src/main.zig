@@ -5,14 +5,59 @@ const openrouter = @import("vlm/openrouter.zig");
 
 const MAX_BODY_BYTES: usize = 50 * 1024 * 1024;
 
-// Zig's default log level in ReleaseFast/ReleaseSmall builds is `.err`, which
-// would silently drop the startup/backend-selection `info` logs and the
-// per-request JWT-failure `warn` logs below -- exactly the lines an operator
-// watching container logs needs. Override it so they show in every build mode.
-pub const std_options: std.Options = .{ .log_level = .info };
+// std.log's level filtering (the `logEnabled` check in std/log.zig) happens
+// at comptime against `std_options.log_level`, so it can't be changed at
+// runtime by itself -- and its *default* value is build-mode dependent
+// (`.err` in ReleaseFast/ReleaseSmall, which would silently drop the
+// startup/backend-selection `info` logs and per-request JWT-failure `warn`
+// logs below). To get a runtime-configurable LOG_LEVEL, set the comptime
+// level to `.debug` (compiling every call site in) and do the actual
+// filtering ourselves in a custom logFn against `runtime_log_level`.
+var runtime_log_level: std.log.Level = .info;
+
+pub const std_options: std.Options = .{
+    .log_level = .debug,
+    .logFn = logFn,
+};
+
+fn logFn(
+    comptime message_level: std.log.Level,
+    comptime scope: @Type(.enum_literal),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    if (@intFromEnum(message_level) > @intFromEnum(runtime_log_level)) return;
+
+    const level_txt = comptime message_level.asText();
+    const prefix = if (scope == .default) ": " else "(" ++ @tagName(scope) ++ "): ";
+
+    std.debug.lockStdErr();
+    defer std.debug.unlockStdErr();
+    const stderr = std.io.getStdErr().writer();
+    nosuspend stderr.print(level_txt ++ prefix ++ format ++ "\n", args) catch return;
+}
+
+/// Parses LOG_LEVEL values "debug"/"info"/"warn"/"warning"/"error"/"err"
+/// (case-insensitive). Returns null for unset or unrecognized values.
+fn parseLogLevel(s: []const u8) ?std.log.Level {
+    if (std.ascii.eqlIgnoreCase(s, "debug")) return .debug;
+    if (std.ascii.eqlIgnoreCase(s, "info")) return .info;
+    if (std.ascii.eqlIgnoreCase(s, "warn") or std.ascii.eqlIgnoreCase(s, "warning")) return .warn;
+    if (std.ascii.eqlIgnoreCase(s, "error") or std.ascii.eqlIgnoreCase(s, "err")) return .err;
+    return null;
+}
 
 pub fn main() !void {
     const gpa = std.heap.page_allocator;
+
+    if (std.process.getEnvVarOwned(gpa, "LOG_LEVEL")) |s| {
+        defer gpa.free(s);
+        if (parseLogLevel(s)) |lvl| {
+            runtime_log_level = lvl;
+        } else {
+            std.log.warn("Unrecognized LOG_LEVEL={s}, keeping default ({s})", .{ s, @tagName(runtime_log_level) });
+        }
+    } else |_| {}
 
     const port: u16 = blk: {
         const s = std.process.getEnvVarOwned(gpa, "PORT") catch break :blk 3030;
@@ -251,4 +296,19 @@ test "extractImagePart returns null when no image part present" {
         "ignored\r\n" ++
         "--BOUNDARY--\r\n";
     try std.testing.expectEqual(@as(?[]const u8, null), extractImagePart(body, "BOUNDARY"));
+}
+
+test "parseLogLevel accepts all documented spellings case-insensitively" {
+    try std.testing.expectEqual(@as(?std.log.Level, .debug), parseLogLevel("debug"));
+    try std.testing.expectEqual(@as(?std.log.Level, .debug), parseLogLevel("DEBUG"));
+    try std.testing.expectEqual(@as(?std.log.Level, .info), parseLogLevel("info"));
+    try std.testing.expectEqual(@as(?std.log.Level, .warn), parseLogLevel("warn"));
+    try std.testing.expectEqual(@as(?std.log.Level, .warn), parseLogLevel("WARNING"));
+    try std.testing.expectEqual(@as(?std.log.Level, .err), parseLogLevel("error"));
+    try std.testing.expectEqual(@as(?std.log.Level, .err), parseLogLevel("err"));
+}
+
+test "parseLogLevel rejects unrecognized values" {
+    try std.testing.expectEqual(@as(?std.log.Level, null), parseLogLevel("trace"));
+    try std.testing.expectEqual(@as(?std.log.Level, null), parseLogLevel(""));
 }

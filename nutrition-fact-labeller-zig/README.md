@@ -71,7 +71,11 @@ zig build run
 # or: PORT=3030 ./zig-out/bin/nutrition-fact-labeller
 ```
 
-The service listens on port 3030 by default (override with `PORT`).
+The service listens on port 3030 by default (override with `PORT`). Log verbosity defaults to
+`info` and can be overridden at runtime with `LOG_LEVEL` (`debug`, `info`, `warn`/`warning`, or
+`error`/`err`, case-insensitive) — this is a runtime check in a custom `logFn`, not just
+`std_options.log_level`, since Zig's built-in level filtering happens at compile time and can't
+otherwise be changed per run.
 
 ### `POST /label`
 
