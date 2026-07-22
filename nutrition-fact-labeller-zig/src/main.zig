@@ -5,6 +5,12 @@ const openrouter = @import("vlm/openrouter.zig");
 
 const MAX_BODY_BYTES: usize = 50 * 1024 * 1024;
 
+// Zig's default log level in ReleaseFast/ReleaseSmall builds is `.err`, which
+// would silently drop the startup/backend-selection `info` logs and the
+// per-request JWT-failure `warn` logs below -- exactly the lines an operator
+// watching container logs needs. Override it so they show in every build mode.
+pub const std_options: std.Options = .{ .log_level = .info };
+
 pub fn main() !void {
     const gpa = std.heap.page_allocator;
 
