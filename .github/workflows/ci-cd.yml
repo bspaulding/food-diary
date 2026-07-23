@@ -269,7 +269,7 @@ jobs:
       run:
         working-directory: nutrition-fact-labeller-zig
     env:
-      ZIG_VERSION: "0.14.1"
+      ZIG_VERSION: "0.16.0"
     steps:
       - uses: actions/checkout@v4
 
@@ -284,7 +284,7 @@ jobs:
         if: steps.cache-zig.outputs.cache-hit != 'true'
         run: |
           curl -fL -o /tmp/zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
-          echo "24aeeec8af16c381934a6cd7d95c807a8cb2cf7df9fa40d359aa884195c4716c  /tmp/zig.tar.xz" | sha256sum -c -
+          echo "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00  /tmp/zig.tar.xz" | sha256sum -c -
           tar -xf /tmp/zig.tar.xz -C /usr/local
           mv "/usr/local/zig-x86_64-linux-${ZIG_VERSION}" /usr/local/zig
 

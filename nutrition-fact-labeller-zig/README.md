@@ -6,7 +6,8 @@ nutrition label images using vision-language model (VLM) inference. It exposes t
 backend (`google/gemma-4-31b-it:free` by default) that the Rust original documents as its
 strongest-scoring, operationally-default backend.
 
-Built against Zig **0.14.1**.
+Built against Zig **0.16.0**, using its `std.Io`-interface-based `std.http.Server`/`std.http.Client`
+and the `pub fn main(init: std.process.Init) !void` ("Juicy Main") entry point convention.
 
 ## What's ported vs. not
 
@@ -41,9 +42,9 @@ Other intentional divergences:
   port handles one request per accepted TCP connection, then closes it (`Connection: close`).
   Simpler connection lifecycle, fine for an internal, low-concurrency service — but don't expect
   persistent connections from a load-testing tool.
-- **JSON float formatting.** Zig's `std.json.stringify` renders floats like `8e0` / `1.5e0` instead
-  of `8.0` / `1.5`. Both are valid JSON numbers and parse identically everywhere; it's a cosmetic
-  difference from `serde_json`'s output, not a correctness one.
+- **JSON float formatting.** Zig's `std.json.Stringify` renders a whole-number float like `8.0` as
+  `8` rather than `8.0`. Both are valid JSON numbers and parse identically everywhere; it's a
+  cosmetic difference from `serde_json`'s output, not a correctness one.
 - No graceful-shutdown log line on Ctrl-C (the process just exits); functionally equivalent for how
   this runs in a container.
 

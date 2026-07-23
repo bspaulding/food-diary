@@ -116,17 +116,20 @@ pub const FieldScore = struct {
 
 /// Prints the "all fields" partial-credit summary line and per-field
 /// breakdown for one model's `FieldScore`.
-pub fn printFieldScore(score: FieldScore) void {
-    const stdout = std.io.getStdOut().writer();
-    stdout.print(
+pub fn printFieldScore(io: std.Io, score: FieldScore) void {
+    var buf: [4096]u8 = undefined;
+    var file_writer = std.Io.File.stdout().writer(io, &buf);
+    const w = &file_writer.interface;
+    w.print(
         "  All-fields: {d}/{d} ({d:.1}%) — prioritize this over whole-record pass/fail\n",
         .{ score.totalCorrect(), score.totalFields(), score.percent() },
-    ) catch {};
-    stdout.writeAll("  Per-field:  ") catch {};
+    ) catch return;
+    w.writeAll("  Per-field:  ") catch return;
     for (FIELD_NAMES, 0..) |field, i| {
-        stdout.print("{s}={d}/{d} ", .{ field, score.correct[i], score.total_cases }) catch {};
+        w.print("{s}={d}/{d} ", .{ field, score.correct[i], score.total_cases }) catch return;
     }
-    stdout.writeAll("\n") catch {};
+    w.writeAll("\n") catch return;
+    w.flush() catch return;
 }
 
 pub const TestCase = struct {
@@ -140,18 +143,18 @@ pub const TestCase = struct {
 /// monounsaturated_fat_grams,cholesterol_mg,sodium_mg,total_carbohydrates_g,
 /// dietary_fiber_g,total_sugars_g,added_sugars_g,protein_g
 /// All fields are double-quoted. An empty field parses to `null`.
-pub fn loadTestCases(allocator: std.mem.Allocator, csv_path: []const u8) ![]TestCase {
-    const content = try std.fs.cwd().readFileAlloc(allocator, csv_path, 16 * 1024 * 1024);
+pub fn loadTestCases(io: std.Io, allocator: std.mem.Allocator, csv_path: []const u8) ![]TestCase {
+    const content = try std.Io.Dir.cwd().readFileAlloc(io, csv_path, allocator, .limited(16 * 1024 * 1024));
     defer allocator.free(content);
 
-    var cases = std.ArrayList(TestCase).init(allocator);
-    errdefer cases.deinit();
+    var cases: std.ArrayList(TestCase) = .empty;
+    errdefer cases.deinit(allocator);
 
     var lines = std.mem.splitScalar(u8, content, '\n');
     _ = lines.next(); // header row
 
     while (lines.next()) |raw_line| {
-        const line = std.mem.trimRight(u8, raw_line, "\r");
+        const line = std.mem.trimEnd(u8, raw_line, "\r");
         if (line.len == 0) continue;
 
         const trimmed = std.mem.trim(u8, line, "\"");
@@ -183,26 +186,27 @@ pub fn loadTestCases(allocator: std.mem.Allocator, csv_path: []const u8) ![]Test
             .protein_g = values[14],
         };
 
-        try cases.append(.{
+        try cases.append(allocator, .{
             .filename = try allocator.dupe(u8, filename),
             .expected = expected,
         });
     }
 
-    return cases.toOwnedSlice();
+    return cases.toOwnedSlice(allocator);
 }
 
 test "loadTestCases parses quoted CSV rows" {
+    const io = std.testing.io;
     const allocator = std.testing.allocator;
     const tmp_path = "zig-cache-test-cases.csv";
-    try std.fs.cwd().writeFile(.{ .sub_path = tmp_path, .data =
+    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = tmp_path, .data =
         \\"file","servings_per_container","serving_size_grams","calories","total_fat_grams","saturated_fat_grams","trans_fat_grams","polyunsaturated_fat_grams","monounsaturated_fat_grams","cholesterol_mg","sodium_mg","total_carbohydrates_g","dietary_fiber_g","total_sugars_g","added_sugars_g","protein_g"
         \\"IMG_1.png","8.0","30.0","110","1.5","0.0","0.0","0.0","0.0","0.0","350.0","20.0","1.0","0.0","0.0","3.0"
         \\
     });
-    defer std.fs.cwd().deleteFile(tmp_path) catch {};
+    defer std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
 
-    const cases = try loadTestCases(allocator, tmp_path);
+    const cases = try loadTestCases(io, allocator, tmp_path);
     defer {
         for (cases) |c| allocator.free(c.filename);
         allocator.free(cases);

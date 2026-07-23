@@ -10,13 +10,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const exe = b.addExecutable(.{
-        .name = "nutrition-fact-labeller",
+    const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "nutrition_fact_labeller", .module = lib_mod },
+        },
     });
-    exe.root_module.addImport("nutrition_fact_labeller", lib_mod);
+    const exe = b.addExecutable(.{
+        .name = "nutrition-fact-labeller",
+        .root_module = exe_mod,
+    });
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -25,13 +30,18 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the nutrition-fact-labeller server");
     run_step.dependOn(&run_cmd.step);
 
-    const bench_exe = b.addExecutable(.{
-        .name = "vlm_benchmark_api",
+    const bench_mod = b.createModule(.{
         .root_source_file = b.path("src/vlm_benchmark_api.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "nutrition_fact_labeller", .module = lib_mod },
+        },
     });
-    bench_exe.root_module.addImport("nutrition_fact_labeller", lib_mod);
+    const bench_exe = b.addExecutable(.{
+        .name = "vlm_benchmark_api",
+        .root_module = bench_mod,
+    });
     b.installArtifact(bench_exe);
 
     const run_bench_cmd = b.addRunArtifact(bench_exe);
@@ -42,33 +52,28 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run unit tests");
 
-    const lib_tests = b.addTest(.{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const lib_tests = b.addTest(.{ .root_module = lib_mod });
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
 
-    const auth_tests = b.addTest(.{
+    const auth_mod = b.createModule(.{
         .root_source_file = b.path("src/auth.zig"),
         .target = target,
         .optimize = optimize,
     });
+    const auth_tests = b.addTest(.{ .root_module = auth_mod });
     test_step.dependOn(&b.addRunArtifact(auth_tests).step);
 
-    const openrouter_tests = b.addTest(.{
+    const openrouter_mod = b.createModule(.{
         .root_source_file = b.path("src/vlm/openrouter.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "nutrition_fact_labeller", .module = lib_mod },
+        },
     });
-    openrouter_tests.root_module.addImport("nutrition_fact_labeller", lib_mod);
+    const openrouter_tests = b.addTest(.{ .root_module = openrouter_mod });
     test_step.dependOn(&b.addRunArtifact(openrouter_tests).step);
 
-    const main_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    main_tests.root_module.addImport("nutrition_fact_labeller", lib_mod);
+    const main_tests = b.addTest(.{ .root_module = exe_mod });
     test_step.dependOn(&b.addRunArtifact(main_tests).step);
 }

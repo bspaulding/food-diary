@@ -2,6 +2,7 @@ const std = @import("std");
 const root = @import("nutrition_fact_labeller");
 const auth = @import("auth.zig");
 const openrouter = @import("vlm/openrouter.zig");
+const net = std.Io.net;
 
 const MAX_BODY_BYTES: usize = 50 * 1024 * 1024;
 
@@ -22,7 +23,7 @@ pub const std_options: std.Options = .{
 
 fn logFn(
     comptime message_level: std.log.Level,
-    comptime scope: @Type(.enum_literal),
+    comptime scope: @EnumLiteral(),
     comptime format: []const u8,
     args: anytype,
 ) void {
@@ -31,10 +32,10 @@ fn logFn(
     const level_txt = comptime message_level.asText();
     const prefix = if (scope == .default) ": " else "(" ++ @tagName(scope) ++ "): ";
 
-    std.debug.lockStdErr();
-    defer std.debug.unlockStdErr();
-    const stderr = std.io.getStdErr().writer();
-    nosuspend stderr.print(level_txt ++ prefix ++ format ++ "\n", args) catch return;
+    var buf: [1024]u8 = undefined;
+    const locked = std.debug.lockStderr(&buf);
+    defer std.debug.unlockStderr();
+    locked.file_writer.interface.print(level_txt ++ prefix ++ format ++ "\n", args) catch return;
 }
 
 /// Parses LOG_LEVEL values "debug"/"info"/"warn"/"warning"/"error"/"err"
@@ -47,21 +48,34 @@ fn parseLogLevel(s: []const u8) ?std.log.Level {
     return null;
 }
 
-pub fn main() !void {
-    const gpa = std.heap.page_allocator;
+/// Tries each env var name in order, returning the first one that's set.
+/// Borrowed from `environ`, valid for the process's lifetime.
+fn getEnvAny(environ: *const std.process.Environ.Map, names: []const []const u8) ?[]const u8 {
+    for (names) |name| {
+        if (environ.get(name)) |v| return v;
+    }
+    return null;
+}
 
-    if (std.process.getEnvVarOwned(gpa, "LOG_LEVEL")) |s| {
-        defer gpa.free(s);
+const ConnCtx = struct {
+    io: std.Io,
+    environ: *const std.process.Environ.Map,
+    backend: ?openrouter.LlmApiBackend,
+};
+
+pub fn main(init: std.process.Init) !void {
+    const io = init.io;
+
+    if (init.environ_map.get("LOG_LEVEL")) |s| {
         if (parseLogLevel(s)) |lvl| {
             runtime_log_level = lvl;
         } else {
             std.log.warn("Unrecognized LOG_LEVEL={s}, keeping default ({s})", .{ s, @tagName(runtime_log_level) });
         }
-    } else |_| {}
+    }
 
     const port: u16 = blk: {
-        const s = std.process.getEnvVarOwned(gpa, "PORT") catch break :blk 3030;
-        defer gpa.free(s);
+        const s = init.environ_map.get("PORT") orelse break :blk 3030;
         break :blk std.fmt.parseInt(u16, s, 10) catch 3030;
     };
 
@@ -75,29 +89,31 @@ pub fn main() !void {
     // environment. The OpenRouter backend is the documented operational
     // default in the original (100% on its 33-image eval), so it's the one
     // ported here; requests fail loudly if it isn't configured.
-    const api_key = try getEnvAny(gpa, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" });
+    const api_key = getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" });
     var backend: ?openrouter.LlmApiBackend = null;
     if (api_key) |key| {
-        const model = (try getEnvAny(gpa, &.{ "LLM_MODEL", "OPENROUTER_MODEL" })) orelse
-            try gpa.dupe(u8, openrouter.DEFAULT_MODEL);
-        backend = try openrouter.LlmApiBackend.init(gpa, key, model);
+        const model = getEnvAny(init.environ_map, &.{ "LLM_MODEL", "OPENROUTER_MODEL" }) orelse openrouter.DEFAULT_MODEL;
+        const base_url = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }) orelse openrouter.DEFAULT_BASE_URL;
+        backend = openrouter.LlmApiBackend.withBaseUrl(key, model, base_url);
         std.log.info("LLM API VLM backend enabled with model {s}", .{model});
     } else {
         std.log.info("LLM API disabled (set LLM_API_KEY or OPENROUTER_API_KEY to enable)", .{});
     }
 
-    const address = try std.net.Address.parseIp("0.0.0.0", port);
-    var net_server = try address.listen(.{ .reuse_address = true });
+    var addr = try net.IpAddress.parse("0.0.0.0", port);
+    var net_server = try addr.listen(io, .{ .reuse_address = true });
     std.log.info("running and listening on {d}", .{port});
 
+    const ctx = ConnCtx{ .io = io, .environ = init.environ_map, .backend = backend };
+
     while (true) {
-        const connection = net_server.accept() catch |err| {
+        const stream = net_server.accept(io) catch |err| {
             std.log.err("accept failed: {s}", .{@errorName(err)});
             continue;
         };
-        const thread = std.Thread.spawn(.{}, handleConnection, .{ connection, backend }) catch |err| {
+        const thread = std.Thread.spawn(.{}, handleConnection, .{ stream, ctx }) catch |err| {
             std.log.err("failed to spawn connection handler: {s}", .{@errorName(err)});
-            connection.stream.close();
+            stream.close(io);
             continue;
         };
         thread.detach();
@@ -108,28 +124,31 @@ pub fn main() !void {
 /// Rust original (warp/hyper) supports HTTP keep-alive; this port trades
 /// that away for a much simpler connection lifecycle, which is fine for an
 /// internal, low-concurrency service like this one.
-fn handleConnection(connection: std.net.Server.Connection, backend: ?openrouter.LlmApiBackend) void {
-    defer connection.stream.close();
+fn handleConnection(stream: net.Stream, ctx: ConnCtx) void {
+    defer stream.close(ctx.io);
 
     var arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena_state.deinit();
     const allocator = arena_state.allocator();
 
-    var read_buffer: [16 * 1024]u8 = undefined;
-    var server = std.http.Server.init(connection, &read_buffer);
+    var recv_buffer: [16 * 1024]u8 = undefined;
+    var send_buffer: [16 * 1024]u8 = undefined;
+    var stream_reader = stream.reader(ctx.io, &recv_buffer);
+    var stream_writer = stream.writer(ctx.io, &send_buffer);
+    var server = std.http.Server.init(&stream_reader.interface, &stream_writer.interface);
 
     var request = server.receiveHead() catch return;
-    handleRequest(allocator, &request, backend) catch |err| {
+    handleRequest(ctx, allocator, &request) catch |err| {
         std.log.err("error handling request: {s}", .{@errorName(err)});
     };
 }
 
-fn handleRequest(allocator: std.mem.Allocator, request: *std.http.Server.Request, backend: ?openrouter.LlmApiBackend) !void {
+fn handleRequest(ctx: ConnCtx, allocator: std.mem.Allocator, request: *std.http.Server.Request) !void {
     if (request.head.method != .POST or !std.mem.eql(u8, request.head.target, "/label")) {
         return respondNotFound(request);
     }
 
-    checkAuth(allocator, request) catch |err| {
+    checkAuth(ctx, allocator, request) catch |err| {
         std.log.warn("JWT validation failed: {s}", .{@errorName(err)});
         return respondUnauthorized(request);
     };
@@ -137,25 +156,25 @@ fn handleRequest(allocator: std.mem.Allocator, request: *std.http.Server.Request
     const content_type = request.head.content_type orelse return respondNotFound(request);
     const boundary = extractBoundary(content_type) orelse return respondNotFound(request);
 
-    const body_reader = try request.reader();
-    const body = try body_reader.readAllAlloc(allocator, MAX_BODY_BYTES);
+    var body_read_buf: [8 * 1024]u8 = undefined;
+    const body_reader = try request.readerExpectContinue(&body_read_buf);
+    const body = try body_reader.allocRemaining(allocator, .limited(MAX_BODY_BYTES));
 
     const image_bytes = extractImagePart(body, boundary) orelse return respondNotFound(request);
 
-    const bk = backend orelse {
+    const bk = ctx.backend orelse {
         std.log.err("No VLM backend configured (set OPENROUTER_API_KEY)", .{});
         return respondNotFound(request);
     };
 
-    const facts = bk.infer(allocator, image_bytes) catch |err| {
+    const facts = bk.infer(ctx.io, allocator, image_bytes) catch |err| {
         std.log.err("LLM API VLM failed: {s}", .{@errorName(err)});
         return respondNotFound(request);
     };
 
-    var buf = std.ArrayList(u8).init(allocator);
-    try std.json.stringify(.{ .image = facts }, .{}, buf.writer());
+    const body_json = try std.json.Stringify.valueAlloc(allocator, .{ .image = facts }, .{});
 
-    try request.respond(buf.items, .{
+    try request.respond(body_json, .{
         .keep_alive = false,
         .extra_headers = &.{
             .{ .name = "content-type", .value = "application/json" },
@@ -185,7 +204,7 @@ fn respondUnauthorized(request: *std.http.Server.Request) !void {
     });
 }
 
-fn checkAuth(allocator: std.mem.Allocator, request: *std.http.Server.Request) !void {
+fn checkAuth(ctx: ConnCtx, allocator: std.mem.Allocator, request: *std.http.Server.Request) !void {
     var it = request.iterateHeaders();
     var auth_header: ?[]const u8 = null;
     while (it.next()) |h| {
@@ -200,22 +219,10 @@ fn checkAuth(allocator: std.mem.Allocator, request: *std.http.Server.Request) !v
     else
         return error.MissingBearerPrefix;
 
-    const secret = (try getEnvAny(allocator, &.{"HASURA_GRAPHQL_JWT_SECRET"})) orelse
-        return error.MissingJwtSecretConfig;
-    const audience = (try getEnvAny(allocator, &.{"AUTH0_AUDIENCE"})) orelse auth.DEFAULT_AUDIENCE;
+    const secret = ctx.environ.get("HASURA_GRAPHQL_JWT_SECRET") orelse return error.MissingJwtSecretConfig;
+    const audience = ctx.environ.get("AUTH0_AUDIENCE") orelse auth.DEFAULT_AUDIENCE;
 
-    try auth.validateJwt(allocator, token, secret, audience);
-}
-
-/// Tries each env var name in order, returning the first one that's set.
-fn getEnvAny(allocator: std.mem.Allocator, names: []const []const u8) !?[]u8 {
-    for (names) |name| {
-        return std.process.getEnvVarOwned(allocator, name) catch |err| switch (err) {
-            error.EnvironmentVariableNotFound => continue,
-            else => return err,
-        };
-    }
-    return null;
+    try auth.validateJwt(ctx.io, allocator, token, secret, audience);
 }
 
 /// Extracts the boundary token from a `multipart/form-data; boundary=...`

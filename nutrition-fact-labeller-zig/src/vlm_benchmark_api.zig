@@ -23,29 +23,31 @@ fn usage() void {
     , .{});
 }
 
-fn parseArgs(allocator: std.mem.Allocator) !Args {
-    var args_it = try std.process.argsWithAllocator(allocator);
-    defer args_it.deinit();
-    _ = args_it.next(); // exe name
-
+fn parseArgs(argv: []const [:0]const u8) !Args {
     var model: ?[]const u8 = null;
     var model_name: ?[]const u8 = null;
     var csv: []const u8 = "test_cases.csv";
     var images_dir: []const u8 = "images";
     var limit: ?usize = null;
 
-    while (args_it.next()) |arg| {
+    var i: usize = 1; // skip exe name
+    while (i < argv.len) : (i += 1) {
+        const arg = argv[i];
         if (std.mem.eql(u8, arg, "--model")) {
-            model = try allocator.dupe(u8, args_it.next() orelse return error.MissingArgValue);
+            i += 1;
+            model = argv[i];
         } else if (std.mem.eql(u8, arg, "--model-name")) {
-            model_name = try allocator.dupe(u8, args_it.next() orelse return error.MissingArgValue);
+            i += 1;
+            model_name = argv[i];
         } else if (std.mem.eql(u8, arg, "--csv")) {
-            csv = try allocator.dupe(u8, args_it.next() orelse return error.MissingArgValue);
+            i += 1;
+            csv = argv[i];
         } else if (std.mem.eql(u8, arg, "--images-dir")) {
-            images_dir = try allocator.dupe(u8, args_it.next() orelse return error.MissingArgValue);
+            i += 1;
+            images_dir = argv[i];
         } else if (std.mem.eql(u8, arg, "--limit")) {
-            const v = args_it.next() orelse return error.MissingArgValue;
-            limit = try std.fmt.parseInt(usize, v, 10);
+            i += 1;
+            limit = try std.fmt.parseInt(usize, argv[i], 10);
         } else if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
             usage();
             std.process.exit(0);
@@ -67,34 +69,35 @@ fn parseArgs(allocator: std.mem.Allocator) !Args {
     };
 }
 
-fn getEnvAny(allocator: std.mem.Allocator, names: []const []const u8) !?[]u8 {
+fn getEnvAny(environ: *const std.process.Environ.Map, names: []const []const u8) ?[]const u8 {
     for (names) |name| {
-        return std.process.getEnvVarOwned(allocator, name) catch |err| switch (err) {
-            error.EnvironmentVariableNotFound => continue,
-            else => return err,
-        };
+        if (environ.get(name)) |v| return v;
     }
     return null;
 }
 
-pub fn main() !void {
-    var arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena_state.deinit();
-    const allocator = arena_state.allocator();
+pub fn main(init: std.process.Init) !void {
+    const io = init.io;
+    const allocator = init.arena.allocator();
 
-    const args = try parseArgs(allocator);
+    const argv = try init.minimal.args.toSlice(allocator);
+    const args = try parseArgs(argv);
 
-    const api_key = (try getEnvAny(allocator, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" })) orelse {
+    const api_key = getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" }) orelse {
         std.log.err("Set LLM_API_KEY or OPENROUTER_API_KEY in the environment", .{});
         return error.MissingApiKey;
     };
+    const base_url = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }) orelse openrouter.DEFAULT_BASE_URL;
 
     const name = args.model_name orelse args.model;
-    const backend = try openrouter.LlmApiBackend.init(allocator, api_key, args.model);
+    const backend = openrouter.LlmApiBackend.withBaseUrl(api_key, args.model, base_url);
 
-    const stdout = std.io.getStdOut().writer();
+    var stdout_buf: [4096]u8 = undefined;
+    var stdout_file_writer = std.Io.File.stdout().writer(io, &stdout_buf);
+    const stdout = &stdout_file_writer.interface;
+    defer stdout.flush() catch {};
 
-    var cases = try root.loadTestCases(allocator, args.csv);
+    var cases = try root.loadTestCases(io, allocator, args.csv);
     if (args.limit) |limit| {
         if (limit < cases.len) cases = cases[0..limit];
         try stdout.print("Loaded {d} test cases (--limit {d}: smoke test, not a full eval)\n", .{ cases.len, limit });
@@ -105,20 +108,20 @@ pub fn main() !void {
     try stdout.print("\nUsing API backend [{s}] model={s}\n", .{ name, args.model });
     try stdout.print("Running inference on {d} images...\n", .{cases.len});
 
-    var passing = std.ArrayList([]const u8).init(allocator);
+    var passing: std.ArrayList([]const u8) = .empty;
     var fail_count: usize = 0;
     var field_score = root.FieldScore{};
 
     for (cases) |case| {
         const image_path = try std.fs.path.join(allocator, &.{ args.images_dir, case.filename });
-        const image_bytes = std.fs.cwd().readFileAlloc(allocator, image_path, 50 * 1024 * 1024) catch |err| {
+        const image_bytes = std.Io.Dir.cwd().readFileAlloc(io, image_path, allocator, .limited(50 * 1024 * 1024)) catch |err| {
             std.debug.print("  ERROR {s}: failed to read image ({s})\n", .{ case.filename, @errorName(err) });
             field_score.recordMiss();
             fail_count += 1;
             continue;
         };
 
-        const actual = backend.infer(allocator, image_bytes) catch |err| {
+        const actual = backend.infer(io, allocator, image_bytes) catch |err| {
             std.debug.print("  ERROR {s}: {s}\n", .{ case.filename, @errorName(err) });
             field_score.recordMiss();
             fail_count += 1;
@@ -127,7 +130,7 @@ pub fn main() !void {
 
         if (actual.eql(case.expected)) {
             field_score.record(actual.fieldMatches(case.expected));
-            try passing.append(case.filename);
+            try passing.append(allocator, case.filename);
         } else {
             std.debug.print("  FAIL {s}\n    got:      {any}\n    expected: {any}\n", .{ case.filename, actual, case.expected });
             field_score.record(actual.fieldMatches(case.expected));
@@ -142,7 +145,8 @@ pub fn main() !void {
     try stdout.print("{s}\n", .{"─" ** 55});
     try stdout.print("(no PaddleOCR baseline all-fields figure available: the baseline test doesn't emit per-field results in this environment)\n", .{});
     try stdout.print("\n{s}:\n", .{name});
-    root.printFieldScore(field_score);
+    try stdout.flush();
+    root.printFieldScore(io, field_score);
     try stdout.print("{s}\n", .{"─" ** 55});
 
     try stdout.print("\nWhole-record scoring (secondary — how many cases were a perfect match):\n", .{});
@@ -174,6 +178,7 @@ pub fn main() !void {
             try stdout.print("  \u{2713} {s}\n", .{f});
         }
     }
+    try stdout.flush();
 
     if (fail_count > 0) std.process.exit(1);
 }

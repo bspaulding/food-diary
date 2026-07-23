@@ -13,21 +13,12 @@ pub const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
 
 /// Paired with DEFAULT_MODEL above — this must stay OpenRouter's endpoint,
 /// not Gemini's, since DEFAULT_MODEL is an OpenRouter-specific model slug.
-const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
+pub const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
 pub const LlmApiBackend = struct {
     api_key: []const u8,
     model: []const u8,
     base_url: []const u8,
-
-    /// Reads LLM_BASE_URL/OPENROUTER_BASE_URL from the environment, falling
-    /// back to DEFAULT_BASE_URL. Caller retains ownership of `api_key`/`model`.
-    pub fn init(allocator: std.mem.Allocator, api_key: []const u8, model: []const u8) !LlmApiBackend {
-        const base_url = std.process.getEnvVarOwned(allocator, "LLM_BASE_URL") catch
-            (std.process.getEnvVarOwned(allocator, "OPENROUTER_BASE_URL") catch
-                try allocator.dupe(u8, DEFAULT_BASE_URL));
-        return .{ .api_key = api_key, .model = model, .base_url = base_url };
-    }
 
     pub fn withBaseUrl(api_key: []const u8, model: []const u8, base_url: []const u8) LlmApiBackend {
         return .{ .api_key = api_key, .model = model, .base_url = base_url };
@@ -45,7 +36,7 @@ pub const LlmApiBackend = struct {
         InvalidVlmJson,
     } || std.mem.Allocator.Error;
 
-    pub fn infer(self: *const LlmApiBackend, allocator: std.mem.Allocator, image_bytes: []const u8) !root.ParsedNutritionFacts {
+    pub fn infer(self: *const LlmApiBackend, io: std.Io, allocator: std.mem.Allocator, image_bytes: []const u8) !root.ParsedNutritionFacts {
         var arena_state = std.heap.ArenaAllocator.init(allocator);
         defer arena_state.deinit();
         const arena = arena_state.allocator();
@@ -61,14 +52,12 @@ pub const LlmApiBackend = struct {
         const uri = std.Uri.parse(endpoint) catch return error.LlmApiRequestFailed;
         const auth_header = try std.fmt.allocPrint(arena, "Bearer {s}", .{self.api_key});
 
-        var client = std.http.Client{ .allocator = arena };
+        var client = std.http.Client{ .allocator = arena, .io = io };
         defer client.deinit();
 
         var attempt: u32 = 0;
         while (true) {
-            var server_header_buffer: [16 * 1024]u8 = undefined;
-            var req = client.open(.POST, uri, .{
-                .server_header_buffer = &server_header_buffer,
+            var req = client.request(.POST, uri, .{
                 .headers = .{
                     .content_type = .{ .override = "application/json" },
                     .authorization = .{ .override = auth_header },
@@ -76,76 +65,77 @@ pub const LlmApiBackend = struct {
             }) catch return error.LlmApiRequestFailed;
             defer req.deinit();
 
-            req.transfer_encoding = .{ .content_length = body_json.len };
-            req.send() catch return error.LlmApiRequestFailed;
-            req.writeAll(body_json) catch return error.LlmApiRequestFailed;
-            req.finish() catch return error.LlmApiRequestFailed;
-            req.wait() catch return error.LlmApiRequestFailed;
+            req.sendBodyComplete(body_json) catch return error.LlmApiRequestFailed;
 
-            if (req.response.status == .too_many_requests) {
+            var redirect_buf: [4096]u8 = undefined;
+            var response = req.receiveHead(&redirect_buf) catch return error.LlmApiRequestFailed;
+
+            if (response.head.status == .too_many_requests) {
                 if (attempt >= MAX_RETRIES) return error.RateLimitExceeded;
 
                 var retry_after_secs: ?u64 = null;
-                var it = req.response.iterateHeaders();
+                var it = response.head.iterateHeaders();
                 while (it.next()) |h| {
                     if (std.ascii.eqlIgnoreCase(h.name, "retry-after")) {
                         retry_after_secs = std.fmt.parseInt(u64, h.value, 10) catch null;
                     }
                 }
 
-                const text = req.reader().readAllAlloc(arena, 1 << 20) catch "";
+                var transfer_buf: [4096]u8 = undefined;
+                const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(1 << 20)) catch "";
                 const body_secs = parseRetryDelaySeconds(text);
                 const delay_secs = retry_after_secs orelse body_secs orelse (@as(u64, 1) << @intCast(@min(attempt, 32)));
                 std.log.warn("LLM API 429, retrying in {d}s", .{delay_secs});
-                std.time.sleep(delay_secs * std.time.ns_per_s);
+                std.Io.sleep(io, .fromSeconds(@intCast(delay_secs)), .awake) catch {};
                 attempt += 1;
                 continue;
             }
 
-            if (req.response.status.class() != .success) {
-                const text = req.reader().readAllAlloc(arena, 1 << 20) catch "";
-                std.log.err("LLM API error {d}: {s}", .{ @intFromEnum(req.response.status), text });
+            if (response.head.status.class() != .success) {
+                var transfer_buf: [4096]u8 = undefined;
+                const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(1 << 20)) catch "";
+                std.log.err("LLM API error {d}: {s}", .{ @intFromEnum(response.head.status), text });
                 return error.LlmApiError;
             }
 
-            const text = req.reader().readAllAlloc(arena, 8 << 20) catch return error.LlmApiRequestFailed;
+            var transfer_buf: [8192]u8 = undefined;
+            const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(8 << 20)) catch
+                return error.LlmApiRequestFailed;
             return parseInferenceResponse(allocator, arena, text);
         }
     }
 };
 
-fn buildRequestBody(arena: std.mem.Allocator, model: []const u8, data_url: []const u8) ![]const u8 {
-    var image_obj = std.json.ObjectMap.init(arena);
-    try image_obj.put("url", .{ .string = data_url });
+fn buildRequestBody(arena: std.mem.Allocator, model: []const u8, data_url: []const u8) ![]u8 {
+    var image_obj: std.json.ObjectMap = .empty;
+    try image_obj.put(arena, "url", .{ .string = data_url });
 
-    var image_part = std.json.ObjectMap.init(arena);
-    try image_part.put("type", .{ .string = "image_url" });
-    try image_part.put("image_url", .{ .object = image_obj });
+    var image_part: std.json.ObjectMap = .empty;
+    try image_part.put(arena, "type", .{ .string = "image_url" });
+    try image_part.put(arena, "image_url", .{ .object = image_obj });
 
-    var text_part = std.json.ObjectMap.init(arena);
-    try text_part.put("type", .{ .string = "text" });
-    try text_part.put("text", .{ .string = vlm.NUTRITION_PROMPT });
+    var text_part: std.json.ObjectMap = .empty;
+    try text_part.put(arena, "type", .{ .string = "text" });
+    try text_part.put(arena, "text", .{ .string = vlm.NUTRITION_PROMPT });
 
     var content_arr = std.json.Array.init(arena);
     try content_arr.append(.{ .object = image_part });
     try content_arr.append(.{ .object = text_part });
 
-    var message = std.json.ObjectMap.init(arena);
-    try message.put("role", .{ .string = "user" });
-    try message.put("content", .{ .array = content_arr });
+    var message: std.json.ObjectMap = .empty;
+    try message.put(arena, "role", .{ .string = "user" });
+    try message.put(arena, "content", .{ .array = content_arr });
 
     var messages_arr = std.json.Array.init(arena);
     try messages_arr.append(.{ .object = message });
 
-    var body = std.json.ObjectMap.init(arena);
-    try body.put("model", .{ .string = model });
-    try body.put("messages", .{ .array = messages_arr });
-    try body.put("temperature", .{ .float = 0.1 });
-    try body.put("max_tokens", .{ .integer = MAX_TOKENS });
+    var body: std.json.ObjectMap = .empty;
+    try body.put(arena, "model", .{ .string = model });
+    try body.put(arena, "messages", .{ .array = messages_arr });
+    try body.put(arena, "temperature", .{ .float = 0.1 });
+    try body.put(arena, "max_tokens", .{ .integer = MAX_TOKENS });
 
-    var buf = std.ArrayList(u8).init(arena);
-    try std.json.stringify(std.json.Value{ .object = body }, .{}, buf.writer());
-    return buf.items;
+    return std.json.Stringify.valueAlloc(arena, std.json.Value{ .object = body }, .{});
 }
 
 /// Parses `error.details[].retryDelay` (e.g. "1.5s") from a Gemini-style error
@@ -160,7 +150,7 @@ fn parseRetryDelaySeconds(text: []const u8) ?u64 {
         if (detail != .object) continue;
         const retry_delay = detail.object.get("retryDelay") orelse continue;
         if (retry_delay != .string) continue;
-        const trimmed = std.mem.trimRight(u8, retry_delay.string, "s");
+        const trimmed = std.mem.trimEnd(u8, retry_delay.string, "s");
         return std.fmt.parseInt(u64, trimmed, 10) catch continue;
     }
     return null;
@@ -215,7 +205,8 @@ test "parseRetryDelaySeconds returns null when absent" {
 }
 
 const MockCtx = struct {
-    net_server: *std.net.Server,
+    net_server: *std.Io.net.Server,
+    io: std.Io,
     allocator: std.mem.Allocator,
     validation_error: ?[]const u8 = null,
     response_body: []const u8,
@@ -225,24 +216,29 @@ const MockCtx = struct {
 /// OpenAI-style vision message shape, and replies with a canned response
 /// body — mirroring the Rust original's `spawn_mock` test helper.
 fn mockServerThread(ctx: *MockCtx) void {
-    const connection = ctx.net_server.accept() catch |err| {
+    const stream = ctx.net_server.accept(ctx.io) catch |err| {
         ctx.validation_error = std.fmt.allocPrint(ctx.allocator, "accept failed: {s}", .{@errorName(err)}) catch "accept failed";
         return;
     };
-    defer connection.stream.close();
+    defer stream.close(ctx.io);
 
-    var read_buffer: [16 * 1024]u8 = undefined;
-    var server = std.http.Server.init(connection, &read_buffer);
+    var recv_buffer: [16 * 1024]u8 = undefined;
+    var send_buffer: [16 * 1024]u8 = undefined;
+    var stream_reader = stream.reader(ctx.io, &recv_buffer);
+    var stream_writer = stream.writer(ctx.io, &send_buffer);
+    var server = std.http.Server.init(&stream_reader.interface, &stream_writer.interface);
+
     var request = server.receiveHead() catch |err| {
         ctx.validation_error = std.fmt.allocPrint(ctx.allocator, "receiveHead failed: {s}", .{@errorName(err)}) catch "receiveHead failed";
         return;
     };
 
-    const body_reader = request.reader() catch |err| {
+    var body_read_buf: [16 * 1024]u8 = undefined;
+    const body_reader = request.readerExpectContinue(&body_read_buf) catch |err| {
         ctx.validation_error = std.fmt.allocPrint(ctx.allocator, "reader failed: {s}", .{@errorName(err)}) catch "reader failed";
         return;
     };
-    const body = body_reader.readAllAlloc(ctx.allocator, 10 * 1024 * 1024) catch |err| {
+    const body = body_reader.allocRemaining(ctx.allocator, .limited(10 * 1024 * 1024)) catch |err| {
         ctx.validation_error = std.fmt.allocPrint(ctx.allocator, "read body failed: {s}", .{@errorName(err)}) catch "read body failed";
         return;
     };
@@ -287,12 +283,15 @@ fn validateRequestShape(allocator: std.mem.Allocator, body: []const u8) ?[]const
 }
 
 test "infer performs a real HTTP round trip against a mock OpenAI-compatible server" {
+    const io = std.testing.io;
     const allocator = std.testing.allocator;
 
-    const address = try std.net.Address.parseIp("127.0.0.1", 0);
-    var net_server = try address.listen(.{});
-    defer net_server.deinit();
-    const port = net_server.listen_address.getPort();
+    // 0.16's Io.net.Server doesn't expose the bound socket's local address
+    // (no getsockname-style accessor), so an ephemeral port (port 0) can't
+    // be resolved back after listen(); use a fixed test-only port instead.
+    var addr = try std.Io.net.IpAddress.parse("127.0.0.1", 47881);
+    var net_server = try addr.listen(io, .{ .reuse_address = true });
+    defer net_server.deinit(io);
 
     const expected = root.ParsedNutritionFacts{ .calories = 100, .protein_g = 5.0 };
 
@@ -300,27 +299,24 @@ test "infer performs a real HTTP round trip against a mock OpenAI-compatible ser
     defer arena.deinit();
     const arena_alloc = arena.allocator();
 
-    var facts_json = std.ArrayList(u8).init(arena_alloc);
-    try std.json.stringify(expected, .{}, facts_json.writer());
-
-    var content_json = std.ArrayList(u8).init(arena_alloc);
-    try std.json.stringify(facts_json.items, .{}, content_json.writer());
+    const facts_json = try std.json.Stringify.valueAlloc(arena_alloc, expected, .{});
+    const content_json = try std.json.Stringify.valueAlloc(arena_alloc, facts_json, .{});
 
     const response_body = try std.fmt.allocPrint(arena_alloc,
         \\{{"choices": [{{"message": {{"role": "assistant", "content": {s}}}}}]}}
-    , .{content_json.items});
+    , .{content_json});
 
     var ctx = MockCtx{
         .net_server = &net_server,
+        .io = io,
         .allocator = arena_alloc,
         .response_body = response_body,
     };
 
     const thread = try std.Thread.spawn(.{}, mockServerThread, .{&ctx});
 
-    const base_url = try std.fmt.allocPrint(arena_alloc, "http://127.0.0.1:{d}", .{port});
-    const backend = LlmApiBackend.withBaseUrl("test-key", "test-model", base_url);
-    const actual = try backend.infer(allocator, "fake-image-bytes");
+    const backend = LlmApiBackend.withBaseUrl("test-key", "test-model", "http://127.0.0.1:47881");
+    const actual = try backend.infer(io, allocator, "fake-image-bytes");
 
     thread.join();
 

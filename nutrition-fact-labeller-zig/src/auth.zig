@@ -26,6 +26,7 @@ pub const AuthError = error{
 /// certificate) and modular exponentiation (via std.math.big.int) to do
 /// PKCS#1 v1.5 signature verification.
 pub fn validateJwt(
+    io: std.Io,
     allocator: std.mem.Allocator,
     token: []const u8,
     jwt_secret_json: []const u8,
@@ -75,7 +76,7 @@ pub fn validateJwt(
             .float => |f| @intFromFloat(f),
             else => return error.InvalidPayload,
         };
-        if (exp < std.time.timestamp()) return error.TokenExpired;
+        if (exp < std.Io.Clock.real.now(io).toSeconds()) return error.TokenExpired;
     }
 
     if (!audMatches(payload_parsed.value, audience)) return error.AudienceMismatch;
@@ -105,12 +106,12 @@ fn b64UrlDecode(allocator: std.mem.Allocator, s: []const u8) ![]u8 {
 }
 
 fn pemToDer(allocator: std.mem.Allocator, pem: []const u8) ![]u8 {
-    var b64_buf = std.ArrayList(u8).init(allocator);
+    var b64_buf: std.ArrayList(u8) = .empty;
     var lines = std.mem.splitAny(u8, pem, "\r\n");
     while (lines.next()) |line| {
         const trimmed = std.mem.trim(u8, line, " \t");
         if (trimmed.len == 0 or std.mem.startsWith(u8, trimmed, "-----")) continue;
-        try b64_buf.appendSlice(trimmed);
+        try b64_buf.appendSlice(allocator, trimmed);
     }
     const decoder = std.base64.standard.Decoder;
     const len = decoder.calcSizeForSlice(b64_buf.items) catch return error.InvalidDer;
@@ -191,6 +192,20 @@ fn extractRsaPublicKey(cert_der: []const u8) !RsaPublicKey {
     return .{ .n = stripLeadingZero(n_tlv.value), .e = stripLeadingZero(e_tlv.value) };
 }
 
+const hex_chars = "0123456789abcdef";
+
+/// std.fmt.bytesToHex requires a comptime-known length, which doesn't work
+/// for the runtime-length DER-extracted modulus/exponent/signature bytes
+/// here, so this hand-rolls the (trivial) hex encoding instead.
+fn bytesToHexAlloc(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
+    const out = try allocator.alloc(u8, bytes.len * 2);
+    for (bytes, 0..) |b, i| {
+        out[i * 2] = hex_chars[b >> 4];
+        out[i * 2 + 1] = hex_chars[b & 0xF];
+    }
+    return out;
+}
+
 fn bigFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !std.math.big.int.Managed {
     var m = try std.math.big.int.Managed.init(allocator);
     errdefer m.deinit();
@@ -198,7 +213,7 @@ fn bigFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !std.math.big.i
         try m.set(0);
         return m;
     }
-    const hex = try std.fmt.allocPrint(allocator, "{}", .{std.fmt.fmtSliceHexLower(bytes)});
+    const hex = try bytesToHexAlloc(allocator, bytes);
     defer allocator.free(hex);
     try m.setString(16, hex);
     return m;
@@ -350,35 +365,35 @@ const TEST_TOKEN_EXPIRED = "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJzdWIiOiA
 const TEST_TOKEN_DEFAULT_AUD = "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJzdWIiOiAiYXV0aDB8dXNlci0xMjMiLCAiYXVkIjogImh0dHBzOi8vZGlyZWN0LXNhdHlyLTE0Lmhhc3VyYS5hcHAvdjEvZ3JhcGhxbCIsICJleHAiOiAyMTAwMDM3NTU3fQ.cKCI3sQrTGwRcsg7ou2mqMmhohkYJS_gilgA-6dRHV9wBFKcAU6haes_2RkEoHfCvjUpz7u0V45IQj7lS33EDCPoRAD9sYOZ5tTAYZRIiOAHR8YKLSTRJwG3kshZ__JVDT81GylRSOYzGlHYDDXn4dihqKkEbkydYUtRwR67SCH_ATUjNVAJb2L7IxySqs8jR-hy9BWKDTM2ilYgHuv2aT--D_g7LKvfDuo3LSJukibVNn9iWwbq8OrxG_5bkZ3HMqC-lxCUe3x8OVXzbZ5-au1oFGumIYPm8_0heXm1xiGZ0kmybIChzTyDCuby3gxttHWUMmlVf_s-_S9ET1P2yg";
 
 test "validateJwt accepts a valid token with array audience" {
-    try validateJwt(std.testing.allocator, TEST_TOKEN_VALID_ARRAY_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
+    try validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_VALID_ARRAY_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
 }
 
 test "validateJwt accepts a valid token with string audience" {
-    try validateJwt(std.testing.allocator, TEST_TOKEN_VALID_STRING_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
+    try validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_VALID_STRING_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
 }
 
 test "validateJwt rejects wrong algorithm" {
-    try std.testing.expectError(error.UnexpectedAlgorithm, validateJwt(std.testing.allocator, TEST_TOKEN_WRONG_ALG, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.UnexpectedAlgorithm, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_WRONG_ALG, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
 }
 
 test "validateJwt rejects wrong signing key" {
-    try std.testing.expectError(error.SignatureVerificationFailed, validateJwt(std.testing.allocator, TEST_TOKEN_WRONG_KEY, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.SignatureVerificationFailed, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_WRONG_KEY, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
 }
 
 test "validateJwt rejects wrong audience" {
-    try std.testing.expectError(error.AudienceMismatch, validateJwt(std.testing.allocator, TEST_TOKEN_WRONG_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.AudienceMismatch, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_WRONG_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
 }
 
 test "validateJwt rejects expired token" {
-    try std.testing.expectError(error.TokenExpired, validateJwt(std.testing.allocator, TEST_TOKEN_EXPIRED, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.TokenExpired, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_EXPIRED, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
 }
 
 test "validateJwt falls back to default audience" {
-    try validateJwt(std.testing.allocator, TEST_TOKEN_DEFAULT_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
+    try validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_DEFAULT_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
 }
 
 test "validateJwt rejects malformed secret config" {
-    try std.testing.expectError(error.InvalidSecretConfig, validateJwt(std.testing.allocator, TEST_TOKEN_VALID_STRING_AUD, "{}", DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.InvalidSecretConfig, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_VALID_STRING_AUD, "{}", DEFAULT_AUDIENCE));
 }
 
 test "audMatches handles string and array forms" {
