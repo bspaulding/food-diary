@@ -89,15 +89,11 @@ pub fn main(init: std.process.Init) !void {
     // (root.DEFAULT_MODEL/DEFAULT_BASE_URL, the vision endpoint's
     // operational default, 100% on its 33-image eval) and one
     // LLM_MODEL/LLM_BASE_URL (or OPENROUTER_*) override for both, rather
-    // than each endpoint independently defaulting to a different provider
-    // as the two original Rust services did.
+    // than each endpoint independently defaulting to a different provider.
     //
-    // Unlike the Rust originals, this port has no local llama.cpp fallback
-    // for either endpoint: that backend binds to llama.cpp/mtmd's C++ API
-    // through Rust's llama-cpp-2 crate, which would mean hand-writing
-    // untested C bindings and a batch/sampling loop with no way to verify
-    // correctness in this environment; requests fail loudly if no backend
-    // is configured.
+    // Neither endpoint has a local-inference fallback: only hosted-provider
+    // proxying is supported, and requests fail loudly if no backend is
+    // configured.
     const api_key = root.getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" }, "");
     const model_override = root.getEnvAny(init.environ_map, &.{ "LLM_MODEL", "OPENROUTER_MODEL" }, "");
     const base_url_override = root.getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }, "");
@@ -147,10 +143,9 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
-/// Handles exactly one request per accepted connection, then closes it. The
-/// Rust original (warp/hyper) supports HTTP keep-alive; this port trades
-/// that away for a much simpler connection lifecycle, which is fine for an
-/// internal, low-concurrency service like this one.
+/// Handles exactly one request per accepted connection, then closes it --
+/// a much simpler connection lifecycle than HTTP keep-alive, which is fine
+/// for an internal, low-concurrency service like this one.
 fn handleConnection(stream: net.Stream, io: std.Io, ctx: ConnCtx) void {
     defer stream.close(io);
 

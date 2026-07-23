@@ -103,7 +103,7 @@ const MockCtx = struct {
 
 /// Minimal HTTP/1.1 mock server: accepts one connection, validates the
 /// OpenAI-style vision message shape, and replies with a canned response
-/// body — mirroring the Rust original's `spawn_mock` test helper.
+/// body.
 fn mockServerThread(ctx: *MockCtx) void {
     const io = ctx.env.io;
     const allocator = ctx.env.allocator;

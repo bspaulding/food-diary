@@ -1,12 +1,10 @@
 const std = @import("std");
 const root = @import("llm_nutrition_api");
 
-/// Simplified/hand-rolled web tools for the nutrition-lookup agent —
-/// deliberately not a faithful port of the Rust original's `websearch`
-/// (DuckDuckGo provider crate) or `dom_smoothie` (Mozilla-Readability-style
-/// article extraction) dependencies, which have no Zig equivalent. Instead:
-/// `searchWeb` scrapes DuckDuckGo's no-JS HTML endpoint with substring/tag
-/// scanning (no real HTML parser), and `readWebpage` strips all HTML tags
+/// Simplified/hand-rolled web tools for the nutrition-lookup agent, not a
+/// general-purpose scraper: `searchWeb` scrapes DuckDuckGo's no-JS HTML
+/// endpoint with substring/tag scanning (no real HTML parser), and
+/// `readWebpage` strips all HTML tags
 /// down to plain text rather than identifying the "main article" content.
 /// See README.md's "Known risks" section for a real limitation found while
 /// validating this against captured live HTML (`src/llm/testdata/`).

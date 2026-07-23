@@ -28,9 +28,9 @@ pub const LlmConfig = struct {
 
 /// Operational default for both `/upload` (vision) and `/lookup` (text) --
 /// Gemma-4-31B via OpenRouter scored 100% all-fields / 33/33 whole-record on
-/// the full 33-image eval (see the Rust original's eval-results/README.md),
-/// a wide margin over every self-hosted candidate. A single shared default
-/// rather than one per endpoint, since main.zig already applies one
+/// the full 33-image eval, a wide margin over every self-hosted candidate.
+/// A single shared default rather than one per endpoint, since main.zig
+/// already applies one
 /// LLM_MODEL/OPENROUTER_MODEL override to both.
 pub const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
 

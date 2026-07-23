@@ -364,9 +364,9 @@ test "pkcs1CheckEncoding accepts well-formed EM and rejects tampering" {
 
 // Fixtures below exercise the full `validateJwt` path end-to-end (DER
 // parsing, modpow, PKCS#1 verification, exp/aud checks) against a real
-// self-signed RSA-2048 certificate and RS256-signed tokens, mirroring the
-// Rust original's auth.rs test suite. Generated once via openssl + a small
-// Python script (not checked in) and pasted here as fixed test data; the
+// self-signed RSA-2048 certificate and RS256-signed tokens. Generated once
+// via openssl + a small Python script (not checked in) and pasted here as
+// fixed test data; the
 // "valid"/"default_audience" tokens carry a far-future `exp` so they never
 // expire, and "expired" carries a fixed past `exp` so it always fails.
 const TEST_SECRET_JSON = "{\"type\": \"RS512\", \"key\": \"-----BEGIN CERTIFICATE-----\\nMIIDATCCAemgAwIBAgIUMdl/Wb5QCsyOl3SkQ/gkogfyXJMwDQYJKoZIhvcNAQEL\\nBQAwDzENMAsGA1UEAwwEdGVzdDAgFw0yNjA3MjEyMzQ1NDFaGA8yMTI2MDYyNzIz\\nNDU0MVowDzENMAsGA1UEAwwEdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC\\nAQoCggEBAMBTQ90c8gkipsmvp9UE6lrEkdzPBc3n8m+5Qq2lhjgF8oVwVsKrVyLo\\nZ3QoAE+wAAk5X/EGfYQDTWI/ZNwaUiwm4oqU10FIhhUcAxGwY9MbYBamW4qMoRjo\\necvbRnq7aofGMhPKoxcjJ3gEDZgiSFb47LK5cV2H+jGI0EkmBx21QHMIMva4BNv8\\nSpg70HaOxlf+rs7gMNSLK/ai0UdZ21KTQEH8c6sE42IBfnHo8d8q/C055jnZkjue\\n3npqOVy5F1Fg58ISKxJLZng5MXvJ7tfyrlytWAVr3c39ZxqO3NV27SUsmLNEuD3r\\nQpEVYQMrZ6Is8JJsv+so5JB58u+cR08CAwEAAaNTMFEwHQYDVR0OBBYEFMTcReHu\\n0SumTvOrTksLNqitVLzYMB8GA1UdIwQYMBaAFMTcReHu0SumTvOrTksLNqitVLzY\\nMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAMBFi2skNIOusp07\\ngIiZ6J2S6qs1sUxFn351c5DgMjNIpk67GSigP8iIVs+dmlNkOBaEOVSczMWQC9VH\\njVCMszpGfqTV9Ecom5XbfEB4Zl9odoAqHIuidRwJZ1qPQdD64f5HOw998bGUexpj\\noLrr6EQUG/VHNvIwb2pKt7FJCHLOxf2w6o9DAtgT2EIRF37+n+NnkBjmiSnrhEic\\nrUfdcbiMaisa2/Uy86ETnAtJT414ehpppefh0/7gx1SZM18KLfgNOB7oDVCh4XF7\\naTSbOnjZUxgJyVWWQMsZxa9/OHJypWo/nYSA5FmNt4ywx/w+WhgTj40/z/n3k0J7\\nXEb6f4w=\\n-----END CERTIFICATE-----\\n\"}";

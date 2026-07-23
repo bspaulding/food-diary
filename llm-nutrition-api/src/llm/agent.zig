@@ -4,10 +4,8 @@ const vlm = root.vlm;
 const http = @import("http.zig");
 const tools = @import("tools.zig");
 
-/// Ported verbatim (behavior-for-behavior) from the Rust original's
-/// `run_agent_api` in `llm-nutrition-api/src/agent.rs` — the local
-/// llama.cpp agent loop (`run_agent_local`) is dropped entirely per the
-/// project-wide decision to only ever proxy to hosted LLM providers.
+/// The multi-round tool-calling agent for `/lookup` -- only ever proxies to
+/// a hosted LLM provider, with no local-inference fallback.
 pub const MAX_ROUNDS: usize = 5;
 pub const API_MAX_NEW_TOKENS: u32 = 8192;
 pub const API_MAX_RETRIES: u32 = 8;
