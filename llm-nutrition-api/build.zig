@@ -29,6 +29,13 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(exe);
 
+    // A narrower alternative to the default `install` step (which also
+    // builds vlm_benchmark_api below) for container builds that only ever
+    // copy this one binary out -- no reason to spend build time compiling
+    // the benchmark CLI just to discard it.
+    const exe_only_step = b.step("exe", "Build only the llm-nutrition-api server binary");
+    exe_only_step.dependOn(&b.addInstallArtifact(exe, .{}).step);
+
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| run_cmd.addArgs(args);

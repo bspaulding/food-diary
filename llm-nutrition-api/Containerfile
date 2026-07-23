@@ -25,7 +25,7 @@ WORKDIR /app
 COPY build.zig build.zig.zon ./
 COPY src ./src
 
-RUN zig build -Doptimize=ReleaseFast
+RUN zig build exe -Doptimize=ReleaseFast
 
 # =========================
 # 1. Runtime stage
