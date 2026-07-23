@@ -436,6 +436,93 @@ test "extractImagePart returns null when no image part present" {
     try std.testing.expectEqual(@as(?[]const u8, null), extractImagePart(body, "BOUNDARY"));
 }
 
+// Regression test for a real production bug: `request.head.content_type`
+// (and the `boundary` slice extracted from it) is a view into the
+// connection's small header-parsing buffer, not caller-owned memory.
+// Reading a body much larger than that buffer -- as any real photo upload
+// is -- forces the underlying reader to refill and overwrite it, silently
+// corrupting `boundary` before it's ever used to search the body. The
+// body itself is always well-formed; only the search key breaks.
+//
+// This can only be caught by driving a real streaming connection with a
+// body that exceeds the buffer sizes involved: `extractBoundary`/
+// `extractImagePart`'s own unit tests above operate on in-memory strings
+// that are never subject to a refilling buffer, so they pass whether or
+// not the boundary is duped -- which is exactly why this bug shipped
+// undetected. Mirrors handleUpload's real sequence (receiveHead ->
+// extractBoundary -> dupe -> readerExpectContinue -> allocRemaining ->
+// extractImagePart) against an actual socket, with body_read_buf sized
+// identically to production (8KiB) and a body several times larger.
+test "boundary extracted from a real connection survives reading a body larger than the read buffers" {
+    const io = std.testing.io;
+    const allocator = std.testing.allocator;
+
+    var addr = try net.IpAddress.parse("127.0.0.1", 47890);
+    var net_server = try addr.listen(io, .{ .reuse_address = true });
+    defer net_server.deinit(io);
+
+    const boundary_literal = "TestBoundary1234567890";
+    const jpeg_magic = "\xFF\xD8\xFF";
+    const filler = "x" ** (64 * 1024); // far bigger than both 16KiB/8KiB buffers below
+
+    var body_buf: std.ArrayList(u8) = .empty;
+    defer body_buf.deinit(allocator);
+    try body_buf.print(allocator, "--{s}\r\n", .{boundary_literal});
+    try body_buf.appendSlice(allocator, "Content-Disposition: form-data; name=\"image\"; filename=\"capture.jpg\"\r\n");
+    try body_buf.appendSlice(allocator, "Content-Type: image/jpeg\r\n\r\n");
+    try body_buf.appendSlice(allocator, jpeg_magic);
+    try body_buf.appendSlice(allocator, filler);
+    try body_buf.print(allocator, "\r\n--{s}--\r\n", .{boundary_literal});
+
+    const ClientCtx = struct {
+        io: std.Io,
+        addr: net.IpAddress,
+        boundary: []const u8,
+        body: []const u8,
+    };
+    var client_ctx = ClientCtx{ .io = io, .addr = addr, .boundary = boundary_literal, .body = body_buf.items };
+
+    const thread = try std.Thread.spawn(.{}, struct {
+        fn run(ctx: *ClientCtx) void {
+            var stream = ctx.addr.connect(ctx.io, .{ .mode = .stream }) catch return;
+            defer stream.close(ctx.io);
+            var send_buf: [8192]u8 = undefined;
+            var writer = stream.writer(ctx.io, &send_buf);
+            writer.interface.print("POST /upload HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; boundary={s}\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n", .{ ctx.boundary, ctx.body.len }) catch return;
+            writer.interface.writeAll(ctx.body) catch return;
+            writer.interface.flush() catch return;
+        }
+    }.run, .{&client_ctx});
+    defer thread.join();
+
+    const stream = try net_server.accept(io);
+    defer stream.close(io);
+
+    var recv_buffer: [16 * 1024]u8 = undefined; // matches handleConnection's recv_buffer
+    var send_buffer: [16 * 1024]u8 = undefined;
+    var stream_reader = stream.reader(io, &recv_buffer);
+    var stream_writer = stream.writer(io, &send_buffer);
+    var server = std.http.Server.init(&stream_reader.interface, &stream_writer.interface);
+
+    var request = try server.receiveHead();
+
+    const content_type = request.head.content_type.?;
+    const boundary_view = extractBoundary(content_type).?;
+    const boundary = try allocator.dupe(u8, boundary_view); // the fix under test
+    defer allocator.free(boundary);
+
+    var body_read_buf: [8 * 1024]u8 = undefined; // matches handleUpload's body_read_buf
+    const body_reader = try request.readerExpectContinue(&body_read_buf);
+    const body = try body_reader.allocRemaining(allocator, .limited(MAX_UPLOAD_BODY_BYTES));
+    defer allocator.free(body);
+
+    const extracted = extractImagePart(body, boundary) orelse {
+        return error.ImagePartNotFound; // this is exactly the production failure mode
+    };
+    try std.testing.expectEqualStrings(jpeg_magic, extracted[0..jpeg_magic.len]);
+    try std.testing.expectEqual(jpeg_magic.len + filler.len, extracted.len);
+}
+
 test "parseLogLevel accepts all documented spellings case-insensitively" {
     try std.testing.expectEqual(@as(?std.log.Level, .debug), parseLogLevel("debug"));
     try std.testing.expectEqual(@as(?std.log.Level, .debug), parseLogLevel("DEBUG"));
