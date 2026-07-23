@@ -190,10 +190,16 @@ fn handleUpload(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) 
         std.log.warn("[{d}] Upload rejected: missing content-type", .{request_id});
         return respondError(request, .bad_request, "missing content-type");
     };
-    const boundary = extractBoundary(content_type) orelse {
+    const boundary_view = extractBoundary(content_type) orelse {
         std.log.warn("[{d}] Upload rejected: missing multipart boundary (content-type: {s})", .{ request_id, content_type });
         return respondError(request, .bad_request, "missing multipart boundary");
     };
+    // `content_type` (and thus `boundary_view`) is a slice into the
+    // connection's small header-parsing buffer, not caller-owned memory --
+    // reading the (potentially much larger) body below reuses that same
+    // buffer, silently corrupting any slice still pointing into it. Copy
+    // the boundary out before that happens.
+    const boundary = try env.allocator.dupe(u8, boundary_view);
 
     var body_read_buf: [8 * 1024]u8 = undefined;
     const body_reader = try request.readerExpectContinue(&body_read_buf);
