@@ -32,16 +32,22 @@ pub fn validateJwt(
     jwt_secret_json: []const u8,
     audience: []const u8,
 ) !void {
-    var arena_state = std.heap.ArenaAllocator.init(env.allocator);
-    defer arena_state.deinit();
-    const arena = arena_state.allocator();
+    const allocator = env.allocator;
 
-    const secret_parsed = std.json.parseFromSlice(std.json.Value, arena, jwt_secret_json, .{ .ignore_unknown_fields = true }) catch
+    // Every allocation here is flat and single-use within this function
+    // body (nothing has a lifetime spanning a loop or multiple rounds the
+    // way the LLM agent's conversation history does), so each gets its own
+    // `defer` instead of a scratch arena -- same discipline as `modPow`
+    // below, and it makes `std.testing.allocator` a meaningful leak check
+    // rather than something that only passes because of a wrapping arena.
+    var secret_parsed = std.json.parseFromSlice(std.json.Value, allocator, jwt_secret_json, .{ .ignore_unknown_fields = true }) catch
         return error.InvalidSecretConfig;
+    defer secret_parsed.deinit();
     const key_val = secret_parsed.value.object.get("key") orelse return error.InvalidSecretConfig;
     if (key_val != .string) return error.InvalidSecretConfig;
 
-    const cert_der = try pemToDer(arena, key_val.string);
+    const cert_der = try pemToDer(allocator, key_val.string);
+    defer allocator.free(cert_der);
     const pubkey = try extractRsaPublicKey(cert_der);
 
     var parts = std.mem.splitScalar(u8, token, '.');
@@ -50,25 +56,30 @@ pub fn validateJwt(
     const sig_b64 = parts.next() orelse return error.MalformedToken;
     if (parts.next() != null) return error.MalformedToken;
 
-    const header_bytes = b64UrlDecode(arena, header_b64) catch return error.MalformedToken;
-    const header_parsed = std.json.parseFromSlice(std.json.Value, arena, header_bytes, .{ .ignore_unknown_fields = true }) catch
+    const header_bytes = b64UrlDecode(allocator, header_b64) catch return error.MalformedToken;
+    defer allocator.free(header_bytes);
+    var header_parsed = std.json.parseFromSlice(std.json.Value, allocator, header_bytes, .{ .ignore_unknown_fields = true }) catch
         return error.InvalidHeader;
+    defer header_parsed.deinit();
     const alg_val = header_parsed.value.object.get("alg") orelse return error.InvalidHeader;
     if (alg_val != .string or !std.mem.eql(u8, alg_val.string, "RS256")) return error.UnexpectedAlgorithm;
 
-    const signature = b64UrlDecode(arena, sig_b64) catch return error.MalformedToken;
+    const signature = b64UrlDecode(allocator, sig_b64) catch return error.MalformedToken;
+    defer allocator.free(signature);
 
     const signing_input = token[0 .. header_b64.len + 1 + payload_b64.len];
     var digest: [32]u8 = undefined;
     std.crypto.hash.sha2.Sha256.hash(signing_input, &digest, .{});
 
-    if (!try verifyPkcs1Sha256(arena, signature, pubkey.n, pubkey.e, &digest)) {
+    if (!try verifyPkcs1Sha256(allocator, signature, pubkey.n, pubkey.e, &digest)) {
         return error.SignatureVerificationFailed;
     }
 
-    const payload_bytes = b64UrlDecode(arena, payload_b64) catch return error.MalformedToken;
-    const payload_parsed = std.json.parseFromSlice(std.json.Value, arena, payload_bytes, .{ .ignore_unknown_fields = true }) catch
+    const payload_bytes = b64UrlDecode(allocator, payload_b64) catch return error.MalformedToken;
+    defer allocator.free(payload_bytes);
+    var payload_parsed = std.json.parseFromSlice(std.json.Value, allocator, payload_bytes, .{ .ignore_unknown_fields = true }) catch
         return error.InvalidPayload;
+    defer payload_parsed.deinit();
 
     if (payload_parsed.value.object.get("exp")) |exp_val| {
         const exp: i64 = switch (exp_val) {
@@ -101,12 +112,14 @@ fn b64UrlDecode(allocator: std.mem.Allocator, s: []const u8) ![]u8 {
     const decoder = std.base64.url_safe_no_pad.Decoder;
     const len = try decoder.calcSizeForSlice(s);
     const out = try allocator.alloc(u8, len);
+    errdefer allocator.free(out);
     try decoder.decode(out, s);
     return out;
 }
 
 fn pemToDer(allocator: std.mem.Allocator, pem: []const u8) ![]u8 {
     var b64_buf: std.ArrayList(u8) = .empty;
+    defer b64_buf.deinit(allocator);
     var lines = std.mem.splitAny(u8, pem, "\r\n");
     while (lines.next()) |line| {
         const trimmed = std.mem.trim(u8, line, " \t");
@@ -116,6 +129,7 @@ fn pemToDer(allocator: std.mem.Allocator, pem: []const u8) ![]u8 {
     const decoder = std.base64.standard.Decoder;
     const len = decoder.calcSizeForSlice(b64_buf.items) catch return error.InvalidDer;
     const der = try allocator.alloc(u8, len);
+    errdefer allocator.free(der);
     decoder.decode(der, b64_buf.items) catch return error.InvalidDer;
     return der;
 }

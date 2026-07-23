@@ -16,38 +16,33 @@ pub const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
 /// not Gemini's, since DEFAULT_MODEL is an OpenRouter-specific model slug.
 pub const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
-pub const LlmApiBackend = struct {
-    api_key: []const u8,
-    model: []const u8,
-    base_url: []const u8,
+pub const InferError = error{
+    InvalidVlmJson,
+} || http.ChatError;
 
-    pub fn withBaseUrl(api_key: []const u8, model: []const u8, base_url: []const u8) LlmApiBackend {
-        return .{ .api_key = api_key, .model = model, .base_url = base_url };
-    }
+/// Parses a nutrition label image via an OpenRouter/OpenAI-compatible
+/// vision-capable chat-completions endpoint.
+pub fn infer(config: root.LlmConfig, env: root.Env, image_bytes: []const u8) InferError!root.ParsedNutritionFacts {
+    var arena_state = std.heap.ArenaAllocator.init(env.allocator);
+    defer arena_state.deinit();
+    // A fresh scratch arena for this one inference call, reusing env's
+    // `.io` -- request-building here constructs a nested `std.json.Value`
+    // tree (see buildRequestBody), which is impractical to free field by
+    // field, so this is a case where a scoped arena is the right tool
+    // (not a workaround). ParsedNutritionFacts holds only plain numeric
+    // fields, so nothing needs to survive past this arena being torn down.
+    const req_env = root.Env{ .io = env.io, .allocator = arena_state.allocator(), .request_id = env.request_id };
+    const arena = req_env.allocator;
 
-    pub fn name(self: *const LlmApiBackend) []const u8 {
-        return self.model;
-    }
+    const b64_len = std.base64.standard.Encoder.calcSize(image_bytes.len);
+    const b64 = try arena.alloc(u8, b64_len);
+    _ = std.base64.standard.Encoder.encode(b64, image_bytes);
+    const data_url = try std.fmt.allocPrint(arena, "data:image/jpeg;base64,{s}", .{b64});
 
-    pub const InferError = error{
-        InvalidVlmJson,
-    } || http.ChatError;
-
-    pub fn infer(self: *const LlmApiBackend, env: root.Env, image_bytes: []const u8) !root.ParsedNutritionFacts {
-        var arena_state = std.heap.ArenaAllocator.init(env.allocator);
-        defer arena_state.deinit();
-        const arena = arena_state.allocator();
-
-        const b64_len = std.base64.standard.Encoder.calcSize(image_bytes.len);
-        const b64 = try arena.alloc(u8, b64_len);
-        _ = std.base64.standard.Encoder.encode(b64, image_bytes);
-        const data_url = try std.fmt.allocPrint(arena, "data:image/jpeg;base64,{s}", .{b64});
-
-        const body_json = try buildRequestBody(arena, self.model, data_url);
-        const text = try http.postChatCompletion(env, arena, self.base_url, self.api_key, body_json, MAX_RETRIES);
-        return parseInferenceResponse(env.allocator, arena, text);
-    }
-};
+    const body_json = try buildRequestBody(arena, config.model, data_url);
+    const text = try http.postChatCompletion(req_env, config.base_url, config.api_key, body_json, MAX_RETRIES);
+    return parseInferenceResponse(arena, text);
+}
 
 fn buildRequestBody(arena: std.mem.Allocator, model: []const u8, data_url: []const u8) ![]u8 {
     var image_obj: std.json.ObjectMap = .empty;
@@ -83,11 +78,8 @@ fn buildRequestBody(arena: std.mem.Allocator, model: []const u8, data_url: []con
 
 /// Parses `choices[0].message.content` out of an OpenAI-compatible chat
 /// completions response, then extracts and parses the JSON nutrition facts
-/// object it contains. `result_allocator` backs the returned value (which
-/// holds no allocations today, but keeping the split mirrors the Rust
-/// original's error-context pattern and leaves room for future string fields).
-fn parseInferenceResponse(result_allocator: std.mem.Allocator, arena: std.mem.Allocator, text: []const u8) !root.ParsedNutritionFacts {
-    _ = result_allocator;
+/// object it contains.
+fn parseInferenceResponse(arena: std.mem.Allocator, text: []const u8) !root.ParsedNutritionFacts {
     const content = try http.extractContent(arena, text);
 
     const json_str = vlm.extractJson(content) orelse content;
@@ -106,7 +98,7 @@ test "parseInferenceResponse extracts nutrition facts from chat completion conte
     const body =
         \\{"choices": [{"message": {"role": "assistant", "content": "Sure!\n{\"calories\": 110, \"protein_g\": 3.0}\nThanks"}}]}
     ;
-    const facts = try parseInferenceResponse(allocator, arena.allocator(), body);
+    const facts = try parseInferenceResponse(arena.allocator(), body);
     try std.testing.expectEqual(@as(?i32, 110), facts.calories);
     try std.testing.expectEqual(@as(?f64, 3.0), facts.protein_g);
     try std.testing.expectEqual(@as(?f64, null), facts.sodium_mg);
@@ -223,8 +215,8 @@ test "infer performs a real HTTP round trip against a mock OpenAI-compatible ser
 
     const thread = try std.Thread.spawn(.{}, mockServerThread, .{&ctx});
 
-    const backend = LlmApiBackend.withBaseUrl("test-key", "test-model", "http://127.0.0.1:47881");
-    const actual = try backend.infer(env, "fake-image-bytes");
+    const config = root.LlmConfig{ .api_key = "test-key", .model = "test-model", .base_url = "http://127.0.0.1:47881" };
+    const actual = try infer(config, env, "fake-image-bytes");
 
     thread.join();
 

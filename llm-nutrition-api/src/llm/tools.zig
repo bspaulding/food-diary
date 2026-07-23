@@ -8,8 +8,8 @@ const root = @import("llm_nutrition_api");
 /// `searchWeb` scrapes DuckDuckGo's no-JS HTML endpoint with substring/tag
 /// scanning (no real HTML parser), and `readWebpage` strips all HTML tags
 /// down to plain text rather than identifying the "main article" content.
-/// Validated against the real eval harness (`eval/run_evals.py`) rather than
-/// against a reference implementation, per the tradeoff this port accepts.
+/// See README.md's "Known risks" section for a real limitation found while
+/// validating this against captured live HTML (`src/llm/testdata/`).
 const USER_AGENT = "Mozilla/5.0 (compatible; llm-nutrition-api/1.0; +https://food-diary.motingo.com)";
 const MAX_SEARCH_RESULTS: usize = 5;
 const READ_WEBPAGE_MAX_CHARS: usize = 4000;
@@ -20,10 +20,11 @@ pub const ToolError = error{
     HttpError,
 } || std.mem.Allocator.Error;
 
-pub fn searchWeb(env: root.Env, arena: std.mem.Allocator, query: []const u8) ToolError![]const u8 {
+pub fn searchWeb(env: root.Env, query: []const u8) ToolError![]const u8 {
+    const arena = env.allocator;
     const encoded_query = try urlEncode(arena, query);
     const url = try std.fmt.allocPrint(arena, "https://html.duckduckgo.com/html/?q={s}", .{encoded_query});
-    const html = try httpGet(env, arena, url);
+    const html = try httpGet(env, url);
     const results = try parseSearchResults(arena, html);
     if (results.len == 0) return "";
 
@@ -35,13 +36,14 @@ pub fn searchWeb(env: root.Env, arena: std.mem.Allocator, query: []const u8) Too
     return std.mem.join(arena, "\n", parts.items);
 }
 
-pub fn readWebpage(env: root.Env, arena: std.mem.Allocator, url: []const u8) ToolError![]const u8 {
-    const html = try httpGet(env, arena, url);
-    const text = try htmlToText(arena, html);
+pub fn readWebpage(env: root.Env, url: []const u8) ToolError![]const u8 {
+    const html = try httpGet(env, url);
+    const text = try htmlToText(env.allocator, html);
     return truncateUtf8(text, READ_WEBPAGE_MAX_CHARS);
 }
 
-fn httpGet(env: root.Env, arena: std.mem.Allocator, url: []const u8) ToolError![]const u8 {
+fn httpGet(env: root.Env, url: []const u8) ToolError![]const u8 {
+    const arena = env.allocator;
     const uri = std.Uri.parse(url) catch return error.RequestFailed;
 
     var client = std.http.Client{ .allocator = arena, .io = env.io };

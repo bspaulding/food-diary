@@ -58,12 +58,6 @@ const FINAL_ROUND_NUDGE =
 const FINAL_JSON_NUDGE =
     "Output ONLY the JSON nutrition object. No markdown, no explanation, just the JSON object with all 14 fields.";
 
-pub const Config = struct {
-    api_key: []const u8,
-    model: []const u8,
-    base_url: []const u8,
-};
-
 pub const AgentError = error{
     MaxRoundsExceeded,
     InvalidNutritionJson,
@@ -80,10 +74,30 @@ const Message = struct {
     content: []const u8,
 };
 
-pub fn runAgent(env: root.Env, config: Config, request_id: u64, description: []const u8) AgentError!root.NutritionItem {
+/// Runs the multi-round (max `MAX_ROUNDS`) tool-calling agent loop against
+/// `description`, returning a fully populated `NutritionItem`.
+///
+/// `env.request_id`, if set by the caller, is threaded through to every log
+/// line below and into `http.zig`'s/`tools.zig`'s own logging, purely for
+/// correlating a request's log lines under concurrent load (each connection
+/// is handled on its own thread -- see main.zig).
+pub fn runAgent(env: root.Env, config: root.LlmConfig, description: []const u8) AgentError!root.NutritionItem {
+    const rid: u64 = env.request_id orelse 0;
+
     var arena_state = std.heap.ArenaAllocator.init(env.allocator);
     defer arena_state.deinit();
-    const arena = arena_state.allocator();
+    // A fresh scratch arena for this one request, reusing env's `.io` and
+    // `.request_id`. Unlike auth.zig's validateJwt (flat, sequential
+    // allocations -- freed individually, no arena needed), this genuinely
+    // needs bulk-lifetime semantics: `conversation`'s entries from round 0
+    // (the model's own tool-call output, tool results) must stay valid
+    // through as many as 4 later rounds, since each round re-serializes the
+    // *entire* conversation history. That's not a forgotten free -- it's a
+    // batch of same-lifetime allocations whose lifetime is "however many
+    // rounds this request takes," which isn't expressible as a handful of
+    // sequential `defer`s.
+    const req_env = root.Env{ .io = env.io, .allocator = arena_state.allocator(), .request_id = env.request_id };
+    const arena = req_env.allocator;
 
     var conversation: std.ArrayList(Message) = .empty;
     try conversation.append(arena, .{ .role = "system", .content = SYSTEM_PROMPT });
@@ -91,27 +105,27 @@ pub fn runAgent(env: root.Env, config: Config, request_id: u64, description: []c
 
     var round: usize = 0;
     while (round < MAX_ROUNDS) : (round += 1) {
-        std.log.debug("[{d}] Agent round {d}", .{ request_id, round });
+        std.log.debug("[{d}] Agent round {d}", .{ rid, round });
 
         if (round + 1 == MAX_ROUNDS) {
             try conversation.append(arena, .{ .role = "user", .content = FINAL_ROUND_NUDGE });
         }
 
-        const output = try callModel(env, arena, config, conversation.items);
-        std.log.debug("[{d}] Model output: {s}", .{ request_id, output });
+        const output = try callModel(req_env, config, conversation.items);
+        std.log.debug("[{d}] Model output: {s}", .{ rid, output });
 
         const json_str = vlm.extractJson(output) orelse output;
         if (parseToolCall(arena, json_str)) |call| {
             if (std.mem.eql(u8, call.action, "search_web") and call.query.len > 0) {
-                std.log.info("[{d}] Tool call: search_web({s})", .{ request_id, call.query });
-                const result = runSearchWeb(env, arena, call.query);
+                std.log.info("[{d}] Tool call: search_web({s})", .{ rid, call.query });
+                const result = runSearchWeb(req_env, call.query);
                 try conversation.append(arena, .{ .role = "assistant", .content = output });
                 try conversation.append(arena, .{ .role = "user", .content = result });
                 continue;
             }
             if (std.mem.eql(u8, call.action, "read_webpage") and call.url.len > 0) {
-                std.log.info("[{d}] Tool call: read_webpage({s})", .{ request_id, call.url });
-                const result = runReadWebpage(env, arena, call.url);
+                std.log.info("[{d}] Tool call: read_webpage({s})", .{ rid, call.url });
+                const result = runReadWebpage(req_env, call.url);
                 try conversation.append(arena, .{ .role = "assistant", .content = output });
                 try conversation.append(arena, .{ .role = "user", .content = result });
                 continue;
@@ -122,37 +136,42 @@ pub fn runAgent(env: root.Env, config: Config, request_id: u64, description: []c
         try conversation.append(arena, .{ .role = "assistant", .content = output });
         try conversation.append(arena, .{ .role = "user", .content = FINAL_JSON_NUDGE });
 
-        const final_output = try callModel(env, arena, config, conversation.items);
-        std.log.debug("[{d}] Final JSON: {s}", .{ request_id, final_output });
+        const final_output = try callModel(req_env, config, conversation.items);
+        std.log.debug("[{d}] Final JSON: {s}", .{ rid, final_output });
 
         const final_json = vlm.extractJson(final_output) orelse final_output;
         const item_parsed = std.json.parseFromSlice(root.NutritionItem, arena, final_json, .{ .ignore_unknown_fields = true }) catch |err| {
-            std.log.err("[{d}] Failed to parse nutrition JSON ({s}):\n{s}", .{ request_id, @errorName(err), final_output });
+            std.log.err("[{d}] Failed to parse nutrition JSON ({s}):\n{s}", .{ rid, @errorName(err), final_output });
             return error.InvalidNutritionJson;
         };
+        // The outer, longer-lived `env.allocator` -- NOT `req_env`/`arena`,
+        // which is torn down when this function returns -- since
+        // `description` must survive past that point.
         return dupeItem(env.allocator, item_parsed.value);
     }
 
-    std.log.warn("[{d}] Max agent rounds ({d}) exceeded without a nutrition answer", .{ request_id, MAX_ROUNDS });
+    std.log.warn("[{d}] Max agent rounds ({d}) exceeded without a nutrition answer", .{ rid, MAX_ROUNDS });
     return error.MaxRoundsExceeded;
 }
 
-fn runSearchWeb(env: root.Env, arena: std.mem.Allocator, query: []const u8) []const u8 {
-    const result = tools.searchWeb(env, arena, query) catch |err| {
-        std.log.warn("search_web failed: {s}", .{@errorName(err)});
-        return std.fmt.allocPrint(arena, "Search failed: {s}. Estimate from nutritional knowledge instead.", .{@errorName(err)}) catch
+fn runSearchWeb(env: root.Env, query: []const u8) []const u8 {
+    const rid: u64 = env.request_id orelse 0;
+    const result = tools.searchWeb(env, query) catch |err| {
+        std.log.warn("[{d}] search_web failed: {s}", .{ rid, @errorName(err) });
+        return std.fmt.allocPrint(env.allocator, "Search failed: {s}. Estimate from nutritional knowledge instead.", .{@errorName(err)}) catch
             "Search failed. Estimate from nutritional knowledge instead.";
     };
-    return std.fmt.allocPrint(arena, "Search results for '{s}':\n{s}", .{ query, result }) catch result;
+    return std.fmt.allocPrint(env.allocator, "Search results for '{s}':\n{s}", .{ query, result }) catch result;
 }
 
-fn runReadWebpage(env: root.Env, arena: std.mem.Allocator, url: []const u8) []const u8 {
-    const result = tools.readWebpage(env, arena, url) catch |err| {
-        std.log.warn("read_webpage failed: {s}", .{@errorName(err)});
-        return std.fmt.allocPrint(arena, "Page fetch failed: {s}. Estimate from nutritional knowledge instead.", .{@errorName(err)}) catch
+fn runReadWebpage(env: root.Env, url: []const u8) []const u8 {
+    const rid: u64 = env.request_id orelse 0;
+    const result = tools.readWebpage(env, url) catch |err| {
+        std.log.warn("[{d}] read_webpage failed: {s}", .{ rid, @errorName(err) });
+        return std.fmt.allocPrint(env.allocator, "Page fetch failed: {s}. Estimate from nutritional knowledge instead.", .{@errorName(err)}) catch
             "Page fetch failed. Estimate from nutritional knowledge instead.";
     };
-    return std.fmt.allocPrint(arena, "Page content from {s}:\n{s}", .{ url, result }) catch result;
+    return std.fmt.allocPrint(env.allocator, "Page content from {s}:\n{s}", .{ url, result }) catch result;
 }
 
 fn parseToolCall(arena: std.mem.Allocator, json_str: []const u8) ?ToolCall {
@@ -160,10 +179,10 @@ fn parseToolCall(arena: std.mem.Allocator, json_str: []const u8) ?ToolCall {
     return parsed.value;
 }
 
-fn callModel(env: root.Env, arena: std.mem.Allocator, config: Config, conversation: []const Message) !([]const u8) {
-    const body_json = try buildRequestBody(arena, config.model, conversation);
-    const text = try http.postChatCompletion(env, arena, config.base_url, config.api_key, body_json, API_MAX_RETRIES);
-    return http.extractContent(arena, text);
+fn callModel(env: root.Env, config: root.LlmConfig, conversation: []const Message) ![]const u8 {
+    const body_json = try buildRequestBody(env.allocator, config.model, conversation);
+    const text = try http.postChatCompletion(env, config.base_url, config.api_key, body_json, API_MAX_RETRIES);
+    return http.extractContent(env.allocator, text);
 }
 
 fn buildRequestBody(arena: std.mem.Allocator, model: []const u8, conversation: []const Message) ![]u8 {
@@ -270,13 +289,13 @@ fn chatResponseBody(arena: std.mem.Allocator, content: []const u8) ![]const u8 {
 }
 
 test "runAgent takes a focused final pass when the first round isn't a tool call" {
-    const env = root.Env{ .io = std.testing.io, .allocator = std.testing.allocator };
+    const env = root.Env{ .io = std.testing.io, .allocator = std.testing.allocator, .request_id = 1 };
 
     // Deliberately avoids exercising the search_web/read_webpage tool-call
     // branches here, since those make real network calls — covered instead
-    // by tools.zig's own parsing unit tests (synthetic HTML, no network) and
-    // by running the Python eval harness against the real service
-    // end-to-end (see eval/run_evals.py).
+    // by tools.zig's own parsing unit tests (synthetic and real captured
+    // HTML, no network) and by running the Python eval harness against the
+    // real service end-to-end (see eval/run_evals.py).
     var addr = try std.Io.net.IpAddress.parse("127.0.0.1", 47882);
     var net_server = try addr.listen(env.io, .{ .reuse_address = true });
     defer net_server.deinit(env.io);
@@ -298,8 +317,8 @@ test "runAgent takes a focused final pass when the first round isn't a tool call
 
     const thread = try std.Thread.spawn(.{}, mockServerThread, .{&ctx});
 
-    const config = Config{ .api_key = "test-key", .model = "test-model", .base_url = "http://127.0.0.1:47882" };
-    const item = try runAgent(env, config, 1, "1 large egg");
+    const config = root.LlmConfig{ .api_key = "test-key", .model = "test-model", .base_url = "http://127.0.0.1:47882" };
+    const item = try runAgent(env, config, "1 large egg");
     defer env.allocator.free(item.description);
 
     thread.join();

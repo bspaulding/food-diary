@@ -3,6 +3,18 @@ const std = @import("std");
 pub const vlm = @import("vlm.zig");
 pub const Env = @import("env.zig").Env;
 
+/// Shared hosted-LLM-provider connection config, used by both the vision
+/// backend (`openrouter.zig`) and the text-lookup agent (`llm/agent.zig`) --
+/// they're structurally identical (both just need an API key, model, and
+/// base URL to reach an OpenAI-compatible chat-completions endpoint), so
+/// this is the one type both use rather than two separate-but-identical
+/// structs.
+pub const LlmConfig = struct {
+    api_key: []const u8,
+    model: []const u8,
+    base_url: []const u8,
+};
+
 /// Result schema for `POST /lookup` (text-based nutrition estimation/lookup).
 /// Field names and units intentionally differ from `ParsedNutritionFacts`
 /// (full words `_milligrams`/`_grams`, singular `carbohydrate`) — both web

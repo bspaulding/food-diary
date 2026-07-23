@@ -64,11 +64,18 @@ fn getEnvAny(environ: *const std.process.Environ.Map, names: []const []const u8)
     return null;
 }
 
+/// Resolved once at startup from `HASURA_GRAPHQL_JWT_SECRET`/`AUTH0_AUDIENCE`
+/// (see `main`), rather than re-reading the raw environment on every
+/// request the way the LLM backend config already avoided doing.
+const AuthConfig = struct {
+    jwt_secret: []const u8,
+    audience: []const u8,
+};
+
 const ConnCtx = struct {
-    io: std.Io,
-    environ: *const std.process.Environ.Map,
-    backend: ?openrouter.LlmApiBackend,
-    agent_config: ?agent.Config,
+    auth_config: ?AuthConfig,
+    upload_config: ?root.LlmConfig,
+    lookup_config: ?root.LlmConfig,
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -108,34 +115,46 @@ pub fn main(init: std.process.Init) !void {
     const model_override = getEnvAny(init.environ_map, &.{ "LLM_MODEL", "OPENROUTER_MODEL" });
     const base_url_override = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" });
 
-    var backend: ?openrouter.LlmApiBackend = null;
-    var agent_config: ?agent.Config = null;
+    var upload_config: ?root.LlmConfig = null;
+    var lookup_config: ?root.LlmConfig = null;
     if (api_key) |key| {
         const vlm_model = model_override orelse openrouter.DEFAULT_MODEL;
         const vlm_base_url = base_url_override orelse openrouter.DEFAULT_BASE_URL;
-        backend = openrouter.LlmApiBackend.withBaseUrl(key, vlm_model, vlm_base_url);
+        upload_config = root.LlmConfig{ .api_key = key, .model = vlm_model, .base_url = vlm_base_url };
         std.log.info("LLM API VLM backend enabled with model {s}", .{vlm_model});
 
         const lookup_model = model_override orelse agent.DEFAULT_MODEL;
         const lookup_base_url = base_url_override orelse agent.DEFAULT_BASE_URL;
-        agent_config = agent.Config{ .api_key = key, .model = lookup_model, .base_url = lookup_base_url };
+        lookup_config = root.LlmConfig{ .api_key = key, .model = lookup_model, .base_url = lookup_base_url };
         std.log.info("LLM API lookup agent enabled with model {s}", .{lookup_model});
     } else {
         std.log.info("LLM API disabled (set LLM_API_KEY or OPENROUTER_API_KEY to enable)", .{});
     }
 
+    // Resolved once here instead of re-reading the raw environment map on
+    // every request (as the LLM backend config above already avoided
+    // doing) -- also means ConnCtx no longer needs to carry the whole
+    // environ map just for these two values.
+    const auth_config: ?AuthConfig = if (init.environ_map.get("HASURA_GRAPHQL_JWT_SECRET")) |secret|
+        AuthConfig{
+            .jwt_secret = secret,
+            .audience = init.environ_map.get("AUTH0_AUDIENCE") orelse auth.DEFAULT_AUDIENCE,
+        }
+    else
+        null;
+
     var addr = try net.IpAddress.parse("0.0.0.0", port);
     var net_server = try addr.listen(io, .{ .reuse_address = true });
     std.log.info("running and listening on {d}", .{port});
 
-    const ctx = ConnCtx{ .io = io, .environ = init.environ_map, .backend = backend, .agent_config = agent_config };
+    const ctx = ConnCtx{ .auth_config = auth_config, .upload_config = upload_config, .lookup_config = lookup_config };
 
     while (true) {
         const stream = net_server.accept(io) catch |err| {
             std.log.err("accept failed: {s}", .{@errorName(err)});
             continue;
         };
-        const thread = std.Thread.spawn(.{}, handleConnection, .{ stream, ctx }) catch |err| {
+        const thread = std.Thread.spawn(.{}, handleConnection, .{ stream, io, ctx }) catch |err| {
             std.log.err("failed to spawn connection handler: {s}", .{@errorName(err)});
             stream.close(io);
             continue;
@@ -148,12 +167,12 @@ pub fn main(init: std.process.Init) !void {
 /// Rust original (warp/hyper) supports HTTP keep-alive; this port trades
 /// that away for a much simpler connection lifecycle, which is fine for an
 /// internal, low-concurrency service like this one.
-fn handleConnection(stream: net.Stream, ctx: ConnCtx) void {
-    defer stream.close(ctx.io);
+fn handleConnection(stream: net.Stream, io: std.Io, ctx: ConnCtx) void {
+    defer stream.close(io);
 
     var arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena_state.deinit();
-    const env = root.Env{ .io = ctx.io, .allocator = arena_state.allocator() };
+    const env = root.Env{ .io = io, .allocator = arena_state.allocator() };
 
     var recv_buffer: [16 * 1024]u8 = undefined;
     var send_buffer: [16 * 1024]u8 = undefined;
@@ -194,12 +213,12 @@ fn handleUpload(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) 
 
     const image_bytes = extractImagePart(body, boundary) orelse return respondNotFound(request);
 
-    const bk = ctx.backend orelse {
+    const cfg = ctx.upload_config orelse {
         std.log.err("No VLM backend configured (set LLM_API_KEY or OPENROUTER_API_KEY)", .{});
         return respondNotFound(request);
     };
 
-    const facts = bk.infer(env, image_bytes) catch |err| {
+    const facts = openrouter.infer(cfg, env, image_bytes) catch |err| {
         std.log.err("LLM API VLM failed: {s}", .{@errorName(err)});
         return respondNotFound(request);
     };
@@ -230,16 +249,19 @@ fn handleLookup(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) 
         return respondError(request, .bad_request, "invalid request body");
     };
 
-    const cfg = ctx.agent_config orelse {
+    const cfg = ctx.lookup_config orelse {
         std.log.err("No LLM backend configured (set LLM_API_KEY or OPENROUTER_API_KEY)", .{});
         return respondError(request, .internal_server_error, "no backend configured");
     };
 
     const request_id = nextRequestId();
+    var req_env = env;
+    req_env.request_id = request_id;
+
     std.log.info("[{d}] Lookup request: {s}", .{ request_id, parsed.value.description });
     const started = std.Io.Clock.real.now(env.io);
 
-    const item = agent.runAgent(env, cfg, request_id, parsed.value.description) catch |err| {
+    const item = agent.runAgent(req_env, cfg, parsed.value.description) catch |err| {
         std.log.err("[{d}] Lookup failed: {s}", .{ request_id, @errorName(err) });
         return respondError(request, .internal_server_error, "lookup failed");
     };
@@ -305,10 +327,9 @@ fn checkAuth(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) !vo
     else
         return error.MissingBearerPrefix;
 
-    const secret = ctx.environ.get("HASURA_GRAPHQL_JWT_SECRET") orelse return error.MissingJwtSecretConfig;
-    const audience = ctx.environ.get("AUTH0_AUDIENCE") orelse auth.DEFAULT_AUDIENCE;
+    const auth_config = ctx.auth_config orelse return error.MissingJwtSecretConfig;
 
-    try auth.validateJwt(env, token, secret, audience);
+    try auth.validateJwt(env, token, auth_config.jwt_secret, auth_config.audience);
 }
 
 /// Extracts the boundary token from a `multipart/form-data; boundary=...`

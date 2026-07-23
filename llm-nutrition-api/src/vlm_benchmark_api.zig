@@ -89,7 +89,7 @@ pub fn main(init: std.process.Init) !void {
     const base_url = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }) orelse openrouter.DEFAULT_BASE_URL;
 
     const name = args.model_name orelse args.model;
-    const backend = openrouter.LlmApiBackend.withBaseUrl(api_key, args.model, base_url);
+    const config = root.LlmConfig{ .api_key = api_key, .model = args.model, .base_url = base_url };
 
     var stdout_buf: [4096]u8 = undefined;
     var stdout_file_writer = std.Io.File.stdout().writer(env.io, &stdout_buf);
@@ -120,7 +120,7 @@ pub fn main(init: std.process.Init) !void {
             continue;
         };
 
-        const actual = backend.infer(env, image_bytes) catch |err| {
+        const actual = openrouter.infer(config, env, image_bytes) catch |err| {
             std.debug.print("  ERROR {s}: {s}\n", .{ case.filename, @errorName(err) });
             field_score.recordMiss();
             fail_count += 1;

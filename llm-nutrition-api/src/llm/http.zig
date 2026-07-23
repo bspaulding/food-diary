@@ -17,21 +17,26 @@ pub const ChatError = error{
 /// key, retrying on 429 (`Retry-After` header, then a Gemini-style
 /// `error.details[].retryDelay` body field, then exponential backoff) up to
 /// `max_retries` attempts. Returns the raw response body text on success
-/// (2xx), allocated from `arena`.
+/// (2xx), allocated from `env.allocator`.
 pub fn postChatCompletion(
     env: root.Env,
-    arena: std.mem.Allocator,
     base_url: []const u8,
     api_key: []const u8,
     body_json: []u8,
     max_retries: u32,
 ) ChatError![]const u8 {
-    const endpoint = try std.fmt.allocPrint(arena, "{s}/chat/completions", .{base_url});
+    const allocator = env.allocator;
+    const endpoint = try std.fmt.allocPrint(allocator, "{s}/chat/completions", .{base_url});
     const uri = std.Uri.parse(endpoint) catch return error.RequestFailed;
-    const auth_header = try std.fmt.allocPrint(arena, "Bearer {s}", .{api_key});
+    const auth_header = try std.fmt.allocPrint(allocator, "Bearer {s}", .{api_key});
 
-    var client = std.http.Client{ .allocator = arena, .io = env.io };
+    var client = std.http.Client{ .allocator = allocator, .io = env.io };
     defer client.deinit();
+
+    // Real request ids start at 1 (see main.zig), so 0 unambiguously means
+    // "no request context" (a direct/benchmark/test call) without needing
+    // to branch the format string at every log site below.
+    const rid: u64 = env.request_id orelse 0;
 
     var attempt: u32 = 0;
     while (true) {
@@ -59,22 +64,22 @@ pub fn postChatCompletion(
                 }
             }
 
-            const text = readBody(&response, arena, 1 << 20) catch "";
+            const text = readBody(&response, allocator, 1 << 20) catch "";
             const body_secs = parseRetryDelaySeconds(text);
             const delay_secs = retry_after_secs orelse body_secs orelse (@as(u64, 1) << @intCast(@min(attempt, 32)));
-            std.log.warn("LLM API 429, retrying in {d}s", .{delay_secs});
+            std.log.warn("[{d}] LLM API 429, retrying in {d}s", .{ rid, delay_secs });
             std.Io.sleep(env.io, .fromSeconds(@intCast(delay_secs)), .awake) catch {};
             attempt += 1;
             continue;
         }
 
         if (response.head.status.class() != .success) {
-            const text = readBody(&response, arena, 1 << 20) catch "";
-            std.log.err("LLM API error {d}: {s}", .{ @intFromEnum(response.head.status), text });
+            const text = readBody(&response, allocator, 1 << 20) catch "";
+            std.log.err("[{d}] LLM API error {d}: {s}", .{ rid, @intFromEnum(response.head.status), text });
             return error.ApiError;
         }
 
-        return readBody(&response, arena, 8 << 20) catch return error.RequestFailed;
+        return readBody(&response, allocator, 8 << 20) catch return error.RequestFailed;
     }
 }
 
