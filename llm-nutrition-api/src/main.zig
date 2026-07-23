@@ -183,27 +183,44 @@ fn handleUpload(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) 
         return respondUnauthorized(request);
     };
 
-    const content_type = request.head.content_type orelse
+    const request_id = nextRequestId();
+    std.log.info("[{d}] Upload request received", .{request_id});
+
+    const content_type = request.head.content_type orelse {
+        std.log.warn("[{d}] Upload rejected: missing content-type", .{request_id});
         return respondError(request, .bad_request, "missing content-type");
-    const boundary = extractBoundary(content_type) orelse
+    };
+    const boundary = extractBoundary(content_type) orelse {
+        std.log.warn("[{d}] Upload rejected: missing multipart boundary (content-type: {s})", .{ request_id, content_type });
         return respondError(request, .bad_request, "missing multipart boundary");
+    };
 
     var body_read_buf: [8 * 1024]u8 = undefined;
     const body_reader = try request.readerExpectContinue(&body_read_buf);
     const body = try body_reader.allocRemaining(env.allocator, .limited(MAX_UPLOAD_BODY_BYTES));
+    std.log.debug("[{d}] Upload body size: {d} bytes", .{ request_id, body.len });
 
-    const image_bytes = extractImagePart(body, boundary) orelse
+    const image_bytes = extractImagePart(body, boundary) orelse {
+        std.log.warn("[{d}] Upload rejected: missing image part (body size: {d} bytes)", .{ request_id, body.len });
         return respondError(request, .bad_request, "missing image part");
+    };
+    std.log.debug("[{d}] Upload image size: {d} bytes", .{ request_id, image_bytes.len });
 
     const cfg = ctx.upload_config orelse {
-        std.log.err("No VLM backend configured (set LLM_API_KEY or OPENROUTER_API_KEY)", .{});
+        std.log.err("[{d}] No VLM backend configured (set LLM_API_KEY or OPENROUTER_API_KEY)", .{request_id});
         return respondError(request, .internal_server_error, "no backend configured");
     };
 
-    const facts = openrouter.infer(cfg, env, image_bytes) catch |err| {
-        std.log.err("LLM API VLM failed: {s}", .{@errorName(err)});
+    var req_env = env;
+    req_env.request_id = request_id;
+
+    const started = std.Io.Clock.real.now(env.io);
+    const facts = openrouter.infer(cfg, req_env, image_bytes) catch |err| {
+        std.log.err("[{d}] LLM API VLM failed: {s}", .{ request_id, @errorName(err) });
         return respondError(request, .internal_server_error, "upload failed");
     };
+    const elapsed_secs = std.Io.Clock.real.now(env.io).toSeconds() - started.toSeconds();
+    std.log.info("[{d}] Upload succeeded ({d}s)", .{ request_id, elapsed_secs });
 
     const body_json = try std.json.Stringify.valueAlloc(env.allocator, .{ .image = facts }, .{});
 
