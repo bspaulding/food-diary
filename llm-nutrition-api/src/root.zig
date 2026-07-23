@@ -9,6 +9,17 @@ pub const Env = @import("env.zig").Env;
 /// base URL to reach an OpenAI-compatible chat-completions endpoint), so
 /// this is the one type both use rather than two separate-but-identical
 /// structs.
+/// Tries each env var name in order, returning the first one that's set, or
+/// `default` if none of them are. Borrowed from `environ`, valid for the
+/// process's lifetime. Shared by main.zig and vlm_benchmark_api.zig, which
+/// both read the same LLM_* / OPENROUTER_* fallback pairs.
+pub fn getEnvAny(environ: *const std.process.Environ.Map, names: []const []const u8, default: []const u8) []const u8 {
+    for (names) |name| {
+        if (environ.get(name)) |v| return v;
+    }
+    return default;
+}
+
 pub const LlmConfig = struct {
     api_key: []const u8,
     model: []const u8,

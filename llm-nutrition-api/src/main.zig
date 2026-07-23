@@ -55,16 +55,6 @@ fn parseLogLevel(s: []const u8) ?std.log.Level {
     return null;
 }
 
-/// Tries each env var name in order, returning the first one that's set, or
-/// `default` if none of them are. Borrowed from `environ`, valid for the
-/// process's lifetime.
-fn getEnvAny(environ: *const std.process.Environ.Map, names: []const []const u8, default: []const u8) []const u8 {
-    for (names) |name| {
-        if (environ.get(name)) |v| return v;
-    }
-    return default;
-}
-
 /// Resolved once at startup from `HASURA_GRAPHQL_JWT_SECRET`/`AUTH0_AUDIENCE`
 /// (see `main`), rather than re-reading the raw environment on every
 /// request the way the LLM backend config already avoided doing.
@@ -108,9 +98,9 @@ pub fn main(init: std.process.Init) !void {
     // untested C bindings and a batch/sampling loop with no way to verify
     // correctness in this environment; requests fail loudly if no backend
     // is configured.
-    const api_key = getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" }, "");
-    const model_override = getEnvAny(init.environ_map, &.{ "LLM_MODEL", "OPENROUTER_MODEL" }, "");
-    const base_url_override = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }, "");
+    const api_key = root.getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" }, "");
+    const model_override = root.getEnvAny(init.environ_map, &.{ "LLM_MODEL", "OPENROUTER_MODEL" }, "");
+    const base_url_override = root.getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }, "");
 
     var upload_config: ?root.LlmConfig = null;
     var lookup_config: ?root.LlmConfig = null;
