@@ -12,15 +12,6 @@ pub const MAX_ROUNDS: usize = 5;
 pub const API_MAX_NEW_TOKENS: u32 = 8192;
 pub const API_MAX_RETRIES: u32 = 8;
 
-/// Both endpoints default to the same provider/model -- OpenRouter's free
-/// Gemma-4-31B, matching the vision endpoint's default (`openrouter.zig`'s
-/// `DEFAULT_MODEL`/`DEFAULT_BASE_URL`) -- rather than each independently
-/// defaulting to a different provider as the two original Rust services
-/// did. `LLM_MODEL`/`LLM_BASE_URL` still overrides both endpoints at once
-/// (see main.zig) if a different model is needed for one or both.
-pub const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
-pub const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
-
 pub const SYSTEM_PROMPT =
     \\You are a nutrition expert. Look up or estimate nutritional values for the food the user describes.
     \\

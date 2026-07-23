@@ -15,6 +15,18 @@ pub const LlmConfig = struct {
     base_url: []const u8,
 };
 
+/// Operational default for both `/upload` (vision) and `/lookup` (text) --
+/// Gemma-4-31B via OpenRouter scored 100% all-fields / 33/33 whole-record on
+/// the full 33-image eval (see the Rust original's eval-results/README.md),
+/// a wide margin over every self-hosted candidate. A single shared default
+/// rather than one per endpoint, since main.zig already applies one
+/// LLM_MODEL/OPENROUTER_MODEL override to both.
+pub const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
+
+/// Paired with DEFAULT_MODEL above -- must stay OpenRouter's endpoint, not
+/// Gemini's, since DEFAULT_MODEL is an OpenRouter-specific model slug.
+pub const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
+
 /// Result schema for `POST /lookup` (text-based nutrition estimation/lookup).
 /// Field names and units intentionally differ from `ParsedNutritionFacts`
 /// (full words `_milligrams`/`_grams`, singular `carbohydrate`) — both web

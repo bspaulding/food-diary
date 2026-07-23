@@ -95,12 +95,12 @@ pub fn main(init: std.process.Init) !void {
         break :blk std.fmt.parseInt(u16, s, 10) catch 3030;
     };
 
-    // Both /upload and /lookup default to the same OpenRouter/Gemma-4-31B
-    // backend (see openrouter.zig's and llm/agent.zig's identical
-    // DEFAULT_MODEL/DEFAULT_BASE_URL) if configured -- the vision endpoint's
-    // operational default (100% on its 33-image eval), also used for
-    // /lookup rather than each endpoint independently defaulting to a
-    // different provider as the two original Rust services did.
+    // /upload and /lookup share one LLM backend config -- one default model
+    // (root.DEFAULT_MODEL/DEFAULT_BASE_URL, the vision endpoint's
+    // operational default, 100% on its 33-image eval) and one
+    // LLM_MODEL/LLM_BASE_URL (or OPENROUTER_*) override for both, rather
+    // than each endpoint independently defaulting to a different provider
+    // as the two original Rust services did.
     //
     // Unlike the Rust originals, this port has no local llama.cpp fallback
     // for either endpoint: that backend binds to llama.cpp/mtmd's C++ API
@@ -108,10 +108,6 @@ pub fn main(init: std.process.Init) !void {
     // untested C bindings and a batch/sampling loop with no way to verify
     // correctness in this environment; requests fail loudly if no backend
     // is configured.
-    //
-    // LLM_MODEL/LLM_BASE_URL (or their OPENROUTER_* fallbacks), if set,
-    // override *both* endpoints' model choice at once -- a deliberate
-    // simplification now that they share one process/deployment.
     const api_key = getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" }, "");
     const model_override = getEnvAny(init.environ_map, &.{ "LLM_MODEL", "OPENROUTER_MODEL" }, "");
     const base_url_override = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }, "");
@@ -119,15 +115,12 @@ pub fn main(init: std.process.Init) !void {
     var upload_config: ?root.LlmConfig = null;
     var lookup_config: ?root.LlmConfig = null;
     if (api_key.len > 0) {
-        const vlm_model = if (model_override.len > 0) model_override else openrouter.DEFAULT_MODEL;
-        const vlm_base_url = if (base_url_override.len > 0) base_url_override else openrouter.DEFAULT_BASE_URL;
-        upload_config = root.LlmConfig{ .api_key = api_key, .model = vlm_model, .base_url = vlm_base_url };
-        std.log.info("LLM API VLM backend enabled with model {s}", .{vlm_model});
-
-        const lookup_model = if (model_override.len > 0) model_override else agent.DEFAULT_MODEL;
-        const lookup_base_url = if (base_url_override.len > 0) base_url_override else agent.DEFAULT_BASE_URL;
-        lookup_config = root.LlmConfig{ .api_key = api_key, .model = lookup_model, .base_url = lookup_base_url };
-        std.log.info("LLM API lookup agent enabled with model {s}", .{lookup_model});
+        const model = if (model_override.len > 0) model_override else root.DEFAULT_MODEL;
+        const base_url = if (base_url_override.len > 0) base_url_override else root.DEFAULT_BASE_URL;
+        const cfg = root.LlmConfig{ .api_key = api_key, .model = model, .base_url = base_url };
+        upload_config = cfg;
+        lookup_config = cfg;
+        std.log.info("LLM API backend enabled with model {s}", .{model});
     } else {
         std.log.info("LLM API disabled (set LLM_API_KEY or OPENROUTER_API_KEY to enable)", .{});
     }

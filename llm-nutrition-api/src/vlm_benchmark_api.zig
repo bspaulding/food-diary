@@ -87,7 +87,7 @@ pub fn main(init: std.process.Init) !void {
         std.log.err("Set LLM_API_KEY or OPENROUTER_API_KEY in the environment", .{});
         return error.MissingApiKey;
     }
-    const base_url = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }, openrouter.DEFAULT_BASE_URL);
+    const base_url = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }, root.DEFAULT_BASE_URL);
 
     const name = args.model_name orelse args.model;
     const config = root.LlmConfig{ .api_key = api_key, .model = args.model, .base_url = base_url };

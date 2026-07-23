@@ -6,16 +6,6 @@ const http = @import("llm/http.zig");
 const MAX_TOKENS: u32 = 512;
 const MAX_RETRIES: u32 = 8;
 
-/// Operational default: Gemma-4-31B via OpenRouter scored 100% all-fields /
-/// 33/33 whole-record on the full 33-image eval (see the Rust original's
-/// eval-results/README.md), a wide margin over every self-hosted candidate.
-/// Override with LLM_MODEL/OPENROUTER_MODEL if a different model is needed.
-pub const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
-
-/// Paired with DEFAULT_MODEL above — this must stay OpenRouter's endpoint,
-/// not Gemini's, since DEFAULT_MODEL is an OpenRouter-specific model slug.
-pub const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
-
 pub const InferError = error{
     InvalidVlmJson,
 } || http.ChatError;
