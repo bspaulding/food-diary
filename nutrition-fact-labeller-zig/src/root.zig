@@ -1,6 +1,7 @@
 const std = @import("std");
 
 pub const vlm = @import("vlm.zig");
+pub const Env = @import("env.zig").Env;
 
 pub const ParsedNutritionFacts = struct {
     servings_per_container: ?f64 = null,
@@ -116,9 +117,9 @@ pub const FieldScore = struct {
 
 /// Prints the "all fields" partial-credit summary line and per-field
 /// breakdown for one model's `FieldScore`.
-pub fn printFieldScore(io: std.Io, score: FieldScore) void {
+pub fn printFieldScore(env: Env, score: FieldScore) void {
     var buf: [4096]u8 = undefined;
-    var file_writer = std.Io.File.stdout().writer(io, &buf);
+    var file_writer = std.Io.File.stdout().writer(env.io, &buf);
     const w = &file_writer.interface;
     w.print(
         "  All-fields: {d}/{d} ({d:.1}%) — prioritize this over whole-record pass/fail\n",
@@ -143,8 +144,9 @@ pub const TestCase = struct {
 /// monounsaturated_fat_grams,cholesterol_mg,sodium_mg,total_carbohydrates_g,
 /// dietary_fiber_g,total_sugars_g,added_sugars_g,protein_g
 /// All fields are double-quoted. An empty field parses to `null`.
-pub fn loadTestCases(io: std.Io, allocator: std.mem.Allocator, csv_path: []const u8) ![]TestCase {
-    const content = try std.Io.Dir.cwd().readFileAlloc(io, csv_path, allocator, .limited(16 * 1024 * 1024));
+pub fn loadTestCases(env: Env, csv_path: []const u8) ![]TestCase {
+    const allocator = env.allocator;
+    const content = try std.Io.Dir.cwd().readFileAlloc(env.io, csv_path, allocator, .limited(16 * 1024 * 1024));
     defer allocator.free(content);
 
     var cases: std.ArrayList(TestCase) = .empty;
@@ -196,20 +198,19 @@ pub fn loadTestCases(io: std.Io, allocator: std.mem.Allocator, csv_path: []const
 }
 
 test "loadTestCases parses quoted CSV rows" {
-    const io = std.testing.io;
-    const allocator = std.testing.allocator;
+    const env = Env{ .io = std.testing.io, .allocator = std.testing.allocator };
     const tmp_path = "zig-cache-test-cases.csv";
-    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = tmp_path, .data =
+    try std.Io.Dir.cwd().writeFile(env.io, .{ .sub_path = tmp_path, .data =
         \\"file","servings_per_container","serving_size_grams","calories","total_fat_grams","saturated_fat_grams","trans_fat_grams","polyunsaturated_fat_grams","monounsaturated_fat_grams","cholesterol_mg","sodium_mg","total_carbohydrates_g","dietary_fiber_g","total_sugars_g","added_sugars_g","protein_g"
         \\"IMG_1.png","8.0","30.0","110","1.5","0.0","0.0","0.0","0.0","0.0","350.0","20.0","1.0","0.0","0.0","3.0"
         \\
     });
-    defer std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
+    defer std.Io.Dir.cwd().deleteFile(env.io, tmp_path) catch {};
 
-    const cases = try loadTestCases(io, allocator, tmp_path);
+    const cases = try loadTestCases(env, tmp_path);
     defer {
-        for (cases) |c| allocator.free(c.filename);
-        allocator.free(cases);
+        for (cases) |c| env.allocator.free(c.filename);
+        env.allocator.free(cases);
     }
 
     try std.testing.expectEqual(@as(usize, 1), cases.len);

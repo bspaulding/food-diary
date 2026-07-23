@@ -7,7 +7,10 @@ backend (`google/gemma-4-31b-it:free` by default) that the Rust original documen
 strongest-scoring, operationally-default backend.
 
 Built against Zig **0.16.0**, using its `std.Io`-interface-based `std.http.Server`/`std.http.Client`
-and the `pub fn main(init: std.process.Init) !void` ("Juicy Main") entry point convention.
+and the `pub fn main(init: std.process.Init) !void` ("Juicy Main") entry point convention. Rather
+than threading the `std.Io` value through every function as its own parameter, it's bundled with
+its allocator into a small `Env` struct (`src/env.zig`) that gets passed around instead — e.g.
+`auth.validateJwt(env, token, secret, audience)` — since the two are almost always needed together.
 
 ## What's ported vs. not
 

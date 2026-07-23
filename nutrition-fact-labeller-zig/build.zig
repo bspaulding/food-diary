@@ -65,6 +65,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/auth.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "nutrition_fact_labeller", .module = lib_mod },
+        },
     });
     const auth_tests = b.addTest(.{ .root_module = auth_mod });
     test_step.dependOn(&b.addRunArtifact(auth_tests).step);

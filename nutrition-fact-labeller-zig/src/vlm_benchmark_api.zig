@@ -77,10 +77,9 @@ fn getEnvAny(environ: *const std.process.Environ.Map, names: []const []const u8)
 }
 
 pub fn main(init: std.process.Init) !void {
-    const io = init.io;
-    const allocator = init.arena.allocator();
+    const env = root.Env{ .io = init.io, .allocator = init.arena.allocator() };
 
-    const argv = try init.minimal.args.toSlice(allocator);
+    const argv = try init.minimal.args.toSlice(env.allocator);
     const args = try parseArgs(argv);
 
     const api_key = getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" }) orelse {
@@ -93,11 +92,11 @@ pub fn main(init: std.process.Init) !void {
     const backend = openrouter.LlmApiBackend.withBaseUrl(api_key, args.model, base_url);
 
     var stdout_buf: [4096]u8 = undefined;
-    var stdout_file_writer = std.Io.File.stdout().writer(io, &stdout_buf);
+    var stdout_file_writer = std.Io.File.stdout().writer(env.io, &stdout_buf);
     const stdout = &stdout_file_writer.interface;
     defer stdout.flush() catch {};
 
-    var cases = try root.loadTestCases(io, allocator, args.csv);
+    var cases = try root.loadTestCases(env, args.csv);
     if (args.limit) |limit| {
         if (limit < cases.len) cases = cases[0..limit];
         try stdout.print("Loaded {d} test cases (--limit {d}: smoke test, not a full eval)\n", .{ cases.len, limit });
@@ -113,15 +112,15 @@ pub fn main(init: std.process.Init) !void {
     var field_score = root.FieldScore{};
 
     for (cases) |case| {
-        const image_path = try std.fs.path.join(allocator, &.{ args.images_dir, case.filename });
-        const image_bytes = std.Io.Dir.cwd().readFileAlloc(io, image_path, allocator, .limited(50 * 1024 * 1024)) catch |err| {
+        const image_path = try std.fs.path.join(env.allocator, &.{ args.images_dir, case.filename });
+        const image_bytes = std.Io.Dir.cwd().readFileAlloc(env.io, image_path, env.allocator, .limited(50 * 1024 * 1024)) catch |err| {
             std.debug.print("  ERROR {s}: failed to read image ({s})\n", .{ case.filename, @errorName(err) });
             field_score.recordMiss();
             fail_count += 1;
             continue;
         };
 
-        const actual = backend.infer(io, allocator, image_bytes) catch |err| {
+        const actual = backend.infer(env, image_bytes) catch |err| {
             std.debug.print("  ERROR {s}: {s}\n", .{ case.filename, @errorName(err) });
             field_score.recordMiss();
             fail_count += 1;
@@ -130,7 +129,7 @@ pub fn main(init: std.process.Init) !void {
 
         if (actual.eql(case.expected)) {
             field_score.record(actual.fieldMatches(case.expected));
-            try passing.append(allocator, case.filename);
+            try passing.append(env.allocator, case.filename);
         } else {
             std.debug.print("  FAIL {s}\n    got:      {any}\n    expected: {any}\n", .{ case.filename, actual, case.expected });
             field_score.record(actual.fieldMatches(case.expected));
@@ -146,7 +145,7 @@ pub fn main(init: std.process.Init) !void {
     try stdout.print("(no PaddleOCR baseline all-fields figure available: the baseline test doesn't emit per-field results in this environment)\n", .{});
     try stdout.print("\n{s}:\n", .{name});
     try stdout.flush();
-    root.printFieldScore(io, field_score);
+    root.printFieldScore(env, field_score);
     try stdout.print("{s}\n", .{"─" ** 55});
 
     try stdout.print("\nWhole-record scoring (secondary — how many cases were a perfect match):\n", .{});

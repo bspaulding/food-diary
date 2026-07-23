@@ -36,8 +36,8 @@ pub const LlmApiBackend = struct {
         InvalidVlmJson,
     } || std.mem.Allocator.Error;
 
-    pub fn infer(self: *const LlmApiBackend, io: std.Io, allocator: std.mem.Allocator, image_bytes: []const u8) !root.ParsedNutritionFacts {
-        var arena_state = std.heap.ArenaAllocator.init(allocator);
+    pub fn infer(self: *const LlmApiBackend, env: root.Env, image_bytes: []const u8) !root.ParsedNutritionFacts {
+        var arena_state = std.heap.ArenaAllocator.init(env.allocator);
         defer arena_state.deinit();
         const arena = arena_state.allocator();
 
@@ -52,7 +52,7 @@ pub const LlmApiBackend = struct {
         const uri = std.Uri.parse(endpoint) catch return error.LlmApiRequestFailed;
         const auth_header = try std.fmt.allocPrint(arena, "Bearer {s}", .{self.api_key});
 
-        var client = std.http.Client{ .allocator = arena, .io = io };
+        var client = std.http.Client{ .allocator = arena, .io = env.io };
         defer client.deinit();
 
         var attempt: u32 = 0;
@@ -86,7 +86,7 @@ pub const LlmApiBackend = struct {
                 const body_secs = parseRetryDelaySeconds(text);
                 const delay_secs = retry_after_secs orelse body_secs orelse (@as(u64, 1) << @intCast(@min(attempt, 32)));
                 std.log.warn("LLM API 429, retrying in {d}s", .{delay_secs});
-                std.Io.sleep(io, .fromSeconds(@intCast(delay_secs)), .awake) catch {};
+                std.Io.sleep(env.io, .fromSeconds(@intCast(delay_secs)), .awake) catch {};
                 attempt += 1;
                 continue;
             }
@@ -101,7 +101,7 @@ pub const LlmApiBackend = struct {
             var transfer_buf: [8192]u8 = undefined;
             const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(8 << 20)) catch
                 return error.LlmApiRequestFailed;
-            return parseInferenceResponse(allocator, arena, text);
+            return parseInferenceResponse(env.allocator, arena, text);
         }
     }
 };
@@ -206,8 +206,7 @@ test "parseRetryDelaySeconds returns null when absent" {
 
 const MockCtx = struct {
     net_server: *std.Io.net.Server,
-    io: std.Io,
-    allocator: std.mem.Allocator,
+    env: root.Env,
     validation_error: ?[]const u8 = null,
     response_body: []const u8,
 };
@@ -216,40 +215,43 @@ const MockCtx = struct {
 /// OpenAI-style vision message shape, and replies with a canned response
 /// body — mirroring the Rust original's `spawn_mock` test helper.
 fn mockServerThread(ctx: *MockCtx) void {
-    const stream = ctx.net_server.accept(ctx.io) catch |err| {
-        ctx.validation_error = std.fmt.allocPrint(ctx.allocator, "accept failed: {s}", .{@errorName(err)}) catch "accept failed";
+    const io = ctx.env.io;
+    const allocator = ctx.env.allocator;
+
+    const stream = ctx.net_server.accept(io) catch |err| {
+        ctx.validation_error = std.fmt.allocPrint(allocator, "accept failed: {s}", .{@errorName(err)}) catch "accept failed";
         return;
     };
-    defer stream.close(ctx.io);
+    defer stream.close(io);
 
     var recv_buffer: [16 * 1024]u8 = undefined;
     var send_buffer: [16 * 1024]u8 = undefined;
-    var stream_reader = stream.reader(ctx.io, &recv_buffer);
-    var stream_writer = stream.writer(ctx.io, &send_buffer);
+    var stream_reader = stream.reader(io, &recv_buffer);
+    var stream_writer = stream.writer(io, &send_buffer);
     var server = std.http.Server.init(&stream_reader.interface, &stream_writer.interface);
 
     var request = server.receiveHead() catch |err| {
-        ctx.validation_error = std.fmt.allocPrint(ctx.allocator, "receiveHead failed: {s}", .{@errorName(err)}) catch "receiveHead failed";
+        ctx.validation_error = std.fmt.allocPrint(allocator, "receiveHead failed: {s}", .{@errorName(err)}) catch "receiveHead failed";
         return;
     };
 
     var body_read_buf: [16 * 1024]u8 = undefined;
     const body_reader = request.readerExpectContinue(&body_read_buf) catch |err| {
-        ctx.validation_error = std.fmt.allocPrint(ctx.allocator, "reader failed: {s}", .{@errorName(err)}) catch "reader failed";
+        ctx.validation_error = std.fmt.allocPrint(allocator, "reader failed: {s}", .{@errorName(err)}) catch "reader failed";
         return;
     };
-    const body = body_reader.allocRemaining(ctx.allocator, .limited(10 * 1024 * 1024)) catch |err| {
-        ctx.validation_error = std.fmt.allocPrint(ctx.allocator, "read body failed: {s}", .{@errorName(err)}) catch "read body failed";
+    const body = body_reader.allocRemaining(allocator, .limited(10 * 1024 * 1024)) catch |err| {
+        ctx.validation_error = std.fmt.allocPrint(allocator, "read body failed: {s}", .{@errorName(err)}) catch "read body failed";
         return;
     };
 
-    ctx.validation_error = validateRequestShape(ctx.allocator, body);
+    ctx.validation_error = validateRequestShape(allocator, body);
 
     request.respond(ctx.response_body, .{
         .keep_alive = false,
         .extra_headers = &.{.{ .name = "content-type", .value = "application/json" }},
     }) catch |err| {
-        ctx.validation_error = std.fmt.allocPrint(ctx.allocator, "respond failed: {s}", .{@errorName(err)}) catch "respond failed";
+        ctx.validation_error = std.fmt.allocPrint(allocator, "respond failed: {s}", .{@errorName(err)}) catch "respond failed";
     };
 }
 
@@ -283,19 +285,18 @@ fn validateRequestShape(allocator: std.mem.Allocator, body: []const u8) ?[]const
 }
 
 test "infer performs a real HTTP round trip against a mock OpenAI-compatible server" {
-    const io = std.testing.io;
-    const allocator = std.testing.allocator;
+    const env = root.Env{ .io = std.testing.io, .allocator = std.testing.allocator };
 
     // 0.16's Io.net.Server doesn't expose the bound socket's local address
     // (no getsockname-style accessor), so an ephemeral port (port 0) can't
     // be resolved back after listen(); use a fixed test-only port instead.
     var addr = try std.Io.net.IpAddress.parse("127.0.0.1", 47881);
-    var net_server = try addr.listen(io, .{ .reuse_address = true });
-    defer net_server.deinit(io);
+    var net_server = try addr.listen(env.io, .{ .reuse_address = true });
+    defer net_server.deinit(env.io);
 
     const expected = root.ParsedNutritionFacts{ .calories = 100, .protein_g = 5.0 };
 
-    var arena = std.heap.ArenaAllocator.init(allocator);
+    var arena = std.heap.ArenaAllocator.init(env.allocator);
     defer arena.deinit();
     const arena_alloc = arena.allocator();
 
@@ -308,15 +309,14 @@ test "infer performs a real HTTP round trip against a mock OpenAI-compatible ser
 
     var ctx = MockCtx{
         .net_server = &net_server,
-        .io = io,
-        .allocator = arena_alloc,
+        .env = .{ .io = env.io, .allocator = arena_alloc },
         .response_body = response_body,
     };
 
     const thread = try std.Thread.spawn(.{}, mockServerThread, .{&ctx});
 
     const backend = LlmApiBackend.withBaseUrl("test-key", "test-model", "http://127.0.0.1:47881");
-    const actual = try backend.infer(io, allocator, "fake-image-bytes");
+    const actual = try backend.infer(env, "fake-image-bytes");
 
     thread.join();
 

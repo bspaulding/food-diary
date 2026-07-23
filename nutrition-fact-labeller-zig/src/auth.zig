@@ -1,4 +1,5 @@
 const std = @import("std");
+const Env = @import("nutrition_fact_labeller").Env;
 
 pub const DEFAULT_AUDIENCE = "https://direct-satyr-14.hasura.app/v1/graphql";
 
@@ -26,13 +27,12 @@ pub const AuthError = error{
 /// certificate) and modular exponentiation (via std.math.big.int) to do
 /// PKCS#1 v1.5 signature verification.
 pub fn validateJwt(
-    io: std.Io,
-    allocator: std.mem.Allocator,
+    env: Env,
     token: []const u8,
     jwt_secret_json: []const u8,
     audience: []const u8,
 ) !void {
-    var arena_state = std.heap.ArenaAllocator.init(allocator);
+    var arena_state = std.heap.ArenaAllocator.init(env.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
 
@@ -76,7 +76,7 @@ pub fn validateJwt(
             .float => |f| @intFromFloat(f),
             else => return error.InvalidPayload,
         };
-        if (exp < std.Io.Clock.real.now(io).toSeconds()) return error.TokenExpired;
+        if (exp < std.Io.Clock.real.now(env.io).toSeconds()) return error.TokenExpired;
     }
 
     if (!audMatches(payload_parsed.value, audience)) return error.AudienceMismatch;
@@ -364,36 +364,38 @@ const TEST_TOKEN_WRONG_AUD = "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJzdWIiO
 const TEST_TOKEN_EXPIRED = "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJzdWIiOiAiYXV0aDB8dXNlci0xMjMiLCAiYXVkIjogImh0dHBzOi8vZGlyZWN0LXNhdHlyLTE0Lmhhc3VyYS5hcHAvdjEvZ3JhcGhxbCIsICJleHAiOiAxNzg0NjczOTU3fQ.OzTk0WQ1wrlrsJJMIcjx-JlCXkjgLQfkXIMwPzPgac4b4o6-OAGmh6HizcOpZYE1Rv9EMoZHF0_VQCYWjYLJIGSw0ERwPHO8iCVtqe2Uuw-yLz8R0XrnbJRuyj-OXBPS1wG1vdvFmoH1j6nuQEwazMbA4SJfXkLst6kDGLNlEQD_PRj1Dkns80gJMZVxNgwXadJC3gV-1GiKUOItEsdDciBsQzWSfom7PHNFN1Klb4DldtS2D3Z0UWoF8ujCNmJizn2mRnG4aYv83KP4mdz1YImL7J8zsgyRWQuVkASW1fCKK79PoZjCrHDS1IAKnX_5X4-25JCCIUs3uBF4Etm6Zw";
 const TEST_TOKEN_DEFAULT_AUD = "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJzdWIiOiAiYXV0aDB8dXNlci0xMjMiLCAiYXVkIjogImh0dHBzOi8vZGlyZWN0LXNhdHlyLTE0Lmhhc3VyYS5hcHAvdjEvZ3JhcGhxbCIsICJleHAiOiAyMTAwMDM3NTU3fQ.cKCI3sQrTGwRcsg7ou2mqMmhohkYJS_gilgA-6dRHV9wBFKcAU6haes_2RkEoHfCvjUpz7u0V45IQj7lS33EDCPoRAD9sYOZ5tTAYZRIiOAHR8YKLSTRJwG3kshZ__JVDT81GylRSOYzGlHYDDXn4dihqKkEbkydYUtRwR67SCH_ATUjNVAJb2L7IxySqs8jR-hy9BWKDTM2ilYgHuv2aT--D_g7LKvfDuo3LSJukibVNn9iWwbq8OrxG_5bkZ3HMqC-lxCUe3x8OVXzbZ5-au1oFGumIYPm8_0heXm1xiGZ0kmybIChzTyDCuby3gxttHWUMmlVf_s-_S9ET1P2yg";
 
+const test_env = Env{ .io = std.testing.io, .allocator = std.testing.allocator };
+
 test "validateJwt accepts a valid token with array audience" {
-    try validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_VALID_ARRAY_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
+    try validateJwt(test_env, TEST_TOKEN_VALID_ARRAY_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
 }
 
 test "validateJwt accepts a valid token with string audience" {
-    try validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_VALID_STRING_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
+    try validateJwt(test_env, TEST_TOKEN_VALID_STRING_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
 }
 
 test "validateJwt rejects wrong algorithm" {
-    try std.testing.expectError(error.UnexpectedAlgorithm, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_WRONG_ALG, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.UnexpectedAlgorithm, validateJwt(test_env, TEST_TOKEN_WRONG_ALG, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
 }
 
 test "validateJwt rejects wrong signing key" {
-    try std.testing.expectError(error.SignatureVerificationFailed, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_WRONG_KEY, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.SignatureVerificationFailed, validateJwt(test_env, TEST_TOKEN_WRONG_KEY, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
 }
 
 test "validateJwt rejects wrong audience" {
-    try std.testing.expectError(error.AudienceMismatch, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_WRONG_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.AudienceMismatch, validateJwt(test_env, TEST_TOKEN_WRONG_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
 }
 
 test "validateJwt rejects expired token" {
-    try std.testing.expectError(error.TokenExpired, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_EXPIRED, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.TokenExpired, validateJwt(test_env, TEST_TOKEN_EXPIRED, TEST_SECRET_JSON, DEFAULT_AUDIENCE));
 }
 
 test "validateJwt falls back to default audience" {
-    try validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_DEFAULT_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
+    try validateJwt(test_env, TEST_TOKEN_DEFAULT_AUD, TEST_SECRET_JSON, DEFAULT_AUDIENCE);
 }
 
 test "validateJwt rejects malformed secret config" {
-    try std.testing.expectError(error.InvalidSecretConfig, validateJwt(std.testing.io, std.testing.allocator, TEST_TOKEN_VALID_STRING_AUD, "{}", DEFAULT_AUDIENCE));
+    try std.testing.expectError(error.InvalidSecretConfig, validateJwt(test_env, TEST_TOKEN_VALID_STRING_AUD, "{}", DEFAULT_AUDIENCE));
 }
 
 test "audMatches handles string and array forms" {

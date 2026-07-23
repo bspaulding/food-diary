@@ -129,26 +129,26 @@ fn handleConnection(stream: net.Stream, ctx: ConnCtx) void {
 
     var arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena_state.deinit();
-    const allocator = arena_state.allocator();
+    const env = root.Env{ .io = ctx.io, .allocator = arena_state.allocator() };
 
     var recv_buffer: [16 * 1024]u8 = undefined;
     var send_buffer: [16 * 1024]u8 = undefined;
-    var stream_reader = stream.reader(ctx.io, &recv_buffer);
-    var stream_writer = stream.writer(ctx.io, &send_buffer);
+    var stream_reader = stream.reader(env.io, &recv_buffer);
+    var stream_writer = stream.writer(env.io, &send_buffer);
     var server = std.http.Server.init(&stream_reader.interface, &stream_writer.interface);
 
     var request = server.receiveHead() catch return;
-    handleRequest(ctx, allocator, &request) catch |err| {
+    handleRequest(ctx, env, &request) catch |err| {
         std.log.err("error handling request: {s}", .{@errorName(err)});
     };
 }
 
-fn handleRequest(ctx: ConnCtx, allocator: std.mem.Allocator, request: *std.http.Server.Request) !void {
+fn handleRequest(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) !void {
     if (request.head.method != .POST or !std.mem.eql(u8, request.head.target, "/label")) {
         return respondNotFound(request);
     }
 
-    checkAuth(ctx, allocator, request) catch |err| {
+    checkAuth(ctx, env, request) catch |err| {
         std.log.warn("JWT validation failed: {s}", .{@errorName(err)});
         return respondUnauthorized(request);
     };
@@ -158,7 +158,7 @@ fn handleRequest(ctx: ConnCtx, allocator: std.mem.Allocator, request: *std.http.
 
     var body_read_buf: [8 * 1024]u8 = undefined;
     const body_reader = try request.readerExpectContinue(&body_read_buf);
-    const body = try body_reader.allocRemaining(allocator, .limited(MAX_BODY_BYTES));
+    const body = try body_reader.allocRemaining(env.allocator, .limited(MAX_BODY_BYTES));
 
     const image_bytes = extractImagePart(body, boundary) orelse return respondNotFound(request);
 
@@ -167,12 +167,12 @@ fn handleRequest(ctx: ConnCtx, allocator: std.mem.Allocator, request: *std.http.
         return respondNotFound(request);
     };
 
-    const facts = bk.infer(ctx.io, allocator, image_bytes) catch |err| {
+    const facts = bk.infer(env, image_bytes) catch |err| {
         std.log.err("LLM API VLM failed: {s}", .{@errorName(err)});
         return respondNotFound(request);
     };
 
-    const body_json = try std.json.Stringify.valueAlloc(allocator, .{ .image = facts }, .{});
+    const body_json = try std.json.Stringify.valueAlloc(env.allocator, .{ .image = facts }, .{});
 
     try request.respond(body_json, .{
         .keep_alive = false,
@@ -204,7 +204,7 @@ fn respondUnauthorized(request: *std.http.Server.Request) !void {
     });
 }
 
-fn checkAuth(ctx: ConnCtx, allocator: std.mem.Allocator, request: *std.http.Server.Request) !void {
+fn checkAuth(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) !void {
     var it = request.iterateHeaders();
     var auth_header: ?[]const u8 = null;
     while (it.next()) |h| {
@@ -222,7 +222,7 @@ fn checkAuth(ctx: ConnCtx, allocator: std.mem.Allocator, request: *std.http.Serv
     const secret = ctx.environ.get("HASURA_GRAPHQL_JWT_SECRET") orelse return error.MissingJwtSecretConfig;
     const audience = ctx.environ.get("AUTH0_AUDIENCE") orelse auth.DEFAULT_AUDIENCE;
 
-    try auth.validateJwt(ctx.io, allocator, token, secret, audience);
+    try auth.validateJwt(env, token, secret, audience);
 }
 
 /// Extracts the boundary token from a `multipart/form-data; boundary=...`
