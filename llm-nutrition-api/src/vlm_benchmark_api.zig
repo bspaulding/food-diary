@@ -69,11 +69,11 @@ fn parseArgs(argv: []const [:0]const u8) !Args {
     };
 }
 
-fn getEnvAny(environ: *const std.process.Environ.Map, names: []const []const u8) ?[]const u8 {
+fn getEnvAny(environ: *const std.process.Environ.Map, names: []const []const u8, default: []const u8) []const u8 {
     for (names) |name| {
         if (environ.get(name)) |v| return v;
     }
-    return null;
+    return default;
 }
 
 pub fn main(init: std.process.Init) !void {
@@ -82,11 +82,12 @@ pub fn main(init: std.process.Init) !void {
     const argv = try init.minimal.args.toSlice(env.allocator);
     const args = try parseArgs(argv);
 
-    const api_key = getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" }) orelse {
+    const api_key = getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" }, "");
+    if (api_key.len == 0) {
         std.log.err("Set LLM_API_KEY or OPENROUTER_API_KEY in the environment", .{});
         return error.MissingApiKey;
-    };
-    const base_url = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }) orelse openrouter.DEFAULT_BASE_URL;
+    }
+    const base_url = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }, openrouter.DEFAULT_BASE_URL);
 
     const name = args.model_name orelse args.model;
     const config = root.LlmConfig{ .api_key = api_key, .model = args.model, .base_url = base_url };
