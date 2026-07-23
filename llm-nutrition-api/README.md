@@ -80,12 +80,12 @@ Other intentional divergences:
 - **One request per connection.** Both Rust originals ran on warp/hyper with HTTP keep-alive; this
   port handles one request per accepted TCP connection, then closes it (`Connection: close`).
   Simpler connection lifecycle, fine for an internal, low-concurrency service.
-- **Shared model config across both endpoints.** Each Rust original picked its own default model
-  independently (`/upload`: Gemma-4-31B via OpenRouter; `/lookup`: Gemini-2.0-flash via Google
-  directly) and each had its own env-configurable override. Both still keep their own *default*,
-  but since they're now one process, an explicit `LLM_MODEL`/`LLM_BASE_URL` override now applies to
-  **both** endpoints at once, rather than being independently tunable per service. A deliberate
-  simplification of the merge, not an oversight.
+- **Shared model config across both endpoints.** Each Rust original independently defaulted to a
+  different provider (`/upload`: Gemma-4-31B via OpenRouter; `/lookup`: Gemini-2.0-flash via Google
+  directly). This port defaults **both** endpoints to the same OpenRouter/Gemma-4-31B backend, and
+  an explicit `LLM_MODEL`/`LLM_BASE_URL` override now applies to both endpoints at once rather than
+  being independently tunable per service. A deliberate simplification of the merge, not an
+  oversight.
 - **JSON float formatting.** Zig's `std.json.Stringify` renders a whole-number float like `8.0` as
   `8` rather than `8.0`. Both are valid JSON numbers and parse identically everywhere.
 - No graceful-shutdown log line on Ctrl-C (the process just exits); functionally equivalent for how
@@ -156,31 +156,35 @@ zig build bench -- --model google/gemma-4-31b-it:free --images-dir images
 
 `eval/run_evals.py` is a Python harness (kept from the original `llm-nutrition-api`) that scores
 `/lookup` against `eval/dataset.json`'s ground-truth cases (calorie/macro accuracy, tolerance
-bands). Start the service, then:
+bands). `/lookup` requires a valid Auth0 RS256 Bearer token, so pass one via `--token` or
+`LLM_NUTRITION_API_EVAL_TOKEN`. Start the service, then:
 
 ```bash
-python3 eval/run_evals.py --url http://localhost:3030 --output eval/results/
+python3 eval/run_evals.py --token <jwt> --output eval/results/
 ```
 
-**Not yet run end-to-end in this port's own development environment** — no `LLM_API_KEY` was
-available there, and this eval needs a real model call per case (not something to fake). What
-*was* validated there instead: `src/llm/tools.zig`'s HTML-scraping logic against **real captured
-HTML** (not just hand-written fixtures) — see "Known risks" below for what that turned up, and
-`zig build test` for the fixture-based regression tests it added
-(`src/llm/testdata/example_com.html`, `src/llm/testdata/ddg_bot_challenge_response.html`). Run
-`eval/run_evals.py` for real before shipping a change to `llm/agent.zig` or `llm/tools.zig`.
+**Run end-to-end against the real merged implementation** (OpenRouter/Gemma-4-31B, both endpoints'
+shared default) — see `eval/results/2026-07-23.md`: 27/27 cases succeeded, 100% of calorie/fat/carb
+predictions within tolerance, 93% of protein predictions within tolerance. This run caught a real
+bug (fixed): the HTTP client wasn't decompressing gzip-encoded response bodies, so every real
+provider response failed to parse — mock-server tests never exercised this since they don't
+compress responses. `src/llm/tools.zig`'s HTML-scraping logic was additionally validated against
+real captured HTML (not just hand-written fixtures) via `zig build test`'s fixture-based
+regression tests (`src/llm/testdata/`).
 
 ## Known risks
 
-**DuckDuckGo's `html.duckduckgo.com/html/` endpoint may serve an anti-bot CAPTCHA challenge page
-instead of real results.** Confirmed live during development: every query tried (from that
-environment's egress IP) got back a "Select all squares containing a duck"-style challenge page,
-not search results — `src/llm/testdata/ddg_bot_challenge_response.html` is that actual captured
-response. This may be specific to that IP (shared/datacenter IPs are common CAPTCHA targets), but
-a production deployment's outbound IP (e.g. a cloud k8s cluster's egress) is a similarly plausible
-target, so this isn't guaranteed to be a one-off. `search_web` is written to degrade gracefully
-when this happens (`parseSearchResults` returns zero results rather than crashing, and the agent
-loop treats an empty/failed search as "estimate from nutritional knowledge instead" — see
-`llm/agent.zig`'s `runSearchWeb`), so branded-item lookups fall back to the model's own knowledge
-instead of hard-failing, but with likely-worse accuracy than a working web search would give. If
-this shows up in production, the fix is a different search backend/provider, not a bigger parser.
+**DuckDuckGo's `html.duckduckgo.com/html/` endpoint can serve an anti-bot CAPTCHA challenge page
+instead of real results.** Observed directly during development: an isolated query (outside the
+full agent loop) got back a "Select all squares containing a duck"-style challenge page instead of
+search results — `src/llm/testdata/ddg_bot_challenge_response.html` is that actual captured
+response. In the full 27-case eval run above, `search_web` did return usable results for both
+branded-item cases (CLIF Bar, Quest Bar), so this isn't a hard block, but it's evidently
+inconsistent — this may depend on the calling IP's reputation (shared/datacenter IPs are common
+CAPTCHA targets, and a cloud k8s cluster's egress IP is a similarly plausible target) or on
+DuckDuckGo's bot-detection heuristics more generally. `search_web` degrades gracefully either way
+(`parseSearchResults` returns zero results rather than crashing, and the agent loop treats an
+empty/failed search as "estimate from nutritional knowledge instead" — see `llm/agent.zig`'s
+`runSearchWeb`), so branded-item lookups fall back to the model's own knowledge instead of
+hard-failing. If this becomes a persistent problem in production, the fix is a different search
+backend/provider, not a bigger parser.

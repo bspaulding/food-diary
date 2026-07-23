@@ -87,24 +87,23 @@ pub fn main(init: std.process.Init) !void {
         break :blk std.fmt.parseInt(u16, s, 10) catch 3030;
     };
 
-    // Prefer the OpenRouter/API backend (Gemma-4-31B by default, see
-    // openrouter.zig's DEFAULT_MODEL/DEFAULT_BASE_URL) for /upload, and
-    // the Gemini backend (see llm/agent.zig's DEFAULT_MODEL/DEFAULT_BASE_URL)
-    // for /lookup, if configured.
+    // Both /upload and /lookup default to the same OpenRouter/Gemma-4-31B
+    // backend (see openrouter.zig's and llm/agent.zig's identical
+    // DEFAULT_MODEL/DEFAULT_BASE_URL) if configured -- the vision endpoint's
+    // operational default (100% on its 33-image eval), also used for
+    // /lookup rather than each endpoint independently defaulting to a
+    // different provider as the two original Rust services did.
     //
     // Unlike the Rust originals, this port has no local llama.cpp fallback
     // for either endpoint: that backend binds to llama.cpp/mtmd's C++ API
     // through Rust's llama-cpp-2 crate, which would mean hand-writing
     // untested C bindings and a batch/sampling loop with no way to verify
-    // correctness in this environment. The hosted API backend was each
-    // original's documented operational default (100% on the vision
-    // endpoint's 33-image eval), so that's what's ported here; requests
-    // fail loudly if no backend is configured.
+    // correctness in this environment; requests fail loudly if no backend
+    // is configured.
     //
     // LLM_MODEL/LLM_BASE_URL (or their OPENROUTER_* fallbacks), if set,
     // override *both* endpoints' model choice at once -- a deliberate
-    // simplification now that they share one process/deployment, instead
-    // of each endpoint's independently-tuned default.
+    // simplification now that they share one process/deployment.
     const api_key = getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" });
     const model_override = getEnvAny(init.environ_map, &.{ "LLM_MODEL", "OPENROUTER_MODEL" });
     const base_url_override = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" });
