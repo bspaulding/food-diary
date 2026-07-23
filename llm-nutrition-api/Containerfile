@@ -1,7 +1,7 @@
 # =========================
 # 0. Builder stage
 # =========================
-FROM public.ecr.aws/docker/library/debian:bookworm-slim AS builder
+FROM public.ecr.aws/docker/library/debian:trixie-slim AS builder
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -30,15 +30,17 @@ RUN zig build -Doptimize=ReleaseFast
 # =========================
 # 1. Runtime stage
 # =========================
-FROM public.ecr.aws/docker/library/debian:bookworm-slim AS runtime
+# The binary built above is fully static (verified via `ldd`: "not a dynamic
+# executable") -- no libc, no OpenSSL, nothing dynamic to link against at
+# runtime. distroless/static ships exactly what a binary like that needs
+# (CA certs, tzdata, a nonroot passwd entry) and nothing else: no shell, no
+# package manager, no libc -- a meaningfully smaller image and attack
+# surface than a full Debian userland, at the cost of no in-container shell
+# for `kubectl exec`-style debugging.
+FROM gcr.io/distroless/static-debian13:latest AS runtime
 
 WORKDIR /app
 
-# ca-certificates: needed for TLS to the OpenRouter API.
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY --from=builder /app/zig-out/bin/llm-nutrition-api /usr/local/bin/llm-nutrition-api
 
-ENTRYPOINT ["llm-nutrition-api"]
+ENTRYPOINT ["/usr/local/bin/llm-nutrition-api"]
