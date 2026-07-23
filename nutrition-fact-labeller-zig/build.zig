@@ -14,6 +14,11 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        // Debug info is left in for Debug builds (useful locally); release
+        // builds strip it since it otherwise dominates binary size (in one
+        // measurement, stripping cut a ReleaseFast binary from ~8.5MB to
+        // ~1.4MB) and isn't useful in a shipped container image.
+        .strip = optimize != .Debug,
         .imports = &.{
             .{ .name = "nutrition_fact_labeller", .module = lib_mod },
         },
@@ -34,6 +39,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/vlm_benchmark_api.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = optimize != .Debug,
         .imports = &.{
             .{ .name = "nutrition_fact_labeller", .module = lib_mod },
         },
