@@ -201,7 +201,8 @@ fn handleUpload(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) 
     std.log.debug("[{d}] Upload body size: {d} bytes", .{ request_id, body.len });
 
     const image_bytes = extractImagePart(body, boundary) orelse {
-        std.log.warn("[{d}] Upload rejected: missing image part (body size: {d} bytes)", .{ request_id, body.len });
+        const snippet = printableSnippet(env.allocator, body, 500) catch "?";
+        std.log.warn("[{d}] Upload rejected: missing image part (body size: {d} bytes, boundary=\"{s}\")\nbody prefix: {s}", .{ request_id, body.len, boundary, snippet });
         return respondError(request, .bad_request, "missing image part");
     };
     std.log.debug("[{d}] Upload image size: {d} bytes", .{ request_id, image_bytes.len });
@@ -343,6 +344,25 @@ fn extractBoundary(content_type: []const u8) ?[]const u8 {
     }
     const semi = std.mem.indexOfScalar(u8, b, ';');
     return if (semi) |s| b[0..s] else b;
+}
+
+/// Renders a prefix of `bytes` as safe-to-log text: printable ASCII kept
+/// as-is, CRLF made visible (so multipart boundary/header structure is
+/// readable), everything else replaced with '.' -- diagnostic-only, for
+/// dumping the start of a rejected multipart body (headers are plain ASCII
+/// there, well before any binary image data).
+fn printableSnippet(allocator: std.mem.Allocator, bytes: []const u8, max_len: usize) ![]const u8 {
+    const len = @min(bytes.len, max_len);
+    var out: std.ArrayList(u8) = .empty;
+    for (bytes[0..len]) |b| {
+        switch (b) {
+            '\r' => try out.appendSlice(allocator, "\\r"),
+            '\n' => try out.appendSlice(allocator, "\\n\n"),
+            0x20...0x7e => try out.append(allocator, b),
+            else => try out.append(allocator, '.'),
+        }
+    }
+    return out.toOwnedSlice(allocator);
 }
 
 /// Scans a `multipart/form-data` body for the part named "image" and
