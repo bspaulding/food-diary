@@ -25,7 +25,16 @@ WORKDIR /app
 COPY build.zig build.zig.zon ./
 COPY src ./src
 
-RUN zig build exe -Doptimize=ReleaseFast
+# -Dcpu=baseline is required: with no -Dtarget/-Dcpu given, Zig's default
+# "native" resolution bakes in whatever CPU feature extensions (AVX-512,
+# BMI2, etc.) the *build* machine happens to have, not just its arch/OS.
+# That's fine when build and run machines match, but this image is built on
+# GitHub Actions runners and run on DigitalOcean Kubernetes nodes with a
+# different CPU -- the mismatch caused a SIGILL crash loop in production
+# the first time a real request exercised a code path compiled to use an
+# instruction the DOKS node's CPU doesn't support. baseline targets the
+# generic x86_64 feature set, portable across any x86_64 Linux host.
+RUN zig build exe -Doptimize=ReleaseFast -Dcpu=baseline
 
 # =========================
 # 1. Runtime stage
