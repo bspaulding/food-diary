@@ -59,8 +59,7 @@ pub fn postChatCompletion(
                 }
             }
 
-            var transfer_buf: [4096]u8 = undefined;
-            const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(1 << 20)) catch "";
+            const text = readBody(&response, arena, 1 << 20) catch "";
             const body_secs = parseRetryDelaySeconds(text);
             const delay_secs = retry_after_secs orelse body_secs orelse (@as(u64, 1) << @intCast(@min(attempt, 32)));
             std.log.warn("LLM API 429, retrying in {d}s", .{delay_secs});
@@ -70,16 +69,31 @@ pub fn postChatCompletion(
         }
 
         if (response.head.status.class() != .success) {
-            var transfer_buf: [4096]u8 = undefined;
-            const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(1 << 20)) catch "";
+            const text = readBody(&response, arena, 1 << 20) catch "";
             std.log.err("LLM API error {d}: {s}", .{ @intFromEnum(response.head.status), text });
             return error.ApiError;
         }
 
-        var transfer_buf: [8192]u8 = undefined;
-        const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(8 << 20)) catch return error.RequestFailed;
-        return text;
+        return readBody(&response, arena, 8 << 20) catch return error.RequestFailed;
     }
+}
+
+/// Reads a response body, transparently decompressing it if the server sent
+/// `Content-Encoding: gzip`/`deflate` (`std.http.Client` negotiates these by
+/// default but `Response.reader` alone returns the *compressed* bytes --
+/// real providers like OpenRouter/Gemini do compress responses, unlike the
+/// plain-text mock servers this project's tests use, so this was a real bug
+/// caught only by testing against a live API rather than a mock).
+fn readBody(response: *std.http.Client.Response, arena: std.mem.Allocator, max_bytes: usize) ![]const u8 {
+    var transfer_buf: [8192]u8 = undefined;
+    const decompress_buffer: []u8 = switch (response.head.content_encoding) {
+        .identity => &.{},
+        .deflate, .gzip => try arena.alloc(u8, std.compress.flate.max_window_len),
+        .zstd, .compress => return error.RequestFailed, // not advertised in Accept-Encoding; shouldn't happen
+    };
+    var decompress: std.http.Decompress = undefined;
+    const reader = response.readerDecompressing(&transfer_buf, &decompress, decompress_buffer);
+    return reader.allocRemaining(arena, .limited(max_bytes));
 }
 
 /// Parses `error.details[].retryDelay` (e.g. "1.5s") from a Gemini-style

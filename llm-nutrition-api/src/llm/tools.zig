@@ -58,8 +58,19 @@ fn httpGet(env: root.Env, arena: std.mem.Allocator, url: []const u8) ToolError![
     var response = req.receiveHead(&redirect_buf) catch return error.RequestFailed;
     if (response.head.status.class() != .success) return error.HttpError;
 
+    // Real servers (DuckDuckGo, arbitrary webpages) commonly gzip-compress
+    // responses; `Response.reader` alone returns the *compressed* bytes, so
+    // this must decompress explicitly (std.http.Client negotiates
+    // gzip/deflate by default via Accept-Encoding).
     var transfer_buf: [8192]u8 = undefined;
-    return response.reader(&transfer_buf).allocRemaining(arena, .limited(MAX_RESPONSE_BYTES)) catch return error.RequestFailed;
+    const decompress_buffer: []u8 = switch (response.head.content_encoding) {
+        .identity => &.{},
+        .deflate, .gzip => try arena.alloc(u8, std.compress.flate.max_window_len),
+        .zstd, .compress => return error.RequestFailed, // not advertised in Accept-Encoding; shouldn't happen
+    };
+    var decompress: std.http.Decompress = undefined;
+    const reader = response.readerDecompressing(&transfer_buf, &decompress, decompress_buffer);
+    return reader.allocRemaining(arena, .limited(MAX_RESPONSE_BYTES)) catch return error.RequestFailed;
 }
 
 fn urlEncode(arena: std.mem.Allocator, s: []const u8) ![]const u8 {

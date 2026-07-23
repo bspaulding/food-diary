@@ -18,6 +18,7 @@ graphql-engine/db_data/
 
 # llm-nutrition-api
 llm-nutrition-api/*.gguf
+llm-nutrition-api/eval/__pycache__/
 
 # git worktrees
 .worktrees/
