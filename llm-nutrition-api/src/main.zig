@@ -183,23 +183,26 @@ fn handleUpload(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) 
         return respondUnauthorized(request);
     };
 
-    const content_type = request.head.content_type orelse return respondNotFound(request);
-    const boundary = extractBoundary(content_type) orelse return respondNotFound(request);
+    const content_type = request.head.content_type orelse
+        return respondError(request, .bad_request, "missing content-type");
+    const boundary = extractBoundary(content_type) orelse
+        return respondError(request, .bad_request, "missing multipart boundary");
 
     var body_read_buf: [8 * 1024]u8 = undefined;
     const body_reader = try request.readerExpectContinue(&body_read_buf);
     const body = try body_reader.allocRemaining(env.allocator, .limited(MAX_UPLOAD_BODY_BYTES));
 
-    const image_bytes = extractImagePart(body, boundary) orelse return respondNotFound(request);
+    const image_bytes = extractImagePart(body, boundary) orelse
+        return respondError(request, .bad_request, "missing image part");
 
     const cfg = ctx.upload_config orelse {
         std.log.err("No VLM backend configured (set LLM_API_KEY or OPENROUTER_API_KEY)", .{});
-        return respondNotFound(request);
+        return respondError(request, .internal_server_error, "no backend configured");
     };
 
     const facts = openrouter.infer(cfg, env, image_bytes) catch |err| {
         std.log.err("LLM API VLM failed: {s}", .{@errorName(err)});
-        return respondNotFound(request);
+        return respondError(request, .internal_server_error, "upload failed");
     };
 
     const body_json = try std.json.Stringify.valueAlloc(env.allocator, .{ .image = facts }, .{});
@@ -263,7 +266,6 @@ fn respondNotFound(request: *std.http.Server.Request) !void {
         .keep_alive = false,
         .extra_headers = &.{
             .{ .name = "content-type", .value = "application/json" },
-            .{ .name = "www-authenticate", .value = "" },
         },
     });
 }

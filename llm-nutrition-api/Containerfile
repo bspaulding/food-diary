@@ -37,7 +37,12 @@ RUN zig build exe -Doptimize=ReleaseFast
 # package manager, no libc -- a meaningfully smaller image and attack
 # surface than a full Debian userland, at the cost of no in-container shell
 # for `kubectl exec`-style debugging.
-FROM gcr.io/distroless/static-debian13:latest AS runtime
+#
+# Pinned by digest (not :latest) so this build is reproducible the same way
+# the builder stage's Zig download is (exact version + checksum) -- resolve
+# a newer digest with:
+#   docker buildx imagetools inspect gcr.io/distroless/static-debian13:latest
+FROM gcr.io/distroless/static-debian13@sha256:9197324ba51d9cd071af8505989365c006adf9d6d2067eada25aef00abbb5278 AS runtime
 
 WORKDIR /app
 

@@ -3,6 +3,11 @@ const Env = @import("llm_nutrition_api").Env;
 
 pub const DEFAULT_AUDIENCE = "https://direct-satyr-14.hasura.app/v1/graphql";
 
+/// Tolerates small clock drift between this service and the token issuer
+/// (Auth0) so a token right at its expiry boundary isn't spuriously
+/// rejected -- 60s is a common default leeway across JWT libraries.
+const EXP_LEEWAY_SECONDS: i64 = 60;
+
 pub const AuthError = error{
     MalformedToken,
     UnexpectedAlgorithm,
@@ -87,7 +92,7 @@ pub fn validateJwt(
             .float => |f| @intFromFloat(f),
             else => return error.InvalidPayload,
         };
-        if (exp < std.Io.Clock.real.now(env.io).toSeconds()) return error.TokenExpired;
+        if (exp + EXP_LEEWAY_SECONDS < std.Io.Clock.real.now(env.io).toSeconds()) return error.TokenExpired;
     }
 
     if (!audMatches(payload_parsed.value, audience)) return error.AudienceMismatch;
