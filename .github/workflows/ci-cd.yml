@@ -7,8 +7,6 @@ on:
       - "web-v*"
       - "graphql-engine-v*"
       - "llm-nutrition-api-v*"
-      - "nutrition-fact-labeller-v*"
-      - "nutrition-fact-labeller-zig-v*"
       - "mcp-server-v*"
   pull_request:
 
@@ -22,8 +20,6 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
       graphql_engine: ${{ steps.filter.outputs.graphql_engine }}
       llm_nutrition_api: ${{ steps.filter.outputs.llm_nutrition_api }}
-      nutrition_fact_labeller: ${{ steps.filter.outputs.nutrition_fact_labeller }}
-      nutrition_fact_labeller_zig: ${{ steps.filter.outputs.nutrition_fact_labeller_zig }}
       mcp_server: ${{ steps.filter.outputs.mcp_server }}
       ios: ${{ steps.filter.outputs.ios }}
     steps:
@@ -39,10 +35,6 @@ jobs:
               - "graphql-engine/**"
             llm_nutrition_api:
               - "llm-nutrition-api/**"
-            nutrition_fact_labeller:
-              - "nutrition-fact-labeller/**"
-            nutrition_fact_labeller_zig:
-              - "nutrition-fact-labeller-zig/**"
             mcp_server:
               - "mcp-server/**"
             ios:
@@ -194,80 +186,6 @@ jobs:
     defaults:
       run:
         working-directory: llm-nutrition-api
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            llm-nutrition-api/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('llm-nutrition-api/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Run tests
-        run: cargo test
-
-  test-nutrition-fact-labeller:
-    needs: changes
-    if: |
-      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
-      needs.changes.outputs.nutrition_fact_labeller == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: nutrition-fact-labeller
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            nutrition-fact-labeller/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('nutrition-fact-labeller/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Cache paddleocr models
-        id: cache-paddleocr-models
-        uses: actions/cache@v4
-        with:
-          path: nutrition-fact-labeller/paddleocr-models
-          key: paddleocr-models-v0.1.0
-
-      - name: Download paddleocr models
-        if: steps.cache-paddleocr-models.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p paddleocr-models
-          curl -L --output paddleocr-models/ppocrv4_mobile_det.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/ppocrv4_mobile_det.onnx
-          curl -L --output paddleocr-models/en_ppocrv4_mobile_rec.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_ppocrv4_mobile_rec.onnx
-          curl -L --output paddleocr-models/en_dict.txt https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/en_dict.txt
-          curl -L --output paddleocr-models/pplcnet_x1_0_doc_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_doc_ori.onnx
-          curl -L --output paddleocr-models/pplcnet_x1_0_textline_ori.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/pplcnet_x1_0_textline_ori.onnx
-          curl -L --output paddleocr-models/uvdoc.onnx https://github.com/GreatV/oar-ocr/releases/download/v0.1.0/uvdoc.onnx
-
-      - name: Run tests
-        run: cargo test
-
-  test-nutrition-fact-labeller-zig:
-    needs: changes
-    if: |
-      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
-      needs.changes.outputs.nutrition_fact_labeller_zig == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: nutrition-fact-labeller-zig
     env:
       ZIG_VERSION: "0.16.0"
     steps:
@@ -364,36 +282,6 @@ jobs:
       file: llm-nutrition-api/Containerfile
     secrets: inherit
 
-  publish-nutrition-fact-labeller:
-    needs: [changes, test-nutrition-fact-labeller]
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.nutrition_fact_labeller == 'true'
-    permissions:
-      packages: write
-      contents: read
-      attestations: write
-      id-token: write
-    uses: ./.github/workflows/publish-image.yml
-    with:
-      component: nutrition-fact-labeller
-      context: nutrition-fact-labeller
-      file: nutrition-fact-labeller/Containerfile
-    secrets: inherit
-
-  publish-nutrition-fact-labeller-zig:
-    needs: [changes, test-nutrition-fact-labeller-zig]
-    if: github.ref == 'refs/heads/main' && needs.changes.outputs.nutrition_fact_labeller_zig == 'true'
-    permissions:
-      packages: write
-      contents: read
-      attestations: write
-      id-token: write
-    uses: ./.github/workflows/publish-image.yml
-    with:
-      component: nutrition-fact-labeller-zig
-      context: nutrition-fact-labeller-zig
-      file: nutrition-fact-labeller-zig/Containerfile
-    secrets: inherit
-
   publish-mcp-server:
     needs: [changes, test-mcp-server]
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.mcp_server == 'true'
@@ -448,22 +336,3 @@ jobs:
       component: llm-nutrition-api
     secrets: inherit
 
-  retag-nutrition-fact-labeller:
-    if: startsWith(github.ref, 'refs/tags/nutrition-fact-labeller-v')
-    permissions:
-      packages: write
-      contents: read
-    uses: ./.github/workflows/retag-image.yml
-    with:
-      component: nutrition-fact-labeller
-    secrets: inherit
-
-  retag-nutrition-fact-labeller-zig:
-    if: startsWith(github.ref, 'refs/tags/nutrition-fact-labeller-zig-v')
-    permissions:
-      packages: write
-      contents: read
-    uses: ./.github/workflows/retag-image.yml
-    with:
-      component: nutrition-fact-labeller-zig
-    secrets: inherit

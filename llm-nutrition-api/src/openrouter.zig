@@ -1,6 +1,7 @@
 const std = @import("std");
-const root = @import("nutrition_fact_labeller");
+const root = @import("llm_nutrition_api");
 const vlm = root.vlm;
+const http = @import("llm/http.zig");
 
 const MAX_TOKENS: u32 = 512;
 const MAX_RETRIES: u32 = 8;
@@ -29,12 +30,8 @@ pub const LlmApiBackend = struct {
     }
 
     pub const InferError = error{
-        LlmApiRequestFailed,
-        RateLimitExceeded,
-        LlmApiError,
-        MissingContent,
         InvalidVlmJson,
-    } || std.mem.Allocator.Error;
+    } || http.ChatError;
 
     pub fn infer(self: *const LlmApiBackend, env: root.Env, image_bytes: []const u8) !root.ParsedNutritionFacts {
         var arena_state = std.heap.ArenaAllocator.init(env.allocator);
@@ -47,62 +44,8 @@ pub const LlmApiBackend = struct {
         const data_url = try std.fmt.allocPrint(arena, "data:image/jpeg;base64,{s}", .{b64});
 
         const body_json = try buildRequestBody(arena, self.model, data_url);
-
-        const endpoint = try std.fmt.allocPrint(arena, "{s}/chat/completions", .{self.base_url});
-        const uri = std.Uri.parse(endpoint) catch return error.LlmApiRequestFailed;
-        const auth_header = try std.fmt.allocPrint(arena, "Bearer {s}", .{self.api_key});
-
-        var client = std.http.Client{ .allocator = arena, .io = env.io };
-        defer client.deinit();
-
-        var attempt: u32 = 0;
-        while (true) {
-            var req = client.request(.POST, uri, .{
-                .headers = .{
-                    .content_type = .{ .override = "application/json" },
-                    .authorization = .{ .override = auth_header },
-                },
-            }) catch return error.LlmApiRequestFailed;
-            defer req.deinit();
-
-            req.sendBodyComplete(body_json) catch return error.LlmApiRequestFailed;
-
-            var redirect_buf: [4096]u8 = undefined;
-            var response = req.receiveHead(&redirect_buf) catch return error.LlmApiRequestFailed;
-
-            if (response.head.status == .too_many_requests) {
-                if (attempt >= MAX_RETRIES) return error.RateLimitExceeded;
-
-                var retry_after_secs: ?u64 = null;
-                var it = response.head.iterateHeaders();
-                while (it.next()) |h| {
-                    if (std.ascii.eqlIgnoreCase(h.name, "retry-after")) {
-                        retry_after_secs = std.fmt.parseInt(u64, h.value, 10) catch null;
-                    }
-                }
-
-                var transfer_buf: [4096]u8 = undefined;
-                const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(1 << 20)) catch "";
-                const body_secs = parseRetryDelaySeconds(text);
-                const delay_secs = retry_after_secs orelse body_secs orelse (@as(u64, 1) << @intCast(@min(attempt, 32)));
-                std.log.warn("LLM API 429, retrying in {d}s", .{delay_secs});
-                std.Io.sleep(env.io, .fromSeconds(@intCast(delay_secs)), .awake) catch {};
-                attempt += 1;
-                continue;
-            }
-
-            if (response.head.status.class() != .success) {
-                var transfer_buf: [4096]u8 = undefined;
-                const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(1 << 20)) catch "";
-                std.log.err("LLM API error {d}: {s}", .{ @intFromEnum(response.head.status), text });
-                return error.LlmApiError;
-            }
-
-            var transfer_buf: [8192]u8 = undefined;
-            const text = response.reader(&transfer_buf).allocRemaining(arena, .limited(8 << 20)) catch
-                return error.LlmApiRequestFailed;
-            return parseInferenceResponse(env.allocator, arena, text);
-        }
+        const text = try http.postChatCompletion(env, arena, self.base_url, self.api_key, body_json, MAX_RETRIES);
+        return parseInferenceResponse(env.allocator, arena, text);
     }
 };
 
@@ -138,24 +81,6 @@ fn buildRequestBody(arena: std.mem.Allocator, model: []const u8, data_url: []con
     return std.json.Stringify.valueAlloc(arena, std.json.Value{ .object = body }, .{});
 }
 
-/// Parses `error.details[].retryDelay` (e.g. "1.5s") from a Gemini-style error
-/// body, mirroring the Rust original's fallback for OpenRouter's 429 payload.
-fn parseRetryDelaySeconds(text: []const u8) ?u64 {
-    var scratch = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer scratch.deinit();
-    const parsed = std.json.parseFromSlice(std.json.Value, scratch.allocator(), text, .{}) catch return null;
-    const err_obj = (parsed.value.object.get("error") orelse return null).object;
-    const details = (err_obj.get("details") orelse return null).array;
-    for (details.items) |detail| {
-        if (detail != .object) continue;
-        const retry_delay = detail.object.get("retryDelay") orelse continue;
-        if (retry_delay != .string) continue;
-        const trimmed = std.mem.trimEnd(u8, retry_delay.string, "s");
-        return std.fmt.parseInt(u64, trimmed, 10) catch continue;
-    }
-    return null;
-}
-
 /// Parses `choices[0].message.content` out of an OpenAI-compatible chat
 /// completions response, then extracts and parses the JSON nutrition facts
 /// object it contains. `result_allocator` backs the returned value (which
@@ -163,13 +88,7 @@ fn parseRetryDelaySeconds(text: []const u8) ?u64 {
 /// original's error-context pattern and leaves room for future string fields).
 fn parseInferenceResponse(result_allocator: std.mem.Allocator, arena: std.mem.Allocator, text: []const u8) !root.ParsedNutritionFacts {
     _ = result_allocator;
-    var parsed = std.json.parseFromSlice(std.json.Value, arena, text, .{}) catch return error.MissingContent;
-    const choices = (parsed.value.object.get("choices") orelse return error.MissingContent);
-    if (choices != .array or choices.array.items.len == 0) return error.MissingContent;
-    const message = (choices.array.items[0].object.get("message") orelse return error.MissingContent);
-    const content_val = (message.object.get("content") orelse return error.MissingContent);
-    if (content_val != .string) return error.MissingContent;
-    const content = std.mem.trim(u8, content_val.string, " \t\r\n");
+    const content = try http.extractContent(arena, text);
 
     const json_str = vlm.extractJson(content) orelse content;
     const facts_parsed = std.json.parseFromSlice(root.ParsedNutritionFacts, arena, json_str, .{ .ignore_unknown_fields = true }) catch |err| {
@@ -191,17 +110,6 @@ test "parseInferenceResponse extracts nutrition facts from chat completion conte
     try std.testing.expectEqual(@as(?i32, 110), facts.calories);
     try std.testing.expectEqual(@as(?f64, 3.0), facts.protein_g);
     try std.testing.expectEqual(@as(?f64, null), facts.sodium_mg);
-}
-
-test "parseRetryDelaySeconds reads Gemini-style retryDelay" {
-    const body =
-        \\{"error": {"details": [{"retryDelay": "3s"}]}}
-    ;
-    try std.testing.expectEqual(@as(?u64, 3), parseRetryDelaySeconds(body));
-}
-
-test "parseRetryDelaySeconds returns null when absent" {
-    try std.testing.expectEqual(@as(?u64, null), parseRetryDelaySeconds("{}"));
 }
 
 const MockCtx = struct {

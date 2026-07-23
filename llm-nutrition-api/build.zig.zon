@@ -1,6 +1,6 @@
 .{
-    .name = .nutrition_fact_labeller_zig,
-    .fingerprint = 0xb36a38f4afe03028,
+    .name = .llm_nutrition_api,
+    .fingerprint = 0x521b471e2dc28ac3,
     .version = "0.1.0",
     .minimum_zig_version = "0.16.0",
     .paths = .{

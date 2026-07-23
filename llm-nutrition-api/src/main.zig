@@ -1,10 +1,17 @@
 const std = @import("std");
-const root = @import("nutrition_fact_labeller");
+const root = @import("llm_nutrition_api");
 const auth = @import("auth.zig");
-const openrouter = @import("vlm/openrouter.zig");
+const openrouter = @import("openrouter.zig");
+const agent = @import("llm/agent.zig");
 const net = std.Io.net;
 
-const MAX_BODY_BYTES: usize = 50 * 1024 * 1024;
+const MAX_UPLOAD_BODY_BYTES: usize = 50 * 1024 * 1024;
+const MAX_LOOKUP_BODY_BYTES: usize = 16 * 1024;
+
+var next_request_id = std.atomic.Value(u64).init(1);
+fn nextRequestId() u64 {
+    return next_request_id.fetchAdd(1, .monotonic);
+}
 
 // std.log's level filtering (the `logEnabled` check in std/log.zig) happens
 // at comptime against `std_options.log_level`, so it can't be changed at
@@ -61,6 +68,7 @@ const ConnCtx = struct {
     io: std.Io,
     environ: *const std.process.Environ.Map,
     backend: ?openrouter.LlmApiBackend,
+    agent_config: ?agent.Config,
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -80,22 +88,39 @@ pub fn main(init: std.process.Init) !void {
     };
 
     // Prefer the OpenRouter/API backend (Gemma-4-31B by default, see
-    // vlm/openrouter.zig's DEFAULT_MODEL/DEFAULT_BASE_URL) if configured.
+    // openrouter.zig's DEFAULT_MODEL/DEFAULT_BASE_URL) for /upload, and
+    // the Gemini backend (see llm/agent.zig's DEFAULT_MODEL/DEFAULT_BASE_URL)
+    // for /lookup, if configured.
     //
-    // Unlike the Rust original, this port has no local llama.cpp fallback:
-    // that backend binds to llama.cpp/mtmd's C++ API through Rust's
-    // llama-cpp-2 crate, which would mean hand-writing untested C bindings
-    // and a batch/sampling loop with no way to verify correctness in this
-    // environment. The OpenRouter backend is the documented operational
-    // default in the original (100% on its 33-image eval), so it's the one
-    // ported here; requests fail loudly if it isn't configured.
+    // Unlike the Rust originals, this port has no local llama.cpp fallback
+    // for either endpoint: that backend binds to llama.cpp/mtmd's C++ API
+    // through Rust's llama-cpp-2 crate, which would mean hand-writing
+    // untested C bindings and a batch/sampling loop with no way to verify
+    // correctness in this environment. The hosted API backend was each
+    // original's documented operational default (100% on the vision
+    // endpoint's 33-image eval), so that's what's ported here; requests
+    // fail loudly if no backend is configured.
+    //
+    // LLM_MODEL/LLM_BASE_URL (or their OPENROUTER_* fallbacks), if set,
+    // override *both* endpoints' model choice at once -- a deliberate
+    // simplification now that they share one process/deployment, instead
+    // of each endpoint's independently-tuned default.
     const api_key = getEnvAny(init.environ_map, &.{ "LLM_API_KEY", "OPENROUTER_API_KEY" });
+    const model_override = getEnvAny(init.environ_map, &.{ "LLM_MODEL", "OPENROUTER_MODEL" });
+    const base_url_override = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" });
+
     var backend: ?openrouter.LlmApiBackend = null;
+    var agent_config: ?agent.Config = null;
     if (api_key) |key| {
-        const model = getEnvAny(init.environ_map, &.{ "LLM_MODEL", "OPENROUTER_MODEL" }) orelse openrouter.DEFAULT_MODEL;
-        const base_url = getEnvAny(init.environ_map, &.{ "LLM_BASE_URL", "OPENROUTER_BASE_URL" }) orelse openrouter.DEFAULT_BASE_URL;
-        backend = openrouter.LlmApiBackend.withBaseUrl(key, model, base_url);
-        std.log.info("LLM API VLM backend enabled with model {s}", .{model});
+        const vlm_model = model_override orelse openrouter.DEFAULT_MODEL;
+        const vlm_base_url = base_url_override orelse openrouter.DEFAULT_BASE_URL;
+        backend = openrouter.LlmApiBackend.withBaseUrl(key, vlm_model, vlm_base_url);
+        std.log.info("LLM API VLM backend enabled with model {s}", .{vlm_model});
+
+        const lookup_model = model_override orelse agent.DEFAULT_MODEL;
+        const lookup_base_url = base_url_override orelse agent.DEFAULT_BASE_URL;
+        agent_config = agent.Config{ .api_key = key, .model = lookup_model, .base_url = lookup_base_url };
+        std.log.info("LLM API lookup agent enabled with model {s}", .{lookup_model});
     } else {
         std.log.info("LLM API disabled (set LLM_API_KEY or OPENROUTER_API_KEY to enable)", .{});
     }
@@ -104,7 +129,7 @@ pub fn main(init: std.process.Init) !void {
     var net_server = try addr.listen(io, .{ .reuse_address = true });
     std.log.info("running and listening on {d}", .{port});
 
-    const ctx = ConnCtx{ .io = io, .environ = init.environ_map, .backend = backend };
+    const ctx = ConnCtx{ .io = io, .environ = init.environ_map, .backend = backend, .agent_config = agent_config };
 
     while (true) {
         const stream = net_server.accept(io) catch |err| {
@@ -144,10 +169,18 @@ fn handleConnection(stream: net.Stream, ctx: ConnCtx) void {
 }
 
 fn handleRequest(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) !void {
-    if (request.head.method != .POST or !std.mem.eql(u8, request.head.target, "/label")) {
-        return respondNotFound(request);
-    }
+    if (request.head.method != .POST) return respondNotFound(request);
 
+    if (std.mem.eql(u8, request.head.target, "/upload")) {
+        return handleUpload(ctx, env, request);
+    }
+    if (std.mem.eql(u8, request.head.target, "/lookup")) {
+        return handleLookup(ctx, env, request);
+    }
+    return respondNotFound(request);
+}
+
+fn handleUpload(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) !void {
     checkAuth(ctx, env, request) catch |err| {
         std.log.warn("JWT validation failed: {s}", .{@errorName(err)});
         return respondUnauthorized(request);
@@ -158,12 +191,12 @@ fn handleRequest(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request)
 
     var body_read_buf: [8 * 1024]u8 = undefined;
     const body_reader = try request.readerExpectContinue(&body_read_buf);
-    const body = try body_reader.allocRemaining(env.allocator, .limited(MAX_BODY_BYTES));
+    const body = try body_reader.allocRemaining(env.allocator, .limited(MAX_UPLOAD_BODY_BYTES));
 
     const image_bytes = extractImagePart(body, boundary) orelse return respondNotFound(request);
 
     const bk = ctx.backend orelse {
-        std.log.err("No VLM backend configured (set OPENROUTER_API_KEY)", .{});
+        std.log.err("No VLM backend configured (set LLM_API_KEY or OPENROUTER_API_KEY)", .{});
         return respondNotFound(request);
     };
 
@@ -173,6 +206,48 @@ fn handleRequest(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request)
     };
 
     const body_json = try std.json.Stringify.valueAlloc(env.allocator, .{ .image = facts }, .{});
+
+    try request.respond(body_json, .{
+        .keep_alive = false,
+        .extra_headers = &.{
+            .{ .name = "content-type", .value = "application/json" },
+        },
+    });
+}
+
+const LookupRequest = struct { description: []const u8 };
+
+fn handleLookup(ctx: ConnCtx, env: root.Env, request: *std.http.Server.Request) !void {
+    checkAuth(ctx, env, request) catch |err| {
+        std.log.warn("JWT validation failed: {s}", .{@errorName(err)});
+        return respondUnauthorized(request);
+    };
+
+    var body_read_buf: [8 * 1024]u8 = undefined;
+    const body_reader = try request.readerExpectContinue(&body_read_buf);
+    const body = try body_reader.allocRemaining(env.allocator, .limited(MAX_LOOKUP_BODY_BYTES));
+
+    const parsed = std.json.parseFromSlice(LookupRequest, env.allocator, body, .{ .ignore_unknown_fields = true }) catch {
+        return respondError(request, .bad_request, "invalid request body");
+    };
+
+    const cfg = ctx.agent_config orelse {
+        std.log.err("No LLM backend configured (set LLM_API_KEY or OPENROUTER_API_KEY)", .{});
+        return respondError(request, .internal_server_error, "no backend configured");
+    };
+
+    const request_id = nextRequestId();
+    std.log.info("[{d}] Lookup request: {s}", .{ request_id, parsed.value.description });
+    const started = std.Io.Clock.real.now(env.io);
+
+    const item = agent.runAgent(env, cfg, request_id, parsed.value.description) catch |err| {
+        std.log.err("[{d}] Lookup failed: {s}", .{ request_id, @errorName(err) });
+        return respondError(request, .internal_server_error, "lookup failed");
+    };
+    const elapsed_secs = std.Io.Clock.real.now(env.io).toSeconds() - started.toSeconds();
+    std.log.info("[{d}] Lookup succeeded ({d}s)", .{ request_id, elapsed_secs });
+
+    const body_json = try std.json.Stringify.valueAlloc(env.allocator, .{ .item = item }, .{});
 
     try request.respond(body_json, .{
         .keep_alive = false,
@@ -200,6 +275,18 @@ fn respondUnauthorized(request: *std.http.Server.Request) !void {
         .extra_headers = &.{
             .{ .name = "content-type", .value = "application/json" },
             .{ .name = "www-authenticate", .value = "Bearer" },
+        },
+    });
+}
+
+fn respondError(request: *std.http.Server.Request, status: std.http.Status, message: []const u8) !void {
+    var buf: [256]u8 = undefined;
+    const body = std.fmt.bufPrint(&buf, "{{\"error\":\"{s}\"}}", .{message}) catch "{\"error\":\"error\"}";
+    try request.respond(body, .{
+        .status = status,
+        .keep_alive = false,
+        .extra_headers = &.{
+            .{ .name = "content-type", .value = "application/json" },
         },
     });
 }

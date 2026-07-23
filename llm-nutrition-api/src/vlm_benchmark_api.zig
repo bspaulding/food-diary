@@ -1,6 +1,6 @@
 const std = @import("std");
-const root = @import("nutrition_fact_labeller");
-const openrouter = @import("vlm/openrouter.zig");
+const root = @import("llm_nutrition_api");
+const openrouter = @import("openrouter.zig");
 
 const BASELINE_PASS: usize = 9;
 const BASELINE_TOTAL: usize = 33;

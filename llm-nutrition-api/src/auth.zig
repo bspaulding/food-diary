@@ -1,5 +1,5 @@
 const std = @import("std");
-const Env = @import("nutrition_fact_labeller").Env;
+const Env = @import("llm_nutrition_api").Env;
 
 pub const DEFAULT_AUDIENCE = "https://direct-satyr-14.hasura.app/v1/graphql";
 

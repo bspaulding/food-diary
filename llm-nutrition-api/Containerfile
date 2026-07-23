@@ -1,23 +1,31 @@
 # =========================
 # 0. Builder stage
 # =========================
-FROM public.ecr.aws/docker/library/rust:1.95-bookworm AS builder
+FROM public.ecr.aws/docker/library/debian:bookworm-slim AS builder
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    xz-utils \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG ZIG_VERSION=0.16.0
+ARG ZIG_SHA256=70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+RUN curl -fL -o /tmp/zig.tar.xz \
+      "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" \
+    && echo "${ZIG_SHA256}  /tmp/zig.tar.xz" | sha256sum -c - \
+    && tar -xf /tmp/zig.tar.xz -C /usr/local \
+    && mv "/usr/local/zig-x86_64-linux-${ZIG_VERSION}" /usr/local/zig \
+    && rm /tmp/zig.tar.xz
+ENV PATH="/usr/local/zig:${PATH}"
 
 WORKDIR /app
 
-# cmake and libclang-dev are required by the llama-cpp-2 build script (compiles llama.cpp via bindgen)
-RUN apt-get update && apt-get install -y \
-    cmake \
-    libclang-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Cache dependency compilation separately from application source
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release && rm -rf src
-
+# Copy build manifests first (for caching), then source.
+COPY build.zig build.zig.zon ./
 COPY src ./src
-RUN touch src/main.rs && cargo build --release
+
+RUN zig build -Doptimize=ReleaseFast
 
 # =========================
 # 1. Runtime stage
@@ -26,16 +34,11 @@ FROM public.ecr.aws/docker/library/debian:bookworm-slim AS runtime
 
 WORKDIR /app
 
-# libstdc++6 and libgomp1 are required by the llama.cpp shared objects
-# compiled into the binary (C++ runtime + OpenMP threading).
+# ca-certificates: needed for TLS to the OpenRouter API.
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    libstdc++6 \
-    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/llm-nutrition-api /usr/local/bin/llm-nutrition-api
-
-ENV PORT=3031
+COPY --from=builder /app/zig-out/bin/llm-nutrition-api /usr/local/bin/llm-nutrition-api
 
 ENTRYPOINT ["llm-nutrition-api"]

@@ -3,6 +3,28 @@ const std = @import("std");
 pub const vlm = @import("vlm.zig");
 pub const Env = @import("env.zig").Env;
 
+/// Result schema for `POST /lookup` (text-based nutrition estimation/lookup).
+/// Field names and units intentionally differ from `ParsedNutritionFacts`
+/// (full words `_milligrams`/`_grams`, singular `carbohydrate`) — both web
+/// and iOS clients hardcode these exact names, so the two schemas must stay
+/// distinct rather than being unified during the merge.
+pub const NutritionItem = struct {
+    description: []const u8 = "",
+    calories: f64 = 0,
+    total_fat_grams: f64 = 0,
+    saturated_fat_grams: f64 = 0,
+    trans_fat_grams: f64 = 0,
+    polyunsaturated_fat_grams: f64 = 0,
+    monounsaturated_fat_grams: f64 = 0,
+    cholesterol_milligrams: f64 = 0,
+    sodium_milligrams: f64 = 0,
+    total_carbohydrate_grams: f64 = 0,
+    dietary_fiber_grams: f64 = 0,
+    total_sugars_grams: f64 = 0,
+    added_sugars_grams: f64 = 0,
+    protein_grams: f64 = 0,
+};
+
 pub const ParsedNutritionFacts = struct {
     servings_per_container: ?f64 = null,
     serving_size_grams: ?f64 = null,
