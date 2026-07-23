@@ -3,11 +3,12 @@
 Eval runner for the LLM nutrition agent.
 
 Usage:
-    # Start the service first:
-    GEMMA_MODEL_PATH=/path/to/model.gguf cargo run --manifest-path ../Cargo.toml
+    # Start the service first (see llm-nutrition-api/README.md for env vars):
+    LLM_API_KEY=sk-or-v1-... HASURA_GRAPHQL_JWT_SECRET='{"key": "..."}' zig build run
 
-    # Then run evals:
-    python3 run_evals.py [--url http://localhost:3031] [--output results/]
+    # Then run evals. /lookup requires a valid Auth0 RS256 Bearer token,
+    # same as production -- pass one via --token or LLM_NUTRITION_API_EVAL_TOKEN.
+    python3 run_evals.py --token <jwt> [--url http://localhost:3030] [--output results/]
 """
 
 import argparse
@@ -25,13 +26,16 @@ def load_dataset(path: str) -> dict:
         return json.load(f)
 
 
-def call_lookup(base_url: str, query: str) -> dict:
+def call_lookup(base_url: str, query: str, token: str | None) -> dict:
     import urllib.request
     payload = json.dumps({"description": query}).encode()
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(
         f"{base_url}/lookup",
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=300) as resp:
@@ -70,7 +74,7 @@ def score_case(predicted: dict, ground_truth: dict, tolerances: dict) -> dict:
     return {"errors": errors, "within_tolerance": within_tolerance}
 
 
-def run_evals(base_url: str, dataset_path: str, output_dir: str) -> None:
+def run_evals(base_url: str, dataset_path: str, output_dir: str, token: str | None) -> None:
     dataset = load_dataset(dataset_path)
     cases = dataset["cases"]
 
@@ -79,7 +83,7 @@ def run_evals(base_url: str, dataset_path: str, output_dir: str) -> None:
         print(f"[{i+1}/{len(cases)}] {case['id']}: {case['query'][:60]}", flush=True)
         start = time.time()
         try:
-            predicted = call_lookup(base_url, case["query"])
+            predicted = call_lookup(base_url, case["query"], token)
             elapsed = time.time() - start
             scored = score_case(predicted, case["ground_truth"], case.get("tolerances", {}))
             results.append({
@@ -197,9 +201,9 @@ def write_report(path: str, today: str, base_url: str, cases: list, results: lis
         "",
         "```bash",
         "# From the llm-nutrition-api/ directory:",
-        "GEMMA_MODEL_PATH=/path/to/gemma-4-E2B-it-Q5_K_M.gguf cargo run &",
-        "sleep 5  # wait for model to load",
-        "python3 eval/run_evals.py --url http://localhost:3031 --output eval/results/",
+        "LLM_API_KEY=sk-or-v1-... HASURA_GRAPHQL_JWT_SECRET='{\"key\": \"...\"}' zig build run &",
+        "sleep 1",
+        "python3 eval/run_evals.py --token <a valid Auth0 RS256 Bearer token> --output eval/results/",
         "```",
     ]
 
@@ -209,8 +213,10 @@ def write_report(path: str, today: str, base_url: str, cases: list, results: lis
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url", default="http://localhost:3031", help="Base URL of the running service")
+    parser.add_argument("--url", default="http://localhost:3030", help="Base URL of the running service")
     parser.add_argument("--dataset", default=os.path.join(os.path.dirname(__file__), "dataset.json"))
     parser.add_argument("--output", default=os.path.join(os.path.dirname(__file__), "results"))
+    parser.add_argument("--token", default=os.environ.get("LLM_NUTRITION_API_EVAL_TOKEN"),
+                         help="Bearer token for the auth-protected /lookup endpoint")
     args = parser.parse_args()
-    run_evals(args.url, args.dataset, args.output)
+    run_evals(args.url, args.dataset, args.output, args.token)

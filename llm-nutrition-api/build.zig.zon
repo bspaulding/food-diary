@@ -1,0 +1,11 @@
+.{
+    .name = .llm_nutrition_api,
+    .fingerprint = 0x521b471e2dc28ac3,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.16.0",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

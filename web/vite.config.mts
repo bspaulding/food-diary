@@ -5,10 +5,13 @@ import tailwindcss from "@tailwindcss/vite";
 
 const useLocalHasura: boolean =
   process.env.FOOD_DIARY_USE_LOCAL_HASURA === "true";
-const useLocalLabeller: boolean =
-  process.env.FOOD_DIARY_USE_LOCAL_LABELLER === "true";
-const useLocalLLM: boolean = process.env.FOOD_DIARY_USE_LOCAL_LLM === "true";
-console.log({ useLocalHasura, useLocalLabeller, useLocalLLM });
+// nutrition-fact-labeller and llm-nutrition-api were merged into one Zig
+// service (llm-nutrition-api) exposing both /upload and /lookup, so one
+// flag now controls both proxy targets below instead of two independent
+// ones.
+const useLocalLlmNutritionApi: boolean =
+  process.env.FOOD_DIARY_USE_LOCAL_LLM_NUTRITION_API === "true";
+console.log({ useLocalHasura, useLocalLlmNutritionApi });
 
 export default defineConfig({
   plugins: [tailwindcss(), solidPlugin(), basicSsl()],
@@ -25,15 +28,15 @@ export default defineConfig({
         rewrite: (path: string) => path.replace(/^\/api/, ""),
       },
       "/labeller": {
-        target: useLocalLabeller
+        target: useLocalLlmNutritionApi
           ? "http://localhost:3030"
           : "https://food-diary.motingo.com/labeller/",
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/labeller/, ""),
       },
       "/llm": {
-        target: useLocalLLM
-          ? "http://localhost:3031"
+        target: useLocalLlmNutritionApi
+          ? "http://localhost:3030"
           : "https://food-diary.motingo.com/llm/",
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/llm/, ""),

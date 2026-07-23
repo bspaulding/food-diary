@@ -1,66 +1,175 @@
 # llm-nutrition-api
 
-A Rust/Warp HTTP service that estimates nutrition information from food descriptions using [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) via llama.cpp.
+An HTTP service with two endpoints that both proxy to hosted LLM providers (never local
+inference):
 
-## Local Development
+- `POST /upload` — parses a nutrition label image via vision-language model (VLM) inference.
+- `POST /lookup` — looks up or estimates nutrition info for a plain-text food description, using a
+  small multi-round tool-calling agent (web search + webpage reading).
 
-### Prerequisites
+Both endpoints proxy to a hosted provider (OpenRouter, Gemini, etc.) rather than running any local
+model inference — "the same shape of project, two endpoints, two prompts," which is why they live
+in a single component with a single deployment pipeline.
 
-```bash
-brew install rustup cmake
-rustup install stable
+Built against Zig **0.16.0**, using its `std.Io`-interface-based `std.http.Server`/`std.http.Client`
+and the `pub fn main(init: std.process.Init) !void` ("Juicy Main") entry point convention. Rather
+than threading the `std.Io` value through every function as its own parameter, it's bundled with
+its allocator into a small `Env` struct (`src/env.zig`) that gets passed around instead — e.g.
+`auth.validateJwt(env, token, secret, audience)` — since the two are almost always needed together.
+
+## Layout
+
+```
+src/
+  main.zig            HTTP server: routes POST /upload and POST /lookup
+  auth.zig            Auth0 RS256 JWT verification (shared by both routes)
+  root.zig            ParsedNutritionFacts (image schema) + NutritionItem (lookup schema)
+  vlm.zig             Image-labelling prompt + extractJson helper
+  openrouter.zig       OpenRouter/OpenAI-compatible VLM backend for /upload
+  vlm_benchmark_api.zig  Image-labelling eval CLI (`zig build bench`)
+  llm/
+    http.zig          Shared OpenAI-compatible chat-completions POST + 429 retry logic
+    agent.zig         /lookup's multi-round tool-calling agent + system prompt
+    tools.zig         search_web / read_webpage tools for the agent
+eval/
+  dataset.json        Ground-truth cases for /lookup
+  run_evals.py        Eval harness for /lookup (see "Evals" below)
+  results/            Historical eval run output
+images/               Test images for the /upload benchmark (~230MB, not the eval/ dataset)
+test_cases.csv        Ground-truth for the /upload benchmark
 ```
 
-### Model Setup
+## Design notes
 
-Download the model weight (3.4 GB) from Hugging Face:
+- `POST /upload`: multipart image upload → OpenRouter/OpenAI-compatible chat-completions VLM call →
+  JSON nutrition facts response. Matches the path the ingress/dev-proxy forwards after stripping
+  its `/labeller` prefix.
+- `POST /lookup`: JSON `{"description": "..."}` body → a multi-round tool-calling agent (max 5
+  rounds) → JSON `{"item": {...}}` nutrition estimate. The agent loop, its system prompt, the
+  `search_web`/`read_webpage` tool-call JSON protocol, the final-round "answer now" nudge, and the
+  429 retry/backoff behavior all live in `src/llm/agent.zig` and `src/llm/http.zig`.
+- Auth0 RS256 JWT verification (`src/auth.zig`), including the `aud` array-or-string check and the
+  `HASURA_GRAPHQL_JWT_SECRET` / `AUTH0_AUDIENCE` env vars, shared by both routes.
+- `ParsedNutritionFacts` (image schema) and `NutritionItem` (lookup schema) are kept as two
+  **distinct** types (`src/root.zig`) with their own field names/units, since both web and iOS
+  clients hardcode them exactly.
+
+**No local model inference for either endpoint.** Only hosted-provider proxying is supported.
+Requests fail loudly if no `LLM_API_KEY`/`OPENROUTER_API_KEY` is configured.
+
+**`search_web`/`read_webpage` are simplified/hand-rolled, not a general-purpose scraper.** This
+service scrapes DuckDuckGo's no-JS `html.duckduckgo.com/html/` endpoint with substring/tag scanning
+(no real HTML parser), and strips all HTML tags down to plain text for `read_webpage` rather than
+identifying "main article content." See "Known risks" below for a real limitation found while
+validating this approach.
+
+Other design notes:
+
+- **One request per connection.** The server handles one request per accepted TCP connection, then
+  closes it (`Connection: close`). Simpler connection lifecycle, fine for an internal,
+  low-concurrency service.
+- **Shared model config across both endpoints.** Both endpoints default to the same
+  OpenRouter/Gemma-4-31B backend, and an explicit `LLM_MODEL`/`LLM_BASE_URL` override applies to
+  both endpoints at once rather than being independently tunable per endpoint.
+- **JSON float formatting.** Zig's `std.json.Stringify` renders a whole-number float like `8.0` as
+  `8` rather than `8.0`. Both are valid JSON numbers and parse identically everywhere.
+- No graceful-shutdown log line on Ctrl-C (the process just exits); functionally equivalent for how
+  this runs in a container.
+
+## Build & test
 
 ```bash
-pip install huggingface_hub[cli]
-
-huggingface-cli download bartowski/google_gemma-4-E2B-it-GGUF \
-  google_gemma-4-E2B-it-Q5_K_M.gguf \
-  --local-dir /path/to/models \
-  --local-dir-use-symlinks False
+zig build            # builds bin/llm-nutrition-api and bin/vlm_benchmark_api
+zig build test       # runs all unit tests, including:
+                      #  - a full JWT verification round-trip against a real self-signed
+                      #    RSA-2048 cert (src/auth.zig)
+                      #  - a real HTTP round-trip against a mock OpenAI-compatible server
+                      #    (src/openrouter.zig, src/llm/agent.zig)
+                      #  - search_web/read_webpage HTML-scraping unit tests against both
+                      #    synthetic and real captured markup, no network calls at test time
+                      #    (src/llm/tools.zig, src/llm/testdata/)
 ```
 
-Then set `GEMMA_MODEL_PATH` in `.env` to the downloaded file path. This env var is required — the service will not start without it.
-
-If you also run `nutrition-fact-labeller` locally, both services can share the same GGUF file — just point `GEMMA_MODEL_PATH` and `VLM_MODEL_PATH` at the same path.
-
-### Run
+## Run
 
 ```bash
-cargo run
+# Hosted API backend (recommended; the only backend this service supports):
+export LLM_API_KEY=...          # or OPENROUTER_API_KEY
+# export LLM_MODEL=...          # optional, overrides BOTH endpoints' default model
+# export LLM_BASE_URL=...       # optional, overrides BOTH endpoints' default base URL
+
+# Auth (Hasura/Auth0 setup):
+export HASURA_GRAPHQL_JWT_SECRET='{"key": "-----BEGIN CERTIFICATE-----..."}'
+# export AUTH0_AUDIENCE=...     # optional, defaults to DEFAULT_AUDIENCE (src/auth.zig)
+
+zig build run
+# or: PORT=3030 ./zig-out/bin/llm-nutrition-api
 ```
 
-The service listens on port 3031 by default (override with `PORT`).
+The service listens on port 3030 by default (override with `PORT`). Log verbosity defaults to
+`info` and can be overridden at runtime with `LOG_LEVEL` (`debug`, `info`, `warn`/`warning`, or
+`error`/`err`, case-insensitive) — this is a runtime check in a custom `logFn`, not just
+`std_options.log_level`, since Zig's built-in level filtering happens at compile time and can't
+otherwise be changed per run.
 
-## API
+### `POST /upload`
+
+Accepts a multipart form upload with an `image` field, `Authorization: Bearer <Auth0 ID token>`.
+Returns extracted nutrition data as JSON: `{"image": {"calories": 110, ...}}`.
 
 ### `POST /lookup`
 
-Accepts a JSON body with a `description` field. Returns estimated nutrition data as JSON.
+Accepts `{"description": "1 cup cooked oatmeal"}`, `Authorization: Bearer <Auth0 ID token>`.
+Returns `{"item": {"description": "...", "calories": 166, ...}}` (14 fields; see
+`root.NutritionItem`).
 
-## Model Selection
+## Benchmarks
 
-Q5_K_M is recommended for production. Q4_K_M is ~17% faster but meaningfully less accurate on calories and protein.
+Two independent benchmarks, one per endpoint:
 
-Eval results across 27 cases (2026-05-13):
+### `/upload` benchmark
 
-| Macro | Q5_K_M MAE | Q4_K_M MAE |
-|---|---|---|
-| Calories | **11.9** | 17.2 |
-| Fat (g) | **0.9** | 1.2 |
-| Protein (g) | **0.8** | 2.0 |
-| Carbs (g) | 2.6 | 2.7 |
+`zig build bench -- --model <model> [--model-name <name>] [--csv <path>] [--images-dir <dir>]
+[--limit <n>]` runs the OpenRouter/API backend against the shared test suite. Requires
+`LLM_API_KEY`/`OPENROUTER_API_KEY` in the environment.
 
-| | Q5_K_M | Q4_K_M |
-|---|---|---|
-| Avg latency | 11.7s | 9.7s |
+```bash
+zig build bench -- --model google/gemma-4-31b-it:free --images-dir images
+```
 
-Q4 shows a recurring pattern of hallucinating `166` kcal for unrelated items (avocado half, CLIF Bar, raw egg), suggesting it occasionally loses context between the query and the response format. Full results in `eval/results/`.
+### `/lookup` evals
 
-## Container Image
+`eval/run_evals.py` is a Python harness that scores `/lookup` against `eval/dataset.json`'s
+ground-truth cases (calorie/macro accuracy, tolerance bands). `/lookup` requires a valid Auth0
+RS256 Bearer token, so pass one via `--token` or `LLM_NUTRITION_API_EVAL_TOKEN`. Start the service,
+then:
 
-Published to `ghcr.io/bspaulding/food-diary/llm-nutrition-api`. The model weights must be provided at runtime via `GEMMA_MODEL_PATH` — they are not baked into the image.
+```bash
+python3 eval/run_evals.py --token <jwt> --output eval/results/
+```
+
+**Run end-to-end against the real implementation** (OpenRouter/Gemma-4-31B, both endpoints'
+shared default) — see `eval/results/2026-07-23.md`: 27/27 cases succeeded, 100% of calorie/fat/carb
+predictions within tolerance, 93% of protein predictions within tolerance. This run caught a real
+bug (fixed): the HTTP client wasn't decompressing gzip-encoded response bodies, so every real
+provider response failed to parse — mock-server tests never exercised this since they don't
+compress responses. `src/llm/tools.zig`'s HTML-scraping logic was additionally validated against
+real captured HTML (not just hand-written fixtures) via `zig build test`'s fixture-based
+regression tests (`src/llm/testdata/`).
+
+## Known risks
+
+**DuckDuckGo's `html.duckduckgo.com/html/` endpoint can serve an anti-bot CAPTCHA challenge page
+instead of real results.** Observed directly during development: an isolated query (outside the
+full agent loop) got back a "Select all squares containing a duck"-style challenge page instead of
+search results — `src/llm/testdata/ddg_bot_challenge_response.html` is that actual captured
+response. In the full 27-case eval run above, `search_web` did return usable results for both
+branded-item cases (CLIF Bar, Quest Bar), so this isn't a hard block, but it's evidently
+inconsistent — this may depend on the calling IP's reputation (shared/datacenter IPs are common
+CAPTCHA targets, and a cloud k8s cluster's egress IP is a similarly plausible target) or on
+DuckDuckGo's bot-detection heuristics more generally. `search_web` degrades gracefully either way
+(`parseSearchResults` returns zero results rather than crashing, and the agent loop treats an
+empty/failed search as "estimate from nutritional knowledge instead" — see `llm/agent.zig`'s
+`runSearchWeb`), so branded-item lookups fall back to the model's own knowledge instead of
+hard-failing. If this becomes a persistent problem in production, the fix is a different search
+backend/provider, not a bigger parser.

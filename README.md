@@ -8,8 +8,7 @@ This monorepo contains three components:
 |---|---|
 | [`web/`](web/) | SolidJS frontend (TypeScript, Vite, Tailwind) |
 | [`graphql-engine/`](graphql-engine/) | Hasura GraphQL engine — migrations, metadata, and tests |
-| [`nutrition-fact-labeller/`](nutrition-fact-labeller/) | Rust/Warp OCR service — parses nutrition label images |
-| [`llm-nutrition-api/`](llm-nutrition-api/) | Rust/Warp LLM service — looks up / estimates nutrition info from text |
+| [`llm-nutrition-api/`](llm-nutrition-api/) | Zig service, two endpoints: `/upload` parses nutrition label images (VLM), `/lookup` looks up / estimates nutrition info from text (tool-calling agent). Both only ever proxy to a hosted LLM provider — no local inference. |
 
 ## Specs & planning
 
@@ -57,16 +56,17 @@ This starts all three services with proxies wired to local backends:
 |---|---|
 | `web` | https://localhost:3000 |
 | `graphql` | http://localhost:8080 |
-| `labeller` | http://localhost:3030 |
-| `llm` | http://localhost:3031 |
+| `llm-nutrition-api` | http://localhost:3030 |
 
-Vite proxies `/api/*` → Hasura and `/labeller/*` → the OCR service, mirroring the production ingress routing.
+Vite proxies `/api/*` → Hasura, and both `/labeller/*` and `/llm/*` → `llm-nutrition-api` (set
+`FOOD_DIARY_USE_LOCAL_LLM_NUTRITION_API=true` in `.env` to point them at `localhost:3030` instead
+of production), mirroring the production ingress routing.
 
 ### Useful Overmind commands
 
 ```bash
-overmind restart labeller          # restart just the Rust service
-overmind connect labeller          # attach a tmux pane for input/inspection
+overmind restart llm-nutrition-api # restart just the Zig service
+overmind connect llm-nutrition-api # attach a tmux pane for input/inspection
 overmind stop graphql              # stop a single service
 ```
 
@@ -89,7 +89,6 @@ See each component's README for full details:
 
 - [web/README.md](web/README.md)
 - [graphql-engine/README.md](graphql-engine/README.md)
-- [nutrition-fact-labeller/README.md](nutrition-fact-labeller/README.md)
 - [llm-nutrition-api/README.md](llm-nutrition-api/README.md)
 
 ## Container Images
@@ -100,5 +99,4 @@ Images are published to GHCR on every push to `main` and on version tags:
 |---|---|
 | `ghcr.io/bspaulding/food-diary/web` | `web-v1.2.3` → `:v1.2.3` |
 | `ghcr.io/bspaulding/food-diary/graphql-engine` | `graphql-engine-v1.2.3` → `:v1.2.3` |
-| `ghcr.io/bspaulding/food-diary/nutrition-fact-labeller` | `nutrition-fact-labeller-v1.2.3` → `:v1.2.3` |
 | `ghcr.io/bspaulding/food-diary/llm-nutrition-api` | `llm-nutrition-api-v1.2.3` → `:v1.2.3` |
