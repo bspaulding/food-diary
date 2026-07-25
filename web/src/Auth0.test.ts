@@ -23,10 +23,11 @@ describe("Auth0", () => {
     });
   });
 
-  it("should configure auth0 client and check authentication status when not authenticated", async () => {
+  it("should configure auth0 client and redirect to login when not authenticated", async () => {
     const mockClient = {
       isAuthenticated: vi.fn().mockResolvedValue(false),
       handleRedirectCallback: vi.fn(),
+      loginWithRedirect: vi.fn().mockResolvedValue(undefined),
     };
     vi.mocked(createAuth0Client).mockResolvedValue(mockClient as any);
 
@@ -41,6 +42,7 @@ describe("Auth0", () => {
       redirect_uri: "http://localhost:3000/auth/callback",
       cacheLocation: "localstorage",
     });
+    expect(mockClient.loginWithRedirect).toHaveBeenCalled();
     expect(authState.isAuthenticated()).toBe(false);
   });
 
@@ -57,6 +59,7 @@ describe("Auth0", () => {
     const mockClient = {
       handleRedirectCallback: vi.fn().mockResolvedValue({}),
       isAuthenticated: vi.fn().mockResolvedValue(false),
+      loginWithRedirect: vi.fn().mockResolvedValue(undefined),
     };
     vi.mocked(createAuth0Client).mockResolvedValue(mockClient as any);
 
@@ -89,5 +92,24 @@ describe("Auth0", () => {
     expect(authState.isAuthenticated()).toBe(true);
     expect(authState.user()).toEqual(mockUser);
     expect(authState.accessToken()).toBe(mockToken);
+  });
+
+  it("should redirect to login when the session looks active but the cached token is gone", async () => {
+    const mockClient = {
+      isAuthenticated: vi.fn().mockResolvedValue(true),
+      getUser: vi.fn().mockResolvedValue({ name: "Test User" }),
+      getTokenSilently: vi.fn().mockRejectedValue(new Error("login_required")),
+      handleRedirectCallback: vi.fn(),
+      loginWithRedirect: vi.fn().mockResolvedValue(undefined),
+    };
+    vi.mocked(createAuth0Client).mockResolvedValue(mockClient as any);
+
+    const [authState] = useAuth();
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockClient.loginWithRedirect).toHaveBeenCalled();
+    expect(authState.isAuthenticated()).toBe(false);
+    expect(authState.accessToken()).toBe("");
   });
 });
