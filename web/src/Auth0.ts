@@ -24,10 +24,32 @@ export function useAuth() {
       await client.handleRedirectCallback(location.href);
       navigate("/", { replace: true });
     }
-    if (setIsAuthenticated(await client.isAuthenticated())) {
-      setUser(await client.getUser());
-      setAccessToken(await client.getTokenSilently());
+
+    if (!(await client.isAuthenticated())) {
+      await client.loginWithRedirect();
+      return client;
     }
+
+    // isAuthenticated() only reflects the SDK's local session state, not
+    // whether the cached token is still usable (e.g. the refresh token
+    // expired, or third-party cookies got blocked mid-session) -- confirm
+    // getTokenSilently() actually returns one before treating the user as
+    // logged in, otherwise the app renders as authenticated while every
+    // API call fails.
+    let token: string;
+    try {
+      token = await client.getTokenSilently();
+    } catch {
+      token = "";
+    }
+    if (!token) {
+      await client.loginWithRedirect();
+      return client;
+    }
+
+    setIsAuthenticated(true);
+    setUser(await client.getUser());
+    setAccessToken(token);
     return client;
   });
 
