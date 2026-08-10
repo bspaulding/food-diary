@@ -58,6 +58,9 @@ app.get("/.well-known/oauth-authorization-server", (_req, res) => {
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     code_challenge_methods_supported: ["S256"],
+    // RFC 9207: we stamp `iss` on every redirect back to the client, so
+    // clients can skip issuer discovery and validate it directly.
+    authorization_response_iss_parameter_supported: true,
   });
 });
 
@@ -110,7 +113,7 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
 
   if (error) {
     logger.warn("callback: auth0 error", { error, error_description });
-    const p = new URLSearchParams({ error, error_description: error_description ?? error });
+    const p = new URLSearchParams({ error, error_description: error_description ?? error, iss: BASE_URL });
     if (pending.clientState) p.set("state", pending.clientState);
     res.redirect(`${pending.clientRedirectUri}?${p.toString()}`);
     return;
@@ -150,7 +153,7 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
     if (!sub) throw new Error("Could not extract sub from id_token");
   } catch (e) {
     logger.error("callback: token exchange failed", { error: (e as Error).message });
-    const p = new URLSearchParams({ error: "server_error" });
+    const p = new URLSearchParams({ error: "server_error", iss: BASE_URL });
     if (pending.clientState) p.set("state", pending.clientState);
     res.redirect(`${pending.clientRedirectUri}?${p.toString()}`);
     return;
@@ -163,7 +166,9 @@ app.get(new URL(CALLBACK_ENDPOINT).pathname, async (req, res) => {
 
   logger.info("callback: issued code", { sub, hasRefreshToken: Boolean(refreshToken) });
 
-  const p = new URLSearchParams({ code: ourCode });
+  // RFC 9207: stamp our issuer identifier on the redirect so the client can
+  // detect mix-up attacks (a malicious AS relaying its own code/state pair).
+  const p = new URLSearchParams({ code: ourCode, iss: BASE_URL });
   if (pending.clientState) p.set("state", pending.clientState);
   res.redirect(`${pending.clientRedirectUri}?${p.toString()}`);
 });
