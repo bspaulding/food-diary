@@ -1,8 +1,8 @@
 import { fileURLToPath } from "url";
 import express from "express";
 import jwt from "jsonwebtoken";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { McpServer } from "@modelcontextprotocol/server";
+import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
 import { validateJWT } from "./auth.js";
 import { registerTools } from "./tools.js";
 import { logger } from "./logger.js";
@@ -318,7 +318,7 @@ async function handleMcp(req: express.Request, res: express.Response): Promise<v
   const server = new McpServer({ name: "food-diary", version: "1.0.0" });
   registerTools(server, hasuraToken);
 
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  const transport = new NodeStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   await server.connect(transport);
   await transport.handleRequest(req, res, req.body);
 

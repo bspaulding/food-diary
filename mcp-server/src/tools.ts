@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { gql } from "./graphql.js";
 
@@ -226,127 +226,147 @@ export async function updateRecipe(
 }
 
 export function registerTools(server: McpServer, jwt: string): void {
-  server.tool(
+  server.registerTool(
     "list_diary_entries",
-    "List food diary entries for a date range. Returns ID, consumed_at, servings, calories, and the food item or recipe with key macros.",
     {
-      start_date: z.string().describe("Start of range, ISO 8601 (e.g. 2024-01-01T00:00:00Z)"),
-      end_date: z.string().describe("End of range, ISO 8601 (e.g. 2024-01-31T23:59:59Z)"),
+      description:
+        "List food diary entries for a date range. Returns ID, consumed_at, servings, calories, and the food item or recipe with key macros.",
+      inputSchema: z.object({
+        start_date: z.string().describe("Start of range, ISO 8601 (e.g. 2024-01-01T00:00:00Z)"),
+        end_date: z.string().describe("End of range, ISO 8601 (e.g. 2024-01-31T23:59:59Z)"),
+      }),
     },
     (args) => listDiaryEntries(jwt, args)
   );
 
-  server.tool(
+  server.registerTool(
     "search_food",
-    "Search nutrition items and recipes by name (fuzzy). Returns IDs to use in create/update tools.",
-    { query: z.string().describe("Search term") },
+    {
+      description: "Search nutrition items and recipes by name (fuzzy). Returns IDs to use in create/update tools.",
+      inputSchema: z.object({ query: z.string().describe("Search term") }),
+    },
     (args) => searchFood(jwt, args)
   );
 
-  server.tool(
+  server.registerTool(
     "create_diary_entry",
-    "Log a food item or recipe. Provide either nutrition_item_id or recipe_id (not both).",
     {
-      consumed_at: z.string().describe("ISO 8601 datetime"),
-      servings: z.number().describe("Number of servings"),
-      nutrition_item_id: z.number().optional().describe("ID from search_food"),
-      recipe_id: z.number().optional().describe("ID from search_food"),
+      description: "Log a food item or recipe. Provide either nutrition_item_id or recipe_id (not both).",
+      inputSchema: z.object({
+        consumed_at: z.string().describe("ISO 8601 datetime"),
+        servings: z.number().describe("Number of servings"),
+        nutrition_item_id: z.number().optional().describe("ID from search_food"),
+        recipe_id: z.number().optional().describe("ID from search_food"),
+      }),
     },
     (args) => createDiaryEntry(jwt, args)
   );
 
-  server.tool(
+  server.registerTool(
     "update_diary_entry",
-    "Update the servings or date/time on an existing diary entry.",
     {
-      id: z.number().describe("Diary entry ID"),
-      servings: z.number().optional().describe("New serving count"),
-      consumed_at: z.string().optional().describe("New datetime ISO 8601"),
+      description: "Update the servings or date/time on an existing diary entry.",
+      inputSchema: z.object({
+        id: z.number().describe("Diary entry ID"),
+        servings: z.number().optional().describe("New serving count"),
+        consumed_at: z.string().optional().describe("New datetime ISO 8601"),
+      }),
     },
     (args) => updateDiaryEntry(jwt, args)
   );
 
-  server.tool(
+  server.registerTool(
     "delete_diary_entry",
-    "Remove a diary entry by ID.",
-    { id: z.number().describe("Diary entry ID to delete") },
+    {
+      description: "Remove a diary entry by ID.",
+      inputSchema: z.object({ id: z.number().describe("Diary entry ID to delete") }),
+    },
     (args) => deleteDiaryEntry(jwt, args)
   );
 
-  server.tool(
+  server.registerTool(
     "create_nutrition_item",
-    "Create a new food item with calorie and macro data. All macro fields default to 0 if omitted.",
     {
-      description: z.string().describe("Food item name/description"),
-      calories: z.number().describe("Calories per serving"),
-      total_fat_grams: z.number().default(0),
-      saturated_fat_grams: z.number().default(0),
-      trans_fat_grams: z.number().default(0),
-      polyunsaturated_fat_grams: z.number().default(0),
-      monounsaturated_fat_grams: z.number().default(0),
-      cholesterol_milligrams: z.number().default(0),
-      sodium_milligrams: z.number().default(0),
-      total_carbohydrate_grams: z.number().default(0),
-      dietary_fiber_grams: z.number().default(0),
-      total_sugars_grams: z.number().default(0),
-      added_sugars_grams: z.number().default(0),
-      protein_grams: z.number().default(0),
+      description: "Create a new food item with calorie and macro data. All macro fields default to 0 if omitted.",
+      inputSchema: z.object({
+        description: z.string().describe("Food item name/description"),
+        calories: z.number().describe("Calories per serving"),
+        total_fat_grams: z.number().default(0),
+        saturated_fat_grams: z.number().default(0),
+        trans_fat_grams: z.number().default(0),
+        polyunsaturated_fat_grams: z.number().default(0),
+        monounsaturated_fat_grams: z.number().default(0),
+        cholesterol_milligrams: z.number().default(0),
+        sodium_milligrams: z.number().default(0),
+        total_carbohydrate_grams: z.number().default(0),
+        dietary_fiber_grams: z.number().default(0),
+        total_sugars_grams: z.number().default(0),
+        added_sugars_grams: z.number().default(0),
+        protein_grams: z.number().default(0),
+      }),
     },
     (args) => createNutritionItem(jwt, args)
   );
 
-  server.tool(
+  server.registerTool(
     "update_nutrition_item",
-    "Update fields on an existing nutrition item. Only provided fields are updated.",
     {
-      id: z.number().describe("Nutrition item ID"),
-      description: z.string().optional(),
-      calories: z.number().optional(),
-      total_fat_grams: z.number().optional(),
-      saturated_fat_grams: z.number().optional(),
-      trans_fat_grams: z.number().optional(),
-      polyunsaturated_fat_grams: z.number().optional(),
-      monounsaturated_fat_grams: z.number().optional(),
-      cholesterol_milligrams: z.number().optional(),
-      sodium_milligrams: z.number().optional(),
-      total_carbohydrate_grams: z.number().optional(),
-      dietary_fiber_grams: z.number().optional(),
-      total_sugars_grams: z.number().optional(),
-      added_sugars_grams: z.number().optional(),
-      protein_grams: z.number().optional(),
+      description: "Update fields on an existing nutrition item. Only provided fields are updated.",
+      inputSchema: z.object({
+        id: z.number().describe("Nutrition item ID"),
+        description: z.string().optional(),
+        calories: z.number().optional(),
+        total_fat_grams: z.number().optional(),
+        saturated_fat_grams: z.number().optional(),
+        trans_fat_grams: z.number().optional(),
+        polyunsaturated_fat_grams: z.number().optional(),
+        monounsaturated_fat_grams: z.number().optional(),
+        cholesterol_milligrams: z.number().optional(),
+        sodium_milligrams: z.number().optional(),
+        total_carbohydrate_grams: z.number().optional(),
+        dietary_fiber_grams: z.number().optional(),
+        total_sugars_grams: z.number().optional(),
+        added_sugars_grams: z.number().optional(),
+        protein_grams: z.number().optional(),
+      }),
     },
     (args) => updateNutritionItem(jwt, args)
   );
 
-  server.tool(
+  server.registerTool(
     "create_recipe",
-    "Create a recipe from existing nutrition items.",
     {
-      name: z.string().describe("Recipe name"),
-      total_servings: z.number().describe("Total servings the recipe makes"),
-      items: z
-        .array(
-          z.object({
-            nutrition_item_id: z.number().describe("ID from search_food"),
-            servings: z.number().describe("Servings of this item in the recipe"),
-          })
-        )
-        .describe("Ingredient list"),
+      description: "Create a recipe from existing nutrition items.",
+      inputSchema: z.object({
+        name: z.string().describe("Recipe name"),
+        total_servings: z.number().describe("Total servings the recipe makes"),
+        items: z
+          .array(
+            z.object({
+              nutrition_item_id: z.number().describe("ID from search_food"),
+              servings: z.number().describe("Servings of this item in the recipe"),
+            })
+          )
+          .describe("Ingredient list"),
+      }),
     },
     (args) => createRecipe(jwt, args)
   );
 
-  server.tool(
+  server.registerTool(
     "update_recipe",
-    "Update a recipe's name, total servings, or ingredient list. If items is provided, it replaces the entire ingredient list.",
     {
-      id: z.number().describe("Recipe ID"),
-      name: z.string().optional().describe("New name"),
-      total_servings: z.number().optional().describe("New total servings"),
-      items: z
-        .array(z.object({ nutrition_item_id: z.number(), servings: z.number() }))
-        .optional()
-        .describe("New ingredient list (replaces existing)"),
+      description:
+        "Update a recipe's name, total servings, or ingredient list. If items is provided, it replaces the entire ingredient list.",
+      inputSchema: z.object({
+        id: z.number().describe("Recipe ID"),
+        name: z.string().optional().describe("New name"),
+        total_servings: z.number().optional().describe("New total servings"),
+        items: z
+          .array(z.object({ nutrition_item_id: z.number(), servings: z.number() }))
+          .optional()
+          .describe("New ingredient list (replaces existing)"),
+      }),
     },
     (args) => updateRecipe(jwt, args)
   );
