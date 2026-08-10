@@ -10,6 +10,8 @@ import { issueAccessToken, issueRefreshToken, validateRefreshToken } from "./tok
 const SECRET = "test-secret-key";
 const AUDIENCE = "https://direct-satyr-14.hasura.app/v1/graphql";
 const AUTH0_DOMAIN = "motingo.auth0.com";
+// Matches index.ts's default (MCP_SERVER_URL is not set in these tests).
+const BASE_URL = "http://localhost:3032";
 
 function makeToken() {
   return sign({ sub: "user-123" }, SECRET, { audience: AUDIENCE, expiresIn: "1h" });
@@ -106,6 +108,11 @@ describe("GET /.well-known/oauth-authorization-server", () => {
     expect(res.body.grant_types_supported).toContain("authorization_code");
     expect(res.body.grant_types_supported).toContain("refresh_token");
   });
+
+  it("advertises RFC 9207 iss parameter support", async () => {
+    const res = await supertest(app).get("/.well-known/oauth-authorization-server");
+    expect(res.body.authorization_response_iss_parameter_supported).toBe(true);
+  });
 });
 
 // ─── GET /mcp/authorize ───────────────────────────────────────────────────────
@@ -189,6 +196,8 @@ describe("GET /mcp/callback", () => {
     expect(redirectUrl.hostname).toBe("claude.ai");
     expect(redirectUrl.searchParams.get("state")).toBe("claude-state");
     expect(redirectUrl.searchParams.get("code")).toBeTruthy();
+    // RFC 9207: lets the client detect mix-up attacks.
+    expect(redirectUrl.searchParams.get("iss")).toBe(BASE_URL);
   });
 
   it("forwards Auth0 errors to Claude's callback", async () => {
@@ -207,6 +216,7 @@ describe("GET /mcp/callback", () => {
     const redirectUrl = new URL(res.headers.location as string);
     expect(redirectUrl.searchParams.get("error")).toBe("access_denied");
     expect(redirectUrl.searchParams.get("state")).toBe("claude-state");
+    expect(redirectUrl.searchParams.get("iss")).toBe(BASE_URL);
   });
 
   it("uses error code as description when error_description is absent", async () => {
