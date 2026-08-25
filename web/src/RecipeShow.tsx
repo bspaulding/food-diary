@@ -25,7 +25,7 @@ const RecipeShow: Component = () => {
   );
   const recipe = (): RecipeQueryResult =>
     recipeQuery()?.data?.food_diary_recipe_by_pk || {
-      id: parseInt(params.id, 10),
+      id: params.id ? parseInt(params.id, 10) : undefined,
     };
   const recipeItems = createMemo(
     (): RecipeItem[] => recipe().recipe_items || [],
