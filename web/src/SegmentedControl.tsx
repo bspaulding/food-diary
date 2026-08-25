@@ -1,5 +1,5 @@
 import type { Component, JSX } from "solid-js";
-import { createSignal, Index } from "solid-js";
+import { createSignal, For } from "solid-js";
 
 type Props = {
   segments: string[];
@@ -13,24 +13,24 @@ const SegmentedControl: Component<Props> = (props: Props) => {
   return (
     <div>
       <ul class="flex flex-row justify-center mb-2">
-        <Index each={props.segments}>
-          {(segment: () => string, i: number) => (
+        <For each={props.segments}>
+          {(segment: string, i: () => number) => (
             <li
               class={`px-3 py-1 bg-slate-200 border border-slate-500 ${
-                i === 0 && "rounded-l-full"
-              } 
-              ${i === props.segments.length - 1 && "rounded-r-full"}
+                i() === 0 && "rounded-l-full"
+              }
+              ${i() === props.segments.length - 1 && "rounded-r-full"}
               ${
-                currentSegment() === segment() &&
+                currentSegment() === segment &&
                 "bg-slate-500 text-slate-50 shadow-inner cursor-default"
               }
-              ${currentSegment() !== segment() && "cursor-pointer"}`}
-              onClick={() => setCurrentSegment(segment())}
+              ${currentSegment() !== segment && "cursor-pointer"}`}
+              onClick={() => setCurrentSegment(segment)}
             >
-              {segment()}
+              {segment}
             </li>
           )}
-        </Index>
+        </For>
       </ul>
       <div>{props.children(currentSegment())}</div>
     </div>

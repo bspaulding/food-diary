@@ -1,5 +1,5 @@
 import type { Component, JSX } from "solid-js";
-import { createSignal, Index, Show, For } from "solid-js";
+import { createSignal, Show, For } from "solid-js";
 import { debounce } from "@solid-primitives/scheduled";
 import {
   searchItemsAndRecipes,

@@ -1,5 +1,5 @@
 import type { Component } from "solid-js";
-import { Index } from "solid-js";
+import { For } from "solid-js";
 import { parseISO, format } from "date-fns";
 import { LoggableItem } from "./NewDiaryEntryForm";
 import type { SearchNutritionItem, SearchRecipe } from "./Api";
@@ -17,23 +17,20 @@ type Props = {
 const SuggestionsList: Component<Props> = (props: Props) => {
   return (
     <ul class="mb-4">
-      <Index each={props.items}>
-        {(item: () => SuggestionItem) => (
+      <For each={props.items}>
+        {(item: SuggestionItem) => (
           <li>
             <LoggableItem
-              recipe={item().recipe || undefined}
-              nutritionItem={item().nutrition_item || undefined}
+              recipe={item.recipe || undefined}
+              nutritionItem={item.nutrition_item || undefined}
             />
             <p class="text-xs ml-8 mb-2">
               Logged at{" "}
-              {format(
-                parseISO(item().consumed_at),
-                "hh:mma' on ' MMMM dd, yyyy",
-              )}
+              {format(parseISO(item.consumed_at), "hh:mma' on ' MMMM dd, yyyy")}
             </p>
           </li>
         )}
-      </Index>
+      </For>
     </ul>
   );
 };

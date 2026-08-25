@@ -1,5 +1,5 @@
 import type { Accessor, Component, Setter } from "solid-js";
-import { Index, Show, createMemo, createSignal } from "solid-js";
+import { For, Show, createMemo, createSignal } from "solid-js";
 import type {
   DiaryEntry,
   GetEntriesQueryResponse,
@@ -184,20 +184,16 @@ const DiaryList: Component = () => {
         <Show when={entries().length === 0}>
           <p class="text-slate-400 text-center">No entries this week.</p>
         </Show>
-        <Index each={entriesByDay()}>
-          {(dayEntries: () => [string, DiaryEntry[]], i: number) => {
-            const dateStr = createMemo(() => dayEntries()[0]);
-            const entries = createMemo(() => dayEntries()[1]);
+        <For each={entriesByDay()}>
+          {(dayEntries: [string, DiaryEntry[]]) => {
+            const [dateStr, entries] = dayEntries;
             return (
               <li class="grid grid-cols-8 -ml-4 mb-6">
                 <div class="col-span-2">
-                  <DateBadge
-                    class="col-span-1 mb-2"
-                    date={parseISO(dateStr())}
-                  />
+                  <DateBadge class="col-span-1 mb-2" date={parseISO(dateStr)} />
                   <CircleProgress
                     value={Math.ceil(
-                      entries().reduce(
+                      entries.reduce(
                         (acc: number, entry: DiaryEntry) =>
                           acc + entry.calories,
                         0,
@@ -208,19 +204,19 @@ const DiaryList: Component = () => {
                     label="KCAL"
                   />
                   <CircleProgress
-                    value={totalMacro("protein_grams", entries())}
+                    value={totalMacro("protein_grams", entries)}
                     target={targets().protein_grams}
                     label="Protein"
                     unit="g"
                   />
                   <CircleProgress
-                    value={totalMacro("dietary_fiber_grams", entries())}
+                    value={totalMacro("dietary_fiber_grams", entries)}
                     target={targets().dietary_fiber_grams}
                     label="Fiber"
                     unit="g"
                   />
                   <CircleProgress
-                    value={totalMacro("added_sugars_grams", entries())}
+                    value={totalMacro("added_sugars_grams", entries)}
                     target={targets().added_sugars_grams}
                     label="Added Sugar"
                     unit="g"
@@ -228,41 +224,35 @@ const DiaryList: Component = () => {
                   />
                 </div>
                 <ul class="col-span-6 mb-6">
-                  <Index
-                    each={entries().slice().sort(compareEntriesByConsumedAt)}
-                  >
-                    {(entry: () => DiaryEntry, i: number) => (
+                  <For each={entries.slice().sort(compareEntriesByConsumedAt)}>
+                    {(entry: DiaryEntry) => (
                       <li class="mb-4">
                         <p class="font-semibold">
-                          {Math.round(entry().calories)} kcal,{" "}
+                          {Math.round(entry.calories)} kcal,{" "}
+                          {Math.round(entryTotalMacro("protein_grams", entry))}g
+                          protein,{" "}
                           {Math.round(
-                            entryTotalMacro("protein_grams", entry()),
-                          )}
-                          g protein,{" "}
-                          {Math.round(
-                            entryTotalMacro("dietary_fiber_grams", entry()),
+                            entryTotalMacro("dietary_fiber_grams", entry),
                           )}
                           g fiber
                         </p>
                         <p>
                           <a
                             href={
-                              entry().recipe?.id
-                                ? `/recipe/${entry().recipe?.id}`
-                                : `/nutrition_item/${
-                                    entry().nutrition_item?.id
-                                  }`
+                              entry.recipe?.id
+                                ? `/recipe/${entry.recipe?.id}`
+                                : `/nutrition_item/${entry.nutrition_item?.id}`
                             }
                           >
-                            {entry().nutrition_item?.description ||
-                              entry().recipe?.name}
+                            {entry.nutrition_item?.description ||
+                              entry.recipe?.name}
                           </a>
                         </p>
                         <p class="flex justify-between text-sm">
-                          {pluralize(entry().servings, "serving", "servings")}{" "}
-                          at {parseAndFormatTime(entry().consumed_at)}
+                          {pluralize(entry.servings, "serving", "servings")} at{" "}
+                          {parseAndFormatTime(entry.consumed_at)}
                           <span>
-                            <a href={`/diary_entry/${entry().id}/edit`}>Edit</a>
+                            <a href={`/diary_entry/${entry.id}/edit`}>Edit</a>
                             <button
                               class="ml-2"
                               onClick={() => {
@@ -270,7 +260,7 @@ const DiaryList: Component = () => {
                                 if (entries) {
                                   deleteEntry(
                                     accessToken,
-                                    entry(),
+                                    entry,
                                     entries as GetEntriesQueryResponse,
                                     mutate,
                                   );
@@ -281,7 +271,7 @@ const DiaryList: Component = () => {
                             </button>
                           </span>
                         </p>
-                        <Show when={entry().recipe?.id}>
+                        <Show when={entry.recipe?.id}>
                           <p>
                             <span class="bg-slate-400 text-slate-50 px-2 py-1 rounded text-xs">
                               RECIPE
@@ -290,12 +280,12 @@ const DiaryList: Component = () => {
                         </Show>
                       </li>
                     )}
-                  </Index>
+                  </For>
                 </ul>
               </li>
             );
           }}
-        </Index>
+        </For>
       </ul>
       <div class="flex justify-center space-x-8 mb-8">
         <button
