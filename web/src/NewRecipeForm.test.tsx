@@ -228,6 +228,45 @@ describe("NewRecipeForm", () => {
     });
   });
 
+  // <Index> (rather than <For>) is load-bearing here: every keystroke in a
+  // servings input replaces that row's object in recipe_items (see the
+  // onInput handler below), so a keyed list would tear down and recreate
+  // the DOM node on every character typed, losing focus mid-edit. This
+  // pins down that the row inputs keep their DOM identity across an edit,
+  // so a future migration away from <Index> can't regress it silently.
+  it("keeps list item inputs' DOM identity (and focus) across an edit", async () => {
+    const user = userEvent.setup();
+
+    const initialRecipe = {
+      id: 0,
+      name: "Test Recipe",
+      total_servings: 1,
+      recipe_items: [
+        { servings: 1, nutrition_item: { id: 1, description: "Banana" } },
+        { servings: 2, nutrition_item: { id: 2, description: "Apple" } },
+      ],
+    };
+
+    render(() => <NewRecipeForm initialRecipe={initialRecipe} />);
+
+    // index 0 is the total-servings input; 1 and 2 are the recipe items'.
+    const [, bananaInput, appleInput] = screen.getAllByRole(
+      "spinbutton",
+    ) as HTMLInputElement[];
+
+    await user.clear(bananaInput);
+    await user.type(bananaInput, "5");
+
+    await waitFor(() => {
+      expect(bananaInput.value).toBe("5");
+    });
+
+    const rerendered = screen.getAllByRole("spinbutton") as HTMLInputElement[];
+    expect(rerendered[1]).toBe(bananaInput);
+    expect(rerendered[2]).toBe(appleInput);
+    expect(document.activeElement).toBe(bananaInput);
+  });
+
   it("should handle NaN in item servings input", async () => {
     const user = userEvent.setup();
 
