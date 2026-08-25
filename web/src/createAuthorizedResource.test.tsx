@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@solidjs/testing-library";
-import { Component, Show } from "solid-js";
+import { Component, Show, createSignal } from "solid-js";
 import createAuthorizedResource from "./createAuthorizedResource";
 import { AuthorizationError } from "./Api";
 
@@ -144,5 +144,113 @@ describe("createAuthorizedResource", () => {
     });
 
     expect(mockLogout).not.toHaveBeenCalled();
+  });
+
+  // These pin down the parts of createResource's contract that call sites
+  // actually depend on (SearchItemsForm reads .loading, DiaryList reads
+  // mutate/refetch) but weren't covered above, so a future rewrite onto
+  // Solid 2.0's memo-based resources has something to check itself against.
+  it("exposes .loading while the fetcher is pending, then false once resolved", async () => {
+    let resolveFetch: (value: { message: string }) => void = () => {};
+    const fetchPromise = new Promise<{ message: string }>((resolve) => {
+      resolveFetch = resolve;
+    });
+
+    const TestComponent: Component = () => {
+      const [data] = createAuthorizedResource(async () => fetchPromise);
+      return (
+        <div>
+          <span data-testid="loading">{String(data.loading)}</span>
+          <span data-testid="value">{data()?.message ?? "none"}</span>
+        </div>
+      );
+    };
+
+    render(() => <TestComponent />);
+
+    expect(screen.getByTestId("loading").textContent).toBe("true");
+
+    resolveFetch({ message: "done" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading").textContent).toBe("false");
+    });
+    expect(screen.getByTestId("value").textContent).toBe("done");
+  });
+
+  it("mutate() updates the value directly without invoking the fetcher again", async () => {
+    const fetcher = vi.fn(async () => ({ count: 1 }));
+    let mutate: (value: { count: number }) => void = () => {};
+
+    const TestComponent: Component = () => {
+      const [data, resourceActions] = createAuthorizedResource(fetcher);
+      mutate = resourceActions.mutate;
+      return <div>{data()?.count ?? "loading"}</div>;
+    };
+
+    render(() => <TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByText("1")).toBeTruthy();
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    mutate({ count: 99 });
+
+    await waitFor(() => {
+      expect(screen.getByText("99")).toBeTruthy();
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("refetch() re-invokes the fetcher and updates the value", async () => {
+    let callCount = 0;
+    const fetcher = vi.fn(async () => {
+      callCount += 1;
+      return { count: callCount };
+    });
+    let refetch: () => void = () => {};
+
+    const TestComponent: Component = () => {
+      const [data, resourceActions] = createAuthorizedResource(fetcher);
+      refetch = () => resourceActions.refetch();
+      return <div>{data()?.count ?? "loading"}</div>;
+    };
+
+    render(() => <TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByText("1")).toBeTruthy();
+    });
+
+    refetch();
+
+    await waitFor(() => {
+      expect(screen.getByText("2")).toBeTruthy();
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-fetches with the new value when the source signal changes", async () => {
+    const [source, setSource] = createSignal("first");
+    const fetcher = vi.fn(async (token: string, src: string) => ({ src }));
+
+    const TestComponent: Component = () => {
+      const [data] = createAuthorizedResource(source, fetcher);
+      return <div>{data()?.src ?? "loading"}</div>;
+    };
+
+    render(() => <TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByText("first")).toBeTruthy();
+    });
+
+    setSource("second");
+
+    await waitFor(() => {
+      expect(screen.getByText("second")).toBeTruthy();
+    });
+    expect(fetcher).toHaveBeenCalledWith("test-access-token", "second");
   });
 });
