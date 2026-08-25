@@ -22,8 +22,23 @@ describe("CameraModal", () => {
       configurable: true,
     });
 
-    // Mock URL.createObjectURL and URL.revokeObjectURL
-    global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+    // Mock URL.createObjectURL and URL.revokeObjectURL. Each call returns a
+    // distinct URL (unlike a real browser only in that these aren't real
+    // blob URLs, but critically -- like a real browser -- never the same
+    // string twice), and createObjectURL throws past a small bound so a
+    // regression that makes the object-URL effect re-trigger itself (e.g.
+    // tracking capturedImageUrl as a dependency of its own effect) fails
+    // the test fast instead of looping forever.
+    let createObjectURLCallCount = 0;
+    global.URL.createObjectURL = vi.fn(() => {
+      createObjectURLCallCount += 1;
+      if (createObjectURLCallCount > 5) {
+        throw new Error(
+          "URL.createObjectURL called too many times -- possible infinite effect loop",
+        );
+      }
+      return `blob:mock-url-${createObjectURLCallCount}`;
+    });
     global.URL.revokeObjectURL = vi.fn();
 
     // Mock HTMLCanvasElement.toBlob
@@ -721,6 +736,56 @@ describe("CameraModal", () => {
 
     // The test passes if no errors are thrown during cleanup
     expect(true).toBe(true);
+  });
+
+  it("should create exactly one object URL per captured image, revoking the previous one", async () => {
+    const user = userEvent.setup();
+    mockGetUserMedia.mockResolvedValue(mockStream);
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        image: { description: "Test", calories: 100 },
+      }),
+    });
+
+    render(() => (
+      <CameraModal
+        isOpen={true}
+        onClose={() => {}}
+        onImport={() => {}}
+        accessToken="test-token"
+      />
+    ));
+
+    await waitFor(() => {
+      expect(mockGetUserMedia).toHaveBeenCalled();
+    });
+
+    // First capture: creates a URL, nothing to revoke yet.
+    await user.click(screen.getByText("Capture & Import"));
+    await waitFor(() => {
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    });
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+
+    // Back to camera mode, then capture again: creates a second URL and
+    // revokes the first -- and, crucially, settles there rather than
+    // continuing to call createObjectURL/revokeObjectURL on its own.
+    await waitFor(() => {
+      expect(screen.queryAllByText("Take Picture").length).toBeGreaterThan(0);
+    });
+    await user.click(screen.getAllByText("Take Picture")[0]);
+    await waitFor(() => {
+      expect(screen.getByText("Capture & Import")).toBeTruthy();
+    });
+    await user.click(screen.getByText("Capture & Import"));
+
+    await waitFor(() => {
+      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+    });
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url-1");
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
   });
 
   it("should handle getNumericValue with non-numeric values", () => {
