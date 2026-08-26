@@ -3,12 +3,17 @@
 ## Status: not started — blocked on Solid 2.0 leaving RC
 
 As of this writing, [Solid 2.0](https://www.solidjs.com/blog/solid-2-0-rc-the-big-reveal)
-is at release candidate (`2.0.0-rc.x`), not a stable release, and
-`@solidjs/router`'s 2.0 line and `@solidjs/testing-library`'s 1.0 line are
-similarly unreleased (`-next`/`-beta`). Don't start the actual migration
-until `solid-js`, `@solidjs/router`, and `@solidjs/testing-library` all have
-stable 2.0/2.0/1.0 releases. Check `npm view solid-js dist-tags.latest` (and
-the same for the other two) before picking this back up.
+is at release candidate (`2.0.0-rc.x`), not a stable release, and the
+packages it depends on are similarly unreleased:
+`@solidjs/router`'s 2.0 line (`-next`), `@solidjs/testing-library`'s 1.0
+line (`-beta`), and `@solidjs/vite-plugin`'s 3.0 line (`-next` — see item 2
+below, this is a renamed package, not just a version bump, and easy to miss
+since it doesn't share a name prefix with the others). Don't start the
+actual migration until `solid-js`, `@solidjs/router`,
+`@solidjs/testing-library`, and `@solidjs/vite-plugin` all have stable
+releases. Check `npm view solid-js dist-tags.latest` (and the same for the
+other three, plus `npm view vite-plugin-solid` — see item 2) before
+picking this back up.
 
 Prep work that's safe to do on 1.x regardless has already shipped — see
 below — so the migration itself should be smaller than it would've been
@@ -61,7 +66,22 @@ Once the rewrite passes those tests, the call sites listed above shouldn't
 need to change — they only use the `[accessor, { mutate, refetch }]` shape
 and `.loading`, none of which needs to change externally.
 
-### 2. Bump `@solidjs/router` to its 2.0 line
+### 2. Switch `vite-plugin-solid` to `@solidjs/vite-plugin` (3.0 line)
+
+This one's a package rename, not just a version bump: `vite-plugin-solid`'s
+final `3.0.0-next.x` releases are a stub that just re-exports
+`@solidjs/vite-plugin` ("Renamed to @solidjs/vite-plugin — this final
+release re-exports the new package", per its own npm description). The new
+package's peer deps (`solid-js ^2.0.0-rc.0`, plus a new `@solidjs/web` peer
+— the split-out web runtime package the announcement mentions) confirm
+it's the one paired with Solid 2.0, currently at `3.0.0-next.33`/RC too.
+Swap the import in `vite.config.mts` (`solidPlugin` from
+`vite-plugin-solid` → `@solidjs/vite-plugin`) and update `package.json`
+accordingly; check whether `@solidjs/web` needs to be an explicit
+dependency too by then, or whether `@solidjs/vite-plugin` pulls it in
+transitively.
+
+### 3. Bump `@solidjs/router` to its 2.0 line
 
 Do this in lockstep with the `solid-js` bump, not independently — unlike
 the `0.10` → `1.0` bump (PR #38), 2.0 is a real breaking jump for the
@@ -72,11 +92,11 @@ on). `useParams()`'s stricter `string | undefined` typing (surfaced by the
 1.0 bump, fixed in `RecipeShow.tsx`) is a sign more type-strictness changes
 are likely.
 
-### 3. Bump `@solidjs/testing-library` to its 1.0 line
+### 4. Bump `@solidjs/testing-library` to its 1.0 line
 
 Needed for the test suite to run against Solid 2.0 at all.
 
-### 4. Everything else in the codebase
+### 5. Everything else in the codebase
 
 A grep for 2.0-removed/changed APIs (`createResource`, `startTransition`,
 `useTransition`, `createComputed`, `on(`, `produce(`, `createMutable`,
@@ -129,3 +149,13 @@ picking this up again in case that's changed.
   production (`URL.createObjectURL`, IDs, timestamps), make the mock
   produce distinct values too, or a signal-equality bail-out can silently
   hide a broken effect.
+- **A package rename doesn't announce itself the way a version bump
+  does** — this doc's original "packages to watch" list named
+  `@solidjs/router` and `@solidjs/testing-library` (both share the
+  ecosystem's `@solidjs/` prefix and an obvious next major) but missed
+  `vite-plugin-solid` entirely, because its 2.0-paired replacement is
+  `@solidjs/vite-plugin` — a different package name, not a version bump
+  of the one already in `package.json`. `npm view <name> dist-tags` on the
+  package you already depend on won't surface a rename; check the
+  ecosystem's own docs/announcement for renamed packages, not just `npm
+outdated` on existing dependencies.
