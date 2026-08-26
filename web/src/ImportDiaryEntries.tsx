@@ -1,5 +1,5 @@
 import type { Component } from "solid-js";
-import { createSignal, Index, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { format, parseISO } from "date-fns";
 import type { NewDiaryEntry } from "./Api";
 import type { Either } from "./Either";
@@ -160,32 +160,29 @@ const ImportDiaryEntries: Component = () => {
             </tr>
           </thead>
           <tbody>
-            <Index each={parseResult().rights}>
-              {(row: () => NewDiaryEntry) => (
+            <For each={parseResult().rights}>
+              {(row: NewDiaryEntry) => (
                 <>
                   <tr>
                     <td>
                       <p class="font-semibold">
-                        {row().nutrition_item.description}
+                        {row.nutrition_item.description}
                       </p>
                       <p class="text-xs">
-                        {format(
-                          parseISO(row().consumed_at),
-                          "MMMM d, yyyy pppp",
-                        )}
+                        {format(parseISO(row.consumed_at), "MMMM d, yyyy pppp")}
                       </p>
                     </td>
-                    <td class="text-right">{row().servings}</td>
-                    <td class="text-right">{row().nutrition_item.calories}</td>
+                    <td class="text-right">{row.servings}</td>
+                    <td class="text-right">{row.nutrition_item.calories}</td>
                   </tr>
                   <tr>
                     <td colspan="3">
-                      <CollapsibleNutritionFacts entry={row()} />
+                      <CollapsibleNutritionFacts entry={row} />
                     </td>
                   </tr>
                 </>
               )}
-            </Index>
+            </For>
           </tbody>
         </table>
         <button

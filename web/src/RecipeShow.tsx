@@ -1,5 +1,5 @@
 import type { Component } from "solid-js";
-import { createMemo, Index, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { useParams } from "@solidjs/router";
 import createAuthorizedResource from "./createAuthorizedResource";
 import { fetchRecipe, RecipeItem } from "./Api";
@@ -81,19 +81,19 @@ const RecipeShow: Component = () => {
       </Show>
       <div class="text-lg mt-4">
         <h2 class="font-semibold mb-2">Ingredients:</h2>
-        <Index each={recipeItems()} fallback="No recipe items.">
-          {(item: () => RecipeItem) => (
+        <For each={recipeItems()} fallback="No recipe items.">
+          {(item: RecipeItem) => (
             <li class="list-none my-1">
-              <a href={`/nutrition_item/${item().nutrition_item.id}`}>
-                {item().nutrition_item.description}
+              <a href={`/nutrition_item/${item.nutrition_item.id}`}>
+                {item.nutrition_item.description}
               </a>
               <p class="text-sm">
-                {item().servings} servings -{" "}
-                {Math.round(calculateItemCalories(item()))} kcal
+                {item.servings} servings -{" "}
+                {Math.round(calculateItemCalories(item))} kcal
               </p>
             </li>
           )}
-        </Index>
+        </For>
       </div>
     </div>
   );
