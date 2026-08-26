@@ -56,4 +56,5 @@ Start each spec with a short metadata block:
 | Spec | Status | Summary |
 |---|---|---|
 | [2026-06-20-ios-app.md](2026-06-20-ios-app.md) | Draft | Native iOS port of the web front end (Swift/SwiftUI). |
+| [2026-08-26-web-e2e-acceptance-test-harness.md](2026-08-26-web-e2e-acceptance-test-harness.md) | Draft | Black-box, multi-process Playwright E2E suite replacing the current in-process "acceptance" tests. |
 </content>
