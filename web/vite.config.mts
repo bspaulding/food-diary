@@ -11,10 +11,14 @@ const useLocalHasura: boolean =
 // ones.
 const useLocalLlmNutritionApi: boolean =
   process.env.FOOD_DIARY_USE_LOCAL_LLM_NUTRITION_API === "true";
-console.log({ useLocalHasura, useLocalLlmNutritionApi });
+// The E2E harness serves the app over plain HTTP (mock servers run on
+// localhost, which Chromium treats as a secure context on its own) and
+// needs to disable this self-signed-cert plugin to do so.
+const useHttps: boolean = process.env.FOOD_DIARY_HTTPS !== "false";
+console.log({ useLocalHasura, useLocalLlmNutritionApi, useHttps });
 
 export default defineConfig({
-  plugins: [tailwindcss(), solidPlugin(), basicSsl()],
+  plugins: [tailwindcss(), solidPlugin(), ...(useHttps ? [basicSsl()] : [])],
   publicDir: "src/assets/public",
   server: {
     host: "0.0.0.0",

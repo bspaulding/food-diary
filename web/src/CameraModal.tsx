@@ -269,8 +269,10 @@ const CameraModal: Component<Props> = (props: Props) => {
         throw new Error("Retry logic error");
       }
 
+      const uploadUrl =
+        import.meta.env.VITE_LLM_UPLOAD_URL ?? "/labeller/upload";
       const response: Response = await retry(3, async (): Promise<Response> => {
-        const response: Response = await fetch("/labeller/upload", {
+        const response: Response = await fetch(uploadUrl, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${props.accessToken}`,
