@@ -68,7 +68,7 @@ port, and readiness check — no custom process manager needed):
         │  (vite preview,    │  │  :4200              │  │  :4300               │
         │   the real build)  │  │  in-memory store,   │  │  OAuth2/OIDC + PKCE  │
         │  :5173             │  │  GraphQL + REST     │  │  RS256 id_token,     │
-        │                    │  │  + /__test__ control│  │  fake login page     │
+        │                    │  │  + /__test__ control│  │  no JWKS needed      │
         └───────────────────┘  └───────────────────┘  └──────────────────────┘
 ```
 
@@ -123,63 +123,118 @@ None of this is E2E-only scaffolding baked into production code paths beyond
 an `?? "<same default as today>"` fallback — safe to land as its own small PR
 ahead of the rest, verified by the existing unit tests.
 
-### 3.2 Discovery spike — nail the real Auth0 SDK contract first
+### 3.2 Auth0 SDK contract — confirmed against source
 
 `@auth0/auth0-spa-js@^1.22` is used via `createAuth0Client(...)` /
 `loginWithRedirect` / `handleRedirectCallback` / `getTokenSilently` /
-`getUser` / `logout`. Before writing the mock auth server, spend a short spike
-confirming, by reading `node_modules/@auth0/auth0-spa-js/dist/typings` and
-source (not currently installed in this analysis sandbox — install once
-implementation starts) or by proxying a real login against the app's actual
-Auth0 tenant:
+`getUser` / `logout`. Rather than guess, `1.22.4` was installed standalone and
+its TypeScript source (`node_modules/@auth0/auth0-spa-js/src/{Auth0Client,jwt,api,http,utils}.ts`)
+read directly. This settles every question §3.2 originally flagged as open,
+and simplifies the mock auth server considerably versus the original
+JWKS/RS256-verification assumption below.
 
-- Exact endpoints called: `/authorize`, `/oauth/token`, almost certainly
-  `/.well-known/jwks.json` (v1's bundled `idtoken-verifier` validates the
-  `id_token` signature, issuer, audience, and `nonce` client-side), and
-  `/v2/logout` (used by `App.tsx`'s `client.logout({ returnTo })`).
-  `/userinfo` may or may not be called — `getUser()` may just decode the
-  cached `id_token` claims.
-- Exact required claims/params: PKCE `code_challenge`/`code_challenge_method`
-  on `/authorize`, `code_verifier` on the token exchange, `nonce` echoed into
-  the `id_token`, `iss` must exactly equal `${domain}/` (trailing slash),
-  `aud` must equal `client_id`, `exp`/`iat` bounds.
-- Whether a silent-auth iframe (`prompt=none` on `/authorize` inside a hidden
-  iframe) is ever triggered in this app's usage. With `cacheLocation:
-  "localstorage"` and no `useRefreshTokens`, a *fresh* login only needs the
-  full-page `/authorize` → `/oauth/token` round trip once; `getTokenSilently()`
-  right after `handleRedirectCallback()` should be served from the client's
-  in-memory cache. Confirm this so the mock auth server doesn't need to
-  support the iframe/`prompt=none` path for the main flow (still worth a
-  minimal 501-with-clear-error handler so a real silent-renewal attempt fails
-  loudly instead of hanging).
+**Domain handling (`Auth0Client.ts`, `getDomain`/`getTokenIssuer`).** A
+`domain` option that already starts with `http://` or `https://` is used
+*verbatim*; only a bare host gets `https://` prepended. So
+`VITE_AUTH0_DOMAIN=http://localhost:4300` works with no TLS needed for the
+auth server. The expected `id_token` issuer becomes `${domainUrl}/` — i.e.
+**`http://localhost:4300/`, with the trailing slash** (no separate `issuer`
+option is passed by this app, so this is the only value that will validate).
 
-Write the confirmed contract into a short table appended to this doc before
-building §3.3.
+**`GET /authorize` — query params the SDK actually sends**
+(`Auth0Client.ts` `_getParams`/`_url`): `client_id`, `redirect_uri`, `state`,
+`nonce`, `code_challenge`, `code_challenge_method=S256`, `response_type=code`,
+`response_mode=query`, plus `audience`, `scope=openid`, and `auth0Client`
+(base64 JSON, telemetry only) which the mock can ignore. `state` is an opaque
+random string — just echo it back unmodified on the redirect.
+
+**`POST /oauth/token` — exact wire format** (`api.ts` `oauthToken`,
+confirmed: this app never sets `useFormData`, so it takes the `false`
+branch): `Content-Type: application/json`, and the **JSON body contains only**
+`{ client_id, code_verifier, grant_type: "authorization_code", code, redirect_uri }`
+— `audience`/`scope` are *not* in the token-exchange body (the SDK only uses
+them internally for its own cache key). Success is **HTTP 200** with JSON
+`{ access_token, id_token, token_type, expires_in, scope? }`. Failure is any
+non-2xx status with JSON `{ error, error_description }` (`http.ts` `getJSON`
+destructures `{ error, error_description, ...data }` from the body and throws
+`GenericError(error, error_description)` when `!response.ok` — `error:
+"mfa_required"` is special-cased and irrelevant here). This is the exact
+shape a `400 { error: "invalid_grant", error_description: "..." }` needs for
+the replay/mismatched-verifier test in the table below.
+
+**`id_token` verification — the single biggest finding (`jwt.ts` `verify`).**
+The SDK does **not cryptographically verify the `id_token`'s signature at
+all** — `verify()` only base64url-decodes the JWT and checks *claims*:
+`iss` (must equal the issuer above, exactly), `sub` present, `aud` equals
+`client_id`, `nonce` equals the one sent to `/authorize`, `exp`/`iat`/`nbf`
+within a 60s leeway window. **The one signature-adjacent check that does
+exist** is purely syntactic: `decoded.header.alg !== 'RS256'` throws — so the
+JWT header must literally contain `"alg":"RS256"`, but nothing checks that
+the bytes are actually a valid RS256 signature. Net effect: **no
+`/.well-known/jwks.json`, no `/.well-known/openid-configuration`, and no
+signature-verification logic on the SDK side are needed at all.** The mock
+auth server still signs `id_token`s with a real RS256 keypair generated once
+at process boot (a handful of lines via `node:crypto.generateKeyPairSync`,
+no JWKS endpoint needed to serve it) purely so the token is well-formed and
+the mock's own code isn't lying about what it produced — but this is a
+correctness/hygiene choice, not a requirement.
+
+**`getUser()`/`isAuthenticated()` are pure cache reads — no network.**
+(`Auth0Client.ts` lines ~592-607, ~1001-1004): both just look up the decoded
+`id_token` from the configured cache (`localStorage` here) by
+`{client_id, audience, scope}` key. **`/userinfo` is never called anywhere in
+this SDK version** — drop it from the mock entirely.
+
+**No silent-auth iframe in this app's flow.** `getTokenSilently()`
+(`_getTokenSilently`) checks the cache *before* attempting any network path;
+`handleRedirectCallback` populates that exact cache entry via
+`cacheManager.set(...)` right before `Auth0.ts` calls `getTokenSilently()`, so
+the cache hit is immediate — the `prompt=none` hidden-iframe path
+(`_getTokenFromIFrame`) is never reached for a fresh login **or** a page
+reload with `cacheLocation: "localstorage"` (the cache persists across
+reloads, so a reload during the test — used in the nutrition-targets
+persistence step — also re-authenticates from cache with no network call, as
+long as the token's `expires_in` comfortably outlives the test run, e.g. 24h).
+Still worth a minimal handler on `/authorize?...&prompt=none` that responds
+in a way an iframe `postMessage` listener will just time out on, so a future
+regression that *does* trigger silent auth fails loudly instead of hanging
+forever.
+
+**`logout()` (`Auth0Client.ts` `buildLogoutUrl`/`logout`).** Clears the local
+cache/cookies, then `window.location.assign(...)` to
+`${domainUrl}/v2/logout?client_id=...&returnTo=...&auth0Client=...` (whatever
+options `App.tsx` passed — here just `returnTo`). The mock only needs to
+302-redirect to the `returnTo` query param.
 
 ### 3.3 Mock auth server (`web/e2e/servers/mock-auth-server/`)
 
 A minimal, from-scratch OIDC/OAuth2 Authorization-Code+PKCE provider — not a
-library. Runs on its own port (e.g. `4300`), in-memory only.
+library. Runs on its own port (e.g. `4300`), in-memory only. Per §3.2's
+findings, this is smaller than originally scoped: no JWKS, no discovery
+document, no `/userinfo`.
 
 **Endpoints:**
 
 | Method | Path | Behavior |
 |---|---|---|
-| `GET` | `/authorize` | Validate `response_type=code`, `client_id`, `redirect_uri`, `code_challenge`, `code_challenge_method=S256`, `state`, `nonce`. Serve a tiny static HTML "login" page (one input pre-filled with a test user id/email, one submit button) so Playwright can drive a *real* login interaction rather than an instant bounce. On submit, mint an opaque authorization `code`, store `{code_challenge, redirect_uri, client_id, nonce, user}` server-side keyed by code, redirect to `redirect_uri?code=...&state=...`. |
-| `POST` | `/oauth/token` | `grant_type=authorization_code`: look up the stored code, verify `SHA256(code_verifier) base64url == code_challenge`, verify `redirect_uri`/`client_id` match, then respond `{access_token, id_token, token_type: "Bearer", expires_in}`. Codes are single-use; a mismatched verifier or reused code returns `400 invalid_grant` (worth one test asserting the login flow can't be replayed). |
-| `GET` | `/.well-known/jwks.json` | JWKS for the RS256 keypair generated at process start. |
-| `GET` | `/.well-known/openid-configuration` | Cheap to add; covers a future SDK doing real discovery. |
-| `GET` | `/userinfo` | Bearer-token-gated; returns the same profile claims as the `id_token`, in case the SDK calls it. |
-| `GET`/`POST` | `/v2/logout` | Auth0's logout endpoint shape (`client_id`, `returnTo` query params). Just redirects to `returnTo` — enough to exercise the app's post-logout state. |
+| `GET` | `/authorize` | Validate `response_type=code`, `client_id`, `redirect_uri`, `code_challenge`, `code_challenge_method=S256`, `state`, `nonce` are present. Serve a tiny static HTML "login" page (one input pre-filled with a test user id/email, one submit button) so Playwright can drive a *real* login interaction rather than an instant bounce. On submit, mint an opaque authorization `code`, store `{code_challenge, redirect_uri, client_id, nonce, user}` server-side keyed by code, redirect to `redirect_uri?code=...&state=...`. If `prompt=none` is present, skip the login page and immediately respond in a way that lets a hidden-iframe caller time out cleanly (see §3.2) rather than serving the interactive page. |
+| `POST` | `/oauth/token` | `grant_type=authorization_code`: parse the **JSON** body (`client_id`, `code_verifier`, `code`, `redirect_uri` — no `audience`/`scope`, per §3.2), look up the stored code, verify `base64url(SHA256(code_verifier)) === code_challenge`, verify `redirect_uri`/`client_id` match, then respond `200 { access_token, id_token, token_type: "Bearer", expires_in: 86400 }`. Codes are single-use; a mismatched verifier, expired code, or reused code returns `400 { error: "invalid_grant", error_description: "..." }` (worth one test asserting the login flow can't be replayed). |
+| `GET`/`POST` | `/v2/logout` | Auth0's logout endpoint shape (`client_id`, `returnTo` query params, confirmed in §3.2). 302-redirect to `returnTo` — enough to exercise the app's post-logout state. |
 | `POST` | `/__test__/reset` | Test-control only (never called by the app). Clears in-flight authorization codes and resets the default test user's claims. |
 | `POST` | `/__test__/set-user` | Test-control only. Overrides the profile claims (`name`, `picture`, `email`, `sub`) returned for the *next* login, so a test step can assert the header renders whatever avatar/name the "logged-in user" carries. |
 
-`id_token`/`access_token` are real signed JWTs (RS256, keypair generated at
-process boot) with `iss = http://localhost:4300/`, `aud = <client_id>`,
-`sub`, `name`, `picture`, `email`, `nonce`, `exp`. The mock API server
-verifies the `access_token`'s signature against `/​.well-known/jwks.json` on
-every authenticated request — this is what makes the 401/session-expiry path
-(§4, step "Session expiry") a real end-to-end assertion instead of a stub.
+`id_token` is a JWT with header `{"alg":"RS256","typ":"JWT"}` (required
+literally, per §3.2) and claims `iss = "http://localhost:4300/"` (trailing
+slash required), `aud = <client_id>`, `sub`, `nonce` (echoed from
+`/authorize`), `name`, `picture`, `email`, `exp`, `iat` — signed with a
+throwaway RSA keypair generated once at process boot (not published via
+JWKS; nothing fetches it). `access_token` is a *separate* JWT the SDK never
+inspects at all — the mock is free to shape it however the mock API server
+finds convenient; simplest is the same signer, claims `{ sub, exp }`, so the
+resource-server side (§3.4) can do **real, meaningful** signature+expiry
+verification (unlike the frontend, which the SDK deliberately doesn't do) —
+this is what makes the 401/session-expiry path (§4, step "Session expiry") a
+genuine end-to-end assertion rather than a stub.
 
 ### 3.4 Mock API server (`web/e2e/servers/mock-api-server/`)
 
@@ -211,6 +266,17 @@ app.post("/v1/graphql", requireBearerToken, (req, res) => {
 Unhandled operations fail loudly (mirroring the existing MSW "strict mode"
 philosophy) so the mock can't silently drift from what the app actually
 sends.
+
+**`requireBearerToken` does real verification.** Unlike the frontend SDK
+(§3.2), nothing stops this server from properly checking the `access_token`:
+verify its RS256 signature against the mock auth server's public key (shared
+between the two mock server processes via a small common module, e.g.
+`web/e2e/servers/shared/keys.ts` — both are spawned from the same repo
+checkout so they can import the same generated keypair) and its `exp` claim,
+returning `401` on a missing header, bad signature, or expired token. This
+real check is what makes `/__test__/force-error`'s 401 injection and the
+`AuthorizationError`/logout-on-401 flow (§4 step 20) an honest integration
+test of `Api.ts`'s `fetchQuery` rather than a hand-waved stub.
 
 **In-memory store** (`store.ts`) models exactly the entities the app touches:
 `nutritionItems`, `recipes`, `diaryEntries`, `nutritionTargets` — plain
@@ -251,15 +317,16 @@ setup/assertions instead of the UI):
   reproduce today's real (if inconsistent) contract rather than "fixing" it
   — flag this to the team separately; it's out of scope here.
 
-Auth: every route except `/​__test__/*` and the two `.well-known` endpoints
-(if proxied through, though those live on the auth server) requires a valid
-bearer token verified against the mock auth server's JWKS, returning 401 on
-failure/expiry — this is the same check `Api.ts`'s `fetchQuery` and
+`requireBearerToken` (above) gates every route here except `/__test__/*` —
+including the two REST endpoints, not just `/v1/graphql` — returning 401 on
+a missing/invalid/expired token, which is what `Api.ts`'s `fetchQuery` and
 `registerLogoutHandler` wiring are designed to react to.
 
 ### 3.5 Playwright harness
 
-New devDependency: `@playwright/test` (the existing `playwright` package is
+New devDependency: `@playwright/test` (currently `1.62.1` on npm, confirmed;
+well past the ~1.42 baseline that introduced the multi-entry `webServer`
+array this design relies on — the existing `playwright` package is
 the lower-level driver used today by Vitest's browser provider; the test
 runner is a separate package). New directory `web/e2e/`:
 
@@ -317,7 +384,9 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: "npm run build && npm run preview -- --port 5173",
+      // Not `npm run serve` (today's `vite preview` alias) — invoke vite
+      // directly so the E2E-only port/env don't leak into that script.
+      command: "npx vite build && npx vite preview --port 5173 --strictPort",
       cwd: "..",
       port: WEB_PORT,
       reuseExistingServer: false,
@@ -340,6 +409,24 @@ behaviors (HMR websockets, unminified source, on-demand module compilation)
 as variables, and it's the only way a "verify a full rewrite" story makes
 sense — a rewrite wouldn't necessarily have a `vite dev` at all.
 
+Two things confirmed against the installed `vite@^8.0.0` itself rather than
+assumed:
+
+- **`import.meta.env.VITE_*` values are inlined at `vite build` time**, not
+  read live by `vite preview` — so the `env` block above must wrap the whole
+  `vite build && vite preview` command (as written), not just the `preview`
+  half. Setting these vars only for `preview` would silently build against
+  the *production* defaults and then serve that stale build.
+- **`vite preview` applies SPA fallback (serves `index.html` for unmatched
+  paths) automatically**, with no extra config needed. Confirmed in
+  `node_modules/vite/dist/node/chunks/node.js`: `preview()` installs
+  `htmlFallbackMiddleware` whenever `config.appType === "spa"`, and
+  `appType` defaults to `"spa"` when unset (as it is in this project's
+  `vite.config.mts`). This is what makes step 17's page-reload-on-`/profile`
+  assertion (and any other direct/reloaded navigation to a nested route)
+  work the same way it does in production behind nginx's
+  `try_files $uri $uri/index.html /index.html`.
+
 Camera access: launch Chromium with
 `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream` (via
 `launchOptions.args` in the config, plus granting the `camera` permission on
@@ -353,7 +440,9 @@ specific nutrition values.
 ### 3.6 Coverage
 
 The user wants "very high" coverage attributable to this suite alone. Add
-`vite-plugin-istanbul`, enabled only when `E2E_COVERAGE=true` is set for the
+`vite-plugin-istanbul` (confirmed on npm at `8.0.0`, whose declared
+`peerDependencies.vite` is `>=7` — compatible with this project's
+`vite: ^8.0.0`), enabled only when `E2E_COVERAGE=true` is set for the
 build step in `playwright.config.ts`'s web-frontend `webServer` entry. At the
 end of the single long test, `page.evaluate(() => (window as any).__coverage__)`
 and write it to `.nyc_output/e2e.json`; a `posttest:e2e` script runs `nyc
@@ -549,23 +638,22 @@ response shapes, including the naming mismatch between the two).
 ## 6. Rollout phases
 
 1. Frontend seams (§3.1) — tiny, safe, lands alone.
-2. Discovery spike (§3.2) — confirms the exact Auth0 contract before building
-   against assumptions.
-3. Mock auth server (§3.3), with its own small unit tests.
-4. Mock API server (§3.4), with its own small unit tests.
-5. Playwright harness scaffolding (§3.5–3.7): config, fixtures, support
+2. Mock auth server (§3.3), against the confirmed contract in §3.2, with its
+   own small unit tests (e.g. "a valid `/authorize` submission redirects with
+   a code," "the token endpoint rejects a mismatched `code_verifier` with
+   `400 invalid_grant`," "a reused code is rejected").
+3. Mock API server (§3.4), with its own small unit tests (one per operation
+   in Appendix A is enough; plus a 401 test for `requireBearerToken`).
+4. Playwright harness scaffolding (§3.5–3.7): config, fixtures, support
    helpers, empty `webServer` wiring — verify all three processes boot and
    the app loads logged-out.
-6. The journey test itself (§4), built up step by step, each step runnable
+5. The journey test itself (§4), built up step by step, each step runnable
    and green before adding the next.
-7. Coverage wiring (§3.6).
-8. CI cutover + delete the old suite (§3.7's last paragraph).
+6. Coverage wiring (§3.6).
+7. CI cutover + delete the old suite (§3.7's last paragraph).
 
 ## 7. Open risks
 
-- **Auth0 SDK internals are assumed, not yet confirmed** (§3.2) — the
-  biggest unknown; budget real time for the spike before committing to the
-  mock auth server's exact response shapes.
 - **Single long test = single point of failure for the whole run.** A bug in
   step 6 blocks steps 7–22 from ever running that CI invocation. Mitigate
   with `test.step` granularity in the trace viewer and by keeping each mock
@@ -574,3 +662,10 @@ response shapes, including the naming mismatch between the two).
 - **Runtime.** A 22-step real-browser journey with two build steps (frontend
   `vite build`) will be slower than the current suite. Consider caching the
   Vite build across CI runs when only test/mock-server code changed.
+- **`npm install`'s resolved `@auth0/auth0-spa-js` version may drift from
+  `1.22.4`.** `package.json` pins `^1.22.4`; the contract in §3.2 was read
+  directly from that exact version's source and should hold for any 1.x
+  patch/minor bump (no breaking changes expected within a major version),
+  but re-diff `node_modules/@auth0/auth0-spa-js/package.json`'s resolved
+  version against this doc if the mock auth server's tests start failing
+  after a routine `npm install`/lockfile update.
