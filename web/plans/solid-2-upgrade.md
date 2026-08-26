@@ -26,6 +26,10 @@ starting from scratch.
 - 5 of 6 `<Index>` call sites converted to `<For>`: `SegmentedControl`,
   `SuggestionsList`, `RecipeShow`, `DiaryList` (both lists),
   `ImportDiaryEntries` (PR #41)
+- `NewRecipeForm.tsx`'s edit state moved from a plain signal to
+  `createStore`, and its remaining `<Index>` converted to `<For>` (PR
+  #43) — see the correction below. This was the last `<Index>` in the
+  app.
 
 ## What's actually left when 2.0 is stable
 
@@ -57,31 +61,7 @@ Once the rewrite passes those tests, the call sites listed above shouldn't
 need to change — they only use the `[accessor, { mutate, refetch }]` shape
 and `.loading`, none of which needs to change externally.
 
-### 2. `NewRecipeForm.tsx`: move edit state to `createStore`, then convert its `<Index>` to `<For>`
-
-This is the one `<Index>` left, and it's load-bearing: every keystroke on
-a servings input replaces that row's object in `recipe_items`
-(`{...item(), servings}` inside a full-array rebuild), so `<For>`'s
-reference-based keying would tear down and recreate the `<input>` mid-edit,
-losing focus. This is now pinned down by a regression test in
-`NewRecipeForm.test.tsx` (PR #39) — if that test starts failing, something
-regressed the DOM-identity guarantee.
-
-Fix the root cause instead of working around it: replace the
-`createSignal<Recipe>` + full-array-rebuild pattern with `solid-js/store`'s
-`createStore` and in-place path mutation (`setInput("recipe_items", i,
-"servings", value)`), so row objects keep stable identity across edits.
-Once that's true, `<Index>` there can move to `<For>` like the other five
-did, and the DOM-identity regression test above should keep passing
-(re-verify it explicitly — it's the safety net for this exact change).
-
-Note 2.0 changes stores too (draft-mutation setters replace `produce`/
-`createMutable`, neither of which this app uses) — check the 2.0 store
-API against `createStore`'s 1.x API before writing this, in case the
-migration guide recommends doing this step as part of the 2.0 bump itself
-rather than before it.
-
-### 3. Bump `@solidjs/router` to its 2.0 line
+### 2. Bump `@solidjs/router` to its 2.0 line
 
 Do this in lockstep with the `solid-js` bump, not independently — unlike
 the `0.10` → `1.0` bump (PR #38), 2.0 is a real breaking jump for the
@@ -92,11 +72,11 @@ on). `useParams()`'s stricter `string | undefined` typing (surfaced by the
 1.0 bump, fixed in `RecipeShow.tsx`) is a sign more type-strictness changes
 are likely.
 
-### 4. Bump `@solidjs/testing-library` to its 1.0 line
+### 3. Bump `@solidjs/testing-library` to its 1.0 line
 
 Needed for the test suite to run against Solid 2.0 at all.
 
-### 5. Everything else in the codebase
+### 4. Everything else in the codebase
 
 A grep for 2.0-removed/changed APIs (`createResource`, `startTransition`,
 `useTransition`, `createComputed`, `on(`, `produce(`, `createMutable`,
@@ -128,8 +108,17 @@ picking this up again in case that's changed.
   position (a controlled input bound to `item().field` whose `onInput`
   replaces the object at that index). If so, `<Index>`'s index-stable DOM
   reuse is load-bearing (keeps focus during edits) and converting to
-  `<For>` needs the object-identity-churn root cause fixed first (see
-  item 2 above), not just a mechanical swap.
+  `<For>` needs the object-identity-churn root cause fixed first (a
+  `createStore` + path-mutation rewrite, as `NewRecipeForm.tsx` got in PR
+  #43), not just a mechanical swap.
+- **Don't assume a fix needs a later Solid version without checking** —
+  this doc originally gated the `NewRecipeForm` store rewrite behind
+  waiting for 2.0, on the theory that 2.0 changes store APIs too. It
+  didn't need to: `createStore`'s path-based setters are a stable 1.x
+  feature already available, and the whole rewrite shipped in PR #43
+  without touching `solid-js`'s version at all. When a plan says
+  "wait for the next major," check whether the specific API involved
+  is actually version-gated before believing it.
 - **Router version bumps can carry real type-strictness changes even when
   the changelog calls them non-breaking** — `useParams()`'s return type
   got stricter between `0.10` and `1.0` even though that bump was billed
