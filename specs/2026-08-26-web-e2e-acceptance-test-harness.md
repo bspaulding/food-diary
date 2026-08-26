@@ -353,7 +353,7 @@ array this design relies on — the existing `playwright` package is
 the lower-level driver used today by Vitest's browser provider; the test
 runner is a separate package). New directory `web/e2e/`:
 
-As landed in phase 2 (this differs slightly from the original sketch below —
+As landed in phases 2–3 (this differs slightly from the original sketch below —
 the router/JWT/secret helpers turned out to be genuinely shared code, so
 they live under `servers/shared/` rather than being duplicated per server;
 `vitest.config.ts` is the harness's own dedicated Node-environment test
@@ -377,10 +377,15 @@ web/e2e/
       loginPage.ts
       __tests__/
         server.test.ts
-    mock-api-server/            # phase 3, not yet landed
-      index.ts
-      store.ts
-      resolvers.ts
+    mock-api-server/
+      index.ts                 # CLI entrypoint: binds PORT (default 4200)
+      server.ts                # createMockApiServer() -- wires the router + withAuth wrapper
+      auth.ts                  # verifyAccessToken(): real HS256 + exp check against the shared secret
+      store.ts                 # in-memory entities + the calorie/protein/added-sugar formulas
+      resolvers.ts              # one function per GraphQL operation, dispatched by name substring
+      restHandlers.ts           # canned /lookup and /upload responses
+      __tests__/
+        server.test.ts
   support/
     testControl.ts             # thin HTTP client for the /__test__/* endpoints on both mock servers
     login.ts                   # drives the fake login page from a Playwright Page
@@ -678,8 +683,20 @@ response shapes, including the naming mismatch between the two).
    `400 invalid_grant`," "a reused code is rejected"). 13 tests, all passing;
    also smoke-tested as a real standalone `tsx`-run process with `curl`
    (§3.5's directory listing shows the as-landed layout).
-3. Mock API server (§3.4), with its own small unit tests (one per operation
+3. ✅ Mock API server (§3.4), with its own small unit tests (one per operation
    in Appendix A is enough; plus a 401 test for `requireBearerToken`).
+   35 tests, all passing, covering every operation in Appendix A, the
+   derived calorie/protein/added-sugar formulas (verified against the real
+   Postgres functions in `graphql-engine/migrations/`, not guessed), and
+   all four test-control endpoints. Also verified end-to-end for the first
+   time across all three phases so far: built the app with
+   `FOOD_DIARY_MOCK_SERVER_URL` pointed at a real standalone mock API
+   server process, served it with `vite preview`, drove a real PKCE login
+   against a real standalone mock auth server process, and used the
+   resulting token to successfully create a nutrition item and call
+   `/llm/lookup` through the app's own unchanged relative-path proxy —
+   confirming §3.1's phase-1 proxy design and this phase's server work
+   compose correctly, not just in isolation.
 4. Playwright harness scaffolding (§3.5–3.7): config, fixtures, support
    helpers, empty `webServer` wiring — verify all three processes boot and
    the app loads logged-out.
