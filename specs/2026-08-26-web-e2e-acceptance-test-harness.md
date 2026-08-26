@@ -240,9 +240,13 @@ slash required), `aud = <client_id>`, `sub`, `nonce` (echoed from
 throwaway RSA keypair generated once at process boot (not published via
 JWKS; nothing fetches it). `access_token` is a *separate* JWT the SDK never
 inspects at all — the mock is free to shape it however the mock API server
-finds convenient; simplest is the same signer, claims `{ sub, exp }`, so the
-resource-server side (§3.4) can do **real, meaningful** signature+expiry
-verification (unlike the frontend, which the SDK deliberately doesn't do) —
+finds convenient. As implemented: HS256, claims `{ sub, exp }`, signed with a
+plain shared-secret string constant (`web/e2e/servers/shared/secrets.ts`)
+both mock server processes import — simpler than sharing an RSA keypair
+across two independent processes, since it's just an identical literal, no
+runtime handshake needed. This lets the resource-server side (§3.4) do
+**real, meaningful** signature+expiry verification (unlike the frontend,
+which the SDK deliberately doesn't do) —
 this is what makes the 401/session-expiry path (§4, step "Session expiry") a
 genuine end-to-end assertion rather than a stub.
 
@@ -278,15 +282,21 @@ philosophy) so the mock can't silently drift from what the app actually
 sends.
 
 **`requireBearerToken` does real verification.** Unlike the frontend SDK
-(§3.2), nothing stops this server from properly checking the `access_token`:
-verify its RS256 signature against the mock auth server's public key (shared
-between the two mock server processes via a small common module, e.g.
-`web/e2e/servers/shared/keys.ts` — both are spawned from the same repo
-checkout so they can import the same generated keypair) and its `exp` claim,
-returning `401` on a missing header, bad signature, or expired token. This
-real check is what makes `/__test__/force-error`'s 401 injection and the
+(§3.2), nothing stops this server from properly checking the `access_token`.
+As implemented in phase 2 (`web/e2e/servers/mock-auth-server/`), the
+`access_token` is a separate, HS256-signed JWT (not RS256 like the
+`id_token`) verified with a plain shared-secret string constant from
+`web/e2e/servers/shared/secrets.ts` — simpler than sharing an RSA keypair
+across the two independent processes, since it's just an identical literal
+both files import (no runtime handshake needed). The mock API server imports
+the same constant, verifies the HMAC and `exp` claim, and returns `401` on a
+missing header, bad signature, or expired token. This real check is what
+makes `/__test__/force-error`'s 401 injection and the
 `AuthorizationError`/logout-on-401 flow (§4 step 20) an honest integration
-test of `Api.ts`'s `fetchQuery` rather than a hand-waved stub.
+test of `Api.ts`'s `fetchQuery` rather than a hand-waved stub. The `id_token`
+itself is still RS256 (required by the literal `alg` header check, §3.2)
+but its keypair is generated fresh per process boot — never shared, since
+nothing outside the SDK's own (never-performed) signature check touches it.
 
 **In-memory store** (`store.ts`) models exactly the entities the app touches:
 `nutritionItems`, `recipes`, `diaryEntries`, `nutritionTargets` — plain
@@ -343,18 +353,31 @@ array this design relies on — the existing `playwright` package is
 the lower-level driver used today by Vitest's browser provider; the test
 runner is a separate package). New directory `web/e2e/`:
 
+As landed in phase 2 (this differs slightly from the original sketch below —
+the router/JWT/secret helpers turned out to be genuinely shared code, so
+they live under `servers/shared/` rather than being duplicated per server;
+`vitest.config.ts` is the harness's own dedicated Node-environment test
+config, deliberately separate from the app's jsdom-based one so these
+server-side tests aren't coverage-gated or run as part of `npm test`):
+
 ```
 web/e2e/
-  playwright.config.ts
-  fixtures/
-    import-entries.csv         # for the CSV import flow
-    nutrition-label.jpg        # for the camera "Upload Image" flow
+  vitest.config.ts             # dedicated config for these servers' own unit tests (npm run test:e2e:servers)
+  playwright.config.ts         # not yet landed (phase 4)
+  fixtures/                    # not yet landed (phase 4) -- import-entries.csv, nutrition-label.jpg
   servers/
+    shared/
+      httpServer.ts            # tiny exact-match router + body/response helpers, used by both mock servers
+      jwt.ts                   # sign/verify HS256 + RS256, decode header/payload (no external JWT library)
+      secrets.ts                # ACCESS_TOKEN_SECRET, imported by both processes -- see below
     mock-auth-server/
-      index.ts
-      jwt.ts
-      login-page.html
-    mock-api-server/
+      index.ts                 # CLI entrypoint: binds PORT (default 4300)
+      server.ts                # createMockAuthServer() -- returns an unbound http.Server for testability
+      store.ts                 # in-memory pending-codes map + the "next login" test user profile
+      loginPage.ts
+      __tests__/
+        server.test.ts
+    mock-api-server/            # phase 3, not yet landed
       index.ts
       store.ts
       resolvers.ts
@@ -648,11 +671,13 @@ response shapes, including the naming mismatch between the two).
 
 ## 6. Rollout phases
 
-1. Frontend seams (§3.1) — tiny, safe, lands alone.
-2. Mock auth server (§3.3), against the confirmed contract in §3.2, with its
+1. ✅ Frontend seams (§3.1) — tiny, safe, lands alone.
+2. ✅ Mock auth server (§3.3), against the confirmed contract in §3.2, with its
    own small unit tests (e.g. "a valid `/authorize` submission redirects with
    a code," "the token endpoint rejects a mismatched `code_verifier` with
-   `400 invalid_grant`," "a reused code is rejected").
+   `400 invalid_grant`," "a reused code is rejected"). 13 tests, all passing;
+   also smoke-tested as a real standalone `tsx`-run process with `curl`
+   (§3.5's directory listing shows the as-landed layout).
 3. Mock API server (§3.4), with its own small unit tests (one per operation
    in Appendix A is enough; plus a 401 test for `requireBearerToken`).
 4. Playwright harness scaffolding (§3.5–3.7): config, fixtures, support
