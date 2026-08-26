@@ -1,4 +1,4 @@
-const host = import.meta.env.VITE_GRAPHQL_URL ?? "/api/v1/graphql";
+const host = "/api/v1/graphql";
 
 /**
  * Custom error class for authorization failures (401/403 responses)
@@ -894,8 +894,7 @@ export async function lookupNutritionWithLLM(
   accessToken: string,
   description: string,
 ): Promise<Partial<NutritionItemAttrs>> {
-  const lookupUrl = import.meta.env.VITE_LLM_LOOKUP_URL ?? "/llm/lookup";
-  const response = await fetch(lookupUrl, {
+  const response = await fetch("/llm/lookup", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

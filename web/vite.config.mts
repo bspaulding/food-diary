@@ -11,11 +11,26 @@ const useLocalHasura: boolean =
 // ones.
 const useLocalLlmNutritionApi: boolean =
   process.env.FOOD_DIARY_USE_LOCAL_LLM_NUTRITION_API === "true";
+// The E2E acceptance test harness runs a single mock server standing in for
+// both Hasura and llm-nutrition-api (serving /v1/graphql, /lookup, /upload
+// at its root, same as the real services do once Vite strips the /api,
+// /llm, /labeller prefixes below). When set, it takes priority over the
+// two flags above for all three proxy targets -- this is the one thing the
+// harness injects to point the built app at the mock backend; `vite
+// preview` reuses this same `server.proxy` config (Vite falls back to it
+// when `preview.proxy` isn't set separately), so no application code needs
+// to know about it.
+const mockServerUrl = process.env.FOOD_DIARY_MOCK_SERVER_URL;
 // The E2E harness serves the app over plain HTTP (mock servers run on
 // localhost, which Chromium treats as a secure context on its own) and
 // needs to disable this self-signed-cert plugin to do so.
 const useHttps: boolean = process.env.FOOD_DIARY_HTTPS !== "false";
-console.log({ useLocalHasura, useLocalLlmNutritionApi, useHttps });
+console.log({
+  useLocalHasura,
+  useLocalLlmNutritionApi,
+  mockServerUrl,
+  useHttps,
+});
 
 export default defineConfig({
   plugins: [tailwindcss(), solidPlugin(), ...(useHttps ? [basicSsl()] : [])],
@@ -25,23 +40,29 @@ export default defineConfig({
     port: 3000,
     proxy: {
       "/api": {
-        target: useLocalHasura
-          ? "http://localhost:8080/"
-          : "https://food-diary.motingo.com/api/",
+        target:
+          mockServerUrl ??
+          (useLocalHasura
+            ? "http://localhost:8080/"
+            : "https://food-diary.motingo.com/api/"),
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/api/, ""),
       },
       "/labeller": {
-        target: useLocalLlmNutritionApi
-          ? "http://localhost:3030"
-          : "https://food-diary.motingo.com/labeller/",
+        target:
+          mockServerUrl ??
+          (useLocalLlmNutritionApi
+            ? "http://localhost:3030"
+            : "https://food-diary.motingo.com/labeller/"),
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/labeller/, ""),
       },
       "/llm": {
-        target: useLocalLlmNutritionApi
-          ? "http://localhost:3030"
-          : "https://food-diary.motingo.com/llm/",
+        target:
+          mockServerUrl ??
+          (useLocalLlmNutritionApi
+            ? "http://localhost:3030"
+            : "https://food-diary.motingo.com/llm/"),
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/llm/, ""),
       },

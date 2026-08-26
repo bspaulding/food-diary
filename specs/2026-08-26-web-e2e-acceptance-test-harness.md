@@ -87,41 +87,51 @@ internals. That's the "total black box" property the user asked for.
 
 ## 3. Harness changes required
 
-### 3.1 Frontend seams (small, behavior-preserving code changes)
+### 3.1 Frontend seams — a proxy-target override, not an app-code change
 
-Two hardcoded values currently prevent pointing the built app at an arbitrary
-mock server URL without also owning a reverse proxy in front of it:
+The first draft of this section had `Api.ts` and `CameraModal.tsx` read
+`import.meta.env.VITE_*` overrides for each of the three relative paths
+(`/api/v1/graphql`, `/llm/lookup`, `/labeller/upload`), reasoning that
+something had to make those resolvable without Vite's dev proxy or nginx in
+front of them. That was unnecessary complexity — checking the installed
+`vite@^8.0.0` source directly (`node_modules/vite/dist/node/chunks/node.js`,
+`resolvePreviewOptions`) shows `vite preview`'s proxy config is
+`preview?.proxy ?? server.proxy` — **it already falls back to this project's
+existing `server.proxy` block when no separate `preview.proxy` is set**,
+which is the case here. Confirmed at runtime too: a `vite build` produced
+with `FOOD_DIARY_MOCK_SERVER_URL` set is **byte-for-byte identical** to a
+default build (same content hash on the output JS), and curling a
+`vite preview` server through that proxy with the env var set correctly
+routes `/api/v1/graphql` → `/v1/graphql`, `/llm/lookup` → `/lookup`, and
+`/labeller/upload` → `/upload` on the target.
 
-1. **`web/src/Api.ts`** — `const host = "/api/v1/graphql"` is a relative
-   path, only resolvable because Vite's dev proxy (or nginx in prod) rewrites
-   `/api/*` to Hasura. Change to:
+So the actual change is entirely in `web/vite.config.mts`, generalizing the
+existing `useLocalHasura`/`useLocalLlmNutritionApi` proxy-target logic: a new
+`FOOD_DIARY_MOCK_SERVER_URL` env var, when set, overrides the target for all
+three proxy entries (`/api`, `/llm`, `/labeller`) to the same single mock
+server — matching the single-process mock API server design in §3.4, which
+serves `/v1/graphql`, `/lookup`, and `/upload` at its root (i.e. the same
+path shape the real Hasura/llm-nutrition-api services present *after* Vite's
+existing `rewrite` strips each prefix). `Api.ts` and `CameraModal.tsx` are
+untouched — this is the one thing the harness injects to point the app at
+the mock backend, exactly as the original ask described, and it means a full
+rewrite of the app needs zero adaptation to pass this suite as long as it
+keeps calling the same relative paths (which it must anyway, since that's
+also what production's nginx config expects).
 
-   ```ts
-   const host = import.meta.env.VITE_GRAPHQL_URL ?? "/api/v1/graphql";
-   ```
+`web/vite.config.mts` also makes the `basicSsl()` plugin conditional
+(`process.env.FOOD_DIARY_HTTPS !== "false"`) so Playwright doesn't have to
+deal with a self-signed cert to load the app's own origin — unrelated to the
+proxy-target question above, but bundled into the same file. `VITE_AUTH0_DOMAIN`/
+`VITE_AUTH0_CLIENT_ID` are already env-driven (`web/src/Auth0.ts`) — no code
+change needed there. Point `VITE_AUTH0_DOMAIN` at `http://localhost:4300` for
+tests (auth0-spa-js accepts a domain that already includes a scheme and uses
+it verbatim instead of prepending `https://`, confirmed in §3.2).
 
-   and similarly in `lookupNutritionWithLLM`, replace the literal
-   `"/llm/lookup"` with `import.meta.env.VITE_LLM_LOOKUP_URL ?? "/llm/lookup"`.
-
-2. **`web/src/CameraModal.tsx`** — replace the literal `"/labeller/upload"`
-   with `import.meta.env.VITE_LLM_UPLOAD_URL ?? "/labeller/upload"`.
-
-   Defaults are unchanged, so production behavior (nginx-fronted, relative
-   paths) is untouched. Tests set the three `VITE_*` vars to
-   `http://localhost:4200/...`, talking to the mock API server directly, no
-   proxy involved.
-
-3. **`web/vite.config.mts`** — make the `basicSsl()` plugin conditional
-   (`process.env.FOOD_DIARY_HTTPS !== "false"`), so the E2E build/preview can
-   run plain HTTP. `VITE_AUTH0_DOMAIN`/`VITE_AUTH0_CLIENT_ID` are already
-   env-driven (`web/src/Auth0.ts`) — no code change needed there. Point
-   `VITE_AUTH0_DOMAIN` at `http://localhost:4300` for tests (auth0-spa-js
-   accepts a domain that already includes a scheme and uses it verbatim
-   instead of prepending `https://`).
-
-None of this is E2E-only scaffolding baked into production code paths beyond
-an `?? "<same default as today>"` fallback — safe to land as its own small PR
-ahead of the rest, verified by the existing unit tests.
+None of this touches application source (`.ts`/`.tsx`) at all — only build
+config (`vite.config.mts`) — so it's inherently safe to land ahead of the
+rest, verified by the existing unit tests, a `tsc`/type-coverage pass, and
+the bundle-identity/curl checks above.
 
 ### 3.2 Auth0 SDK contract — confirmed against source
 
@@ -298,19 +308,22 @@ setup/assertions instead of the UI):
 | `POST /__test__/force-error` | Arm the *next* N requests (or requests matching an operation name) to return a given HTTP status — used for the 401/session-expiry test without needing the UI to organically produce one. |
 | `GET /__test__/dump` | Return the whole store as JSON — useful for debugging failed runs and for assertions that are awkward to make through the UI (e.g., "was `consumed_at` actually persisted as the edited value"). |
 
-**REST endpoints:**
+**REST endpoints.** Note the paths are `/lookup` and `/upload` at the mock
+server's root — matching the real `llm-nutrition-api` service's own route
+names, since that's what `/llm/*` and `/labeller/*` resolve to once
+`vite.config.mts`'s existing proxy `rewrite` strips those prefixes (§3.1):
 
-- `POST /llm/lookup` — body `{ description }`, returns
+- `POST /lookup` — body `{ description }`, returns
   `{ item: { description, calories, total_fat_grams, ... } }` (snake_case,
   matching `lookupNutritionWithLLM`'s parsing in `Api.ts`). Return
   deterministic canned nutrition data derived from the description (e.g. a
   small keyword table plus a stable hash-based fallback) so the assertion in
   the E2E test can check specific numbers.
-- `POST /labeller/upload` — multipart `image` field, returns
+- `POST /upload` — multipart `image` field, returns
   `{ image: { description, calories, total_fat_grams, cholesterol_mg,
   sodium_mg, total_carbohydrates_g, dietary_fiber_g, total_sugars_g,
   added_sugars_g, protein_g } }`. **Note:** these response keys use a
-  different naming convention than `/llm/lookup`'s response
+  different naming convention than `/lookup`'s response
   (`cholesterol_mg` vs. `cholesterol_milligrams`, etc. — compare
   `CameraModal.tsx`'s `getNumericValue(data, "cholesterol_mg")` against
   `Api.ts`'s `lookupNutritionWithLLM` parsing). The mock must faithfully
@@ -392,11 +405,9 @@ export default defineConfig({
       reuseExistingServer: false,
       env: {
         FOOD_DIARY_HTTPS: "false",
+        FOOD_DIARY_MOCK_SERVER_URL: `http://localhost:${API_PORT}`,
         VITE_AUTH0_DOMAIN: `http://localhost:${AUTH_PORT}`,
         VITE_AUTH0_CLIENT_ID: "e2e-test-client",
-        VITE_GRAPHQL_URL: `http://localhost:${API_PORT}/v1/graphql`,
-        VITE_LLM_LOOKUP_URL: `http://localhost:${API_PORT}/llm/lookup`,
-        VITE_LLM_UPLOAD_URL: `http://localhost:${API_PORT}/labeller/upload`,
       },
     },
   ],
@@ -630,7 +641,7 @@ GraphQL operations (matched by name, per `web/src/Api.ts`):
 | `UpdateDiaryEntry` | mutation | update servings/consumed_at |
 | `SetNutritionTargets` | mutation | upsert on conflict |
 
-REST endpoints: `POST /llm/lookup`, `POST /labeller/upload` (see §3.4 for
+REST endpoints: `POST /lookup`, `POST /upload` (see §3.4 for
 response shapes, including the naming mismatch between the two).
 
 ---
