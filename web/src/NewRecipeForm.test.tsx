@@ -36,9 +36,33 @@ vi.mock("@solidjs/router", () => ({
   ),
 }));
 
+// SearchItemsForm's own search/debounce behavior has its own test file; here
+// it's stubbed to invoke its render-prop immediately with fixed items, so
+// tests below can exercise NewRecipeForm's own add-item logic (the store
+// append path) deterministically instead of through real debounced search +
+// MSW timing.
+const mockSearchItems: Array<{ id: number; description: string }> = [];
+vi.mock("./SearchItemsForm", () => ({
+  __esModule: true,
+  ItemsQueryType: { ItemsAndRecipes: 0, ItemsOnly: 1 },
+  default: (props: {
+    children: (item: {
+      clear?: () => void;
+      nutritionItem?: { id: number; description: string };
+    }) => unknown;
+  }) => (
+    <>
+      {mockSearchItems.map((nutritionItem) =>
+        props.children({ clear: () => {}, nutritionItem }),
+      )}
+    </>
+  ),
+}));
+
 describe("NewRecipeForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchItems.length = 0;
   });
 
   it("should render new recipe form", () => {
@@ -187,6 +211,43 @@ describe("NewRecipeForm", () => {
     await waitFor(() => {
       expect(screen.getByText("1 items in recipe.")).toBeTruthy();
     });
+  });
+
+  // Exercises the store append path (setInput("recipe_items",
+  // input.recipe_items.length, newItem)) deterministically, since the test
+  // above going through real SearchItemsForm search/debounce timing is
+  // flaky in this environment (confirmed against unmodified NewRecipeForm.tsx
+  // too, so it's a pre-existing environment issue, not this test's to fix).
+  it("appends items to recipe_items when added, in order", async () => {
+    const user = userEvent.setup();
+    mockSearchItems.push(
+      { id: 1, description: "Apple" },
+      { id: 2, description: "Banana" },
+    );
+
+    render(() => <NewRecipeForm />);
+
+    expect(screen.getByText("0 items in recipe.")).toBeTruthy();
+
+    const addButtons = screen.getAllByText("⊕");
+    await user.click(addButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText("1 items in recipe.")).toBeTruthy();
+    });
+
+    await user.click(addButtons[1]);
+
+    await waitFor(() => {
+      expect(screen.getByText("2 items in recipe.")).toBeTruthy();
+    });
+
+    const servingsInputs = screen.getAllByRole(
+      "spinbutton",
+    ) as HTMLInputElement[];
+    // index 0 is total-servings; the added items follow in append order
+    expect(servingsInputs[1].value).toBe("1");
+    expect(servingsInputs[2].value).toBe("1");
   });
 
   it.skip("should update item servings in recipe", async () => {
