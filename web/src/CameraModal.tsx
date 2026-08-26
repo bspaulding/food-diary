@@ -1,5 +1,5 @@
 import type { Component } from "solid-js";
-import { createSignal, createEffect, onCleanup, on } from "solid-js";
+import { createSignal, createEffect, onCleanup, untrack } from "solid-js";
 import type { NutritionItemAttrs } from "./Api";
 
 type Props = {
@@ -97,9 +97,16 @@ const CameraModal: Component<Props> = (props: Props) => {
     }
   });
 
-  // Create effect to manage object URL lifecycle
-  createEffect(
-    on(capturedImage, (image: Blob | null) => {
+  // Create effect to manage object URL lifecycle. Only capturedImage should
+  // be a tracked dependency here -- reading/writing capturedImageUrl inside
+  // an untracked effect on capturedImage itself would make this effect
+  // re-trigger on its own setCapturedImageUrl call, so those are untracked
+  // (matching what the removed `on(capturedImage, ...)` wrapper used to do
+  // implicitly).
+  createEffect(() => {
+    const image: Blob | null = capturedImage();
+
+    untrack(() => {
       // Revoke previous URL if it existed
       const prevUrl: string | null = capturedImageUrl();
       if (prevUrl) {
@@ -113,8 +120,8 @@ const CameraModal: Component<Props> = (props: Props) => {
       } else {
         setCapturedImageUrl(null);
       }
-    }),
-  );
+    });
+  });
 
   const handleFileSelect = async (event: Event): Promise<void> => {
     const input: HTMLInputElement | null =
