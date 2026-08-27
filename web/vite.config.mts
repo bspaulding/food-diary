@@ -75,7 +75,12 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test-setup.ts"],
-    exclude: ["**/node_modules/**", "**/dist/**", "**/acceptance*.test.*"],
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/acceptance*.test.*",
+      "e2e/**",
+    ],
     browser: {
       enabled: false, // Can be enabled when browser providers are installed
       instances: [{ browser: "chromium" }],
