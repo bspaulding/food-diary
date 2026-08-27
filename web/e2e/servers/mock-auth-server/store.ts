@@ -23,6 +23,9 @@ export type PendingAuthorization = {
   nonce: string;
   user: TestUserProfile;
   expiresAt: number;
+  /** Overrides the server-wide default token lifetime for this login only
+   * -- see IssueCodeParams.ttlSeconds. */
+  ttlSeconds?: number;
 };
 
 export type IssueCodeParams = {
@@ -30,12 +33,22 @@ export type IssueCodeParams = {
   redirectUri: string;
   codeChallenge: string;
   nonce: string;
+  /**
+   * Per-login override for how long the resulting access/id tokens are
+   * valid, in seconds -- a real dimension of token issuance (an IdP can
+   * legitimately vary session length), not a test-only backdoor. Lets one
+   * specific login request a short-lived token so a test can wait for it
+   * to genuinely expire and observe the app's real session-expiry
+   * handling, instead of a server forcing a fake failure on demand.
+   */
+  ttlSeconds?: number;
 };
 
 /**
  * All state a single mock-auth-server process needs: authorization codes
  * awaiting exchange, and the profile the *next* login will mint a token
- * for (overridable per test via /__test__/set-user).
+ * for (overridable via the login form's own `email` field -- there's no
+ * separate test-control endpoint for this).
  */
 export class AuthStore {
   private pendingCodes = new Map<string, PendingAuthorization>();

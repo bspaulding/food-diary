@@ -5,6 +5,11 @@ const PRESERVED_PARAMS = [
   "nonce",
   "code_challenge",
   "code_challenge_method",
+  // Not part of real Auth0's /authorize contract -- an optional override of
+  // the issued token's lifetime, carried through like any other param so a
+  // test's login step can request one deliberately (see store.ts's
+  // IssueCodeParams.ttlSeconds). Absent for a normal login.
+  "ttl",
 ] as const;
 
 function escapeHtml(value: string): string {

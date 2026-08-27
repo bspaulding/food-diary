@@ -68,7 +68,7 @@ port, and readiness check — no custom process manager needed):
         │  (vite preview,    │  │  :4200              │  │  :4300               │
         │   the real build)  │  │  in-memory store,   │  │  OAuth2/OIDC + PKCE  │
         │  :5173             │  │  GraphQL + REST     │  │  RS256 id_token,     │
-        │                    │  │  + /__test__ control│  │  no JWKS needed      │
+        │                    │  │  no test-only routes│  │  no JWKS needed      │
         └───────────────────┘  └───────────────────┘  └──────────────────────┘
 ```
 
@@ -228,10 +228,41 @@ document, no `/userinfo`.
 | Method | Path | Behavior |
 |---|---|---|
 | `GET` | `/authorize` | Validate `response_type=code`, `client_id`, `redirect_uri`, `code_challenge`, `code_challenge_method=S256`, `state`, `nonce` are present. Serve a tiny static HTML "login" page (one input pre-filled with a test user id/email, one submit button) so Playwright can drive a *real* login interaction rather than an instant bounce. On submit, mint an opaque authorization `code`, store `{code_challenge, redirect_uri, client_id, nonce, user}` server-side keyed by code, redirect to `redirect_uri?code=...&state=...`. If `prompt=none` is present, skip the login page and immediately respond in a way that lets a hidden-iframe caller time out cleanly (see §3.2) rather than serving the interactive page. |
-| `POST` | `/oauth/token` | `grant_type=authorization_code`: parse the **JSON** body (`client_id`, `code_verifier`, `code`, `redirect_uri` — no `audience`/`scope`, per §3.2), look up the stored code, verify `base64url(SHA256(code_verifier)) === code_challenge`, verify `redirect_uri`/`client_id` match, then respond `200 { access_token, id_token, token_type: "Bearer", expires_in: 86400 }`. Codes are single-use; a mismatched verifier, expired code, or reused code returns `400 { error: "invalid_grant", error_description: "..." }` (worth one test asserting the login flow can't be replayed). |
+| `POST` | `/oauth/token` | `grant_type=authorization_code`: parse the **JSON** body (`client_id`, `code_verifier`, `code`, `redirect_uri` — no `audience`/`scope`, per §3.2), look up the stored code, verify `base64url(SHA256(code_verifier)) === code_challenge`, verify `redirect_uri`/`client_id` match, then respond `200 { access_token, id_token, token_type: "Bearer", expires_in }`. Codes are single-use; a mismatched verifier, expired code, or reused code returns `400 { error: "invalid_grant", error_description: "..." }` (worth one test asserting the login flow can't be replayed). |
 | `GET`/`POST` | `/v2/logout` | Auth0's logout endpoint shape (`client_id`, `returnTo` query params, confirmed in §3.2). 302-redirect to `returnTo` — enough to exercise the app's post-logout state. |
-| `POST` | `/__test__/reset` | Test-control only (never called by the app). Clears in-flight authorization codes and resets the default test user's claims. |
-| `POST` | `/__test__/set-user` | Test-control only. Overrides the profile claims (`name`, `picture`, `email`, `sub`) returned for the *next* login, so a test step can assert the header renders whatever avatar/name the "logged-in user" carries. |
+
+**No `/__test__/*` endpoints.** An earlier draft of this section had
+`/__test__/reset` and `/__test__/set-user` here — dropped, because a test
+driver reaching around the UI to poke bespoke server-internals routes isn't
+testing the contract a real backend (or a rewrite's replacement mock) would
+have to honor; it also means the suite would silently stop testing anything
+if pointed at a mock that didn't happen to implement the same bespoke
+routes. Both use cases turned out to have better, already-black-box answers:
+
+- **Reset** wasn't actually needed by the E2E suite at all — Playwright
+  spawns a fresh server process per run, so the store already starts empty.
+  It's only used by *this repo's own* unit tests for this server, which
+  construct an `AuthStore` directly and call its plain (non-HTTP) `reset()`
+  method between `it()` blocks — the same store the test injects into
+  `createMockAuthServer(options, store)`.
+- **Varying the login identity** doesn't need a side channel either: the
+  login page's own `email` field (real UI, already there) flows into
+  `store.setNextLoginUser({email})` inside the normal `POST /authorize`
+  handler. A test that wants a specific email just types it into the form,
+  like a real user would.
+
+One legitimate gap remained: nothing about the *real* UI naturally produces
+a 401, which the session-expiry test (§4 step 20) needs. Rather than add a
+resource-server-side "fail on demand" toggle, `/authorize` accepts an
+optional `ttl` field (in both the login form's hidden fields and the query
+params a fresh request can supply) that overrides `tokenTtlSeconds` for
+that one login only. This isn't a standard Auth0 parameter, but it's a real
+dimension of token issuance (an IdP can legitimately vary session length)
+rather than a test-only backdoor into the resource server: a test that
+wants to exercise session expiry logs in a second time requesting
+`ttl=2`-ish, waits for that real token to genuinely expire, then performs a
+normal UI action and observes the app's real 401-handling — testing actual
+expiry, not a simulated failure.
 
 `id_token` is a JWT with header `{"alg":"RS256","typ":"JWT"}` (required
 literally, per §3.2) and claims `iss = "http://localhost:4300/"` (trailing
@@ -291,32 +322,42 @@ across the two independent processes, since it's just an identical literal
 both files import (no runtime handshake needed). The mock API server imports
 the same constant, verifies the HMAC and `exp` claim, and returns `401` on a
 missing header, bad signature, or expired token. This real check is what
-makes `/__test__/force-error`'s 401 injection and the
-`AuthorizationError`/logout-on-401 flow (§4 step 20) an honest integration
-test of `Api.ts`'s `fetchQuery` rather than a hand-waved stub. The `id_token`
-itself is still RS256 (required by the literal `alg` header check, §3.2)
-but its keypair is generated fresh per process boot — never shared, since
-nothing outside the SDK's own (never-performed) signature check touches it.
+makes the session-expiry test (§4 step 20, via the auth server's `ttl`
+override — see §3.3) and the `AuthorizationError`/logout-on-401 flow an
+honest integration test of `Api.ts`'s `fetchQuery` rather than a hand-waved
+stub. The `id_token` itself is still RS256 (required by the literal `alg`
+header check, §3.2) but its keypair is generated fresh per process boot —
+never shared, since nothing outside the SDK's own (never-performed)
+signature check touches it.
 
 **In-memory store** (`store.ts`) models exactly the entities the app touches:
 `nutritionItems`, `recipes`, `diaryEntries`, `nutritionTargets` — plain
 arrays/maps with auto-incrementing ids, matching the shapes in
 `web/src/Api.ts`'s TypeScript types. Diary entry `consumed_at` defaults to
-the store's current clock (mirroring the real schema's
-`DEFAULT now()`, confirmed in
-`graphql-engine/migrations/default/1664466824542_init/up.sql:6`) when the
-caller doesn't supply one.
+the real wall clock (mirroring the real schema's `DEFAULT now()`, confirmed
+in `graphql-engine/migrations/default/1664466824542_init/up.sql:6`) when the
+caller doesn't supply one — every mutation that actually needs a specific
+date (`InsertDiaryEntriesWithNewItems`, `UpdateDiaryEntry`) already accepts
+an explicit `consumed_at`, so nothing needs the mock's clock to be
+independently controllable.
 
-**Test-control endpoints** (never called by the app itself — called directly
-by the Playwright test over HTTP, the same black-box principle applied to
-setup/assertions instead of the UI):
+**No `/__test__/*` endpoints here either**, for the same reason as §3.3: a
+test-only HTTP surface that only this mock implements isn't testing the
+contract a real backend has to honor. `store` is a plain constructor
+parameter (`createMockApiServer(store = new MockApiStore())`) instead, so
+this repo's own unit tests construct one directly and call its plain
+`reset()` method between `it()` blocks — the same store the test injects
+into the server. An earlier draft of this section had `/__test__/reset`,
+`/__test__/clock`, `/__test__/force-error`, and `/__test__/dump` here;
+none of them turned out to be necessary for the E2E suite itself:
 
-| Path | Purpose |
-|---|---|
-| `POST /__test__/reset` | Wipe the store back to empty. Called once at global setup. |
-| `POST /__test__/clock` | Set/advance the store's simulated "now," so day-grouping and weekly-stats math is deterministic regardless of when the suite runs (avoids needing `TZ=America/Los_Angeles`-style hacks baked into assertions — set the clock to a fixed instant in that zone instead). |
-| `POST /__test__/force-error` | Arm the *next* N requests (or requests matching an operation name) to return a given HTTP status — used for the 401/session-expiry test without needing the UI to organically produce one. |
-| `GET /__test__/dump` | Return the whole store as JSON — useful for debugging failed runs and for assertions that are awkward to make through the UI (e.g., "was `consumed_at` actually persisted as the edited value"). |
+- **Reset**: unnecessary — Playwright spawns a fresh process per run.
+- **Clock**: unnecessary — see the `consumed_at` note above.
+- **Force-error**: moved to the auth server's `ttl` override (§3.3), which
+  produces a real 401 from a real expired token instead of a fake one.
+- **Dump**: unnecessary — the E2E test creates all the data it asserts
+  against itself (via ids returned from mutations, or values it typed into
+  forms), so it never needs to ask the server what it's holding.
 
 **REST endpoints.** Note the paths are `/lookup` and `/upload` at the mock
 server's root — matching the real `llm-nutrition-api` service's own route
@@ -340,9 +381,9 @@ names, since that's what `/llm/*` and `/labeller/*` resolve to once
   reproduce today's real (if inconsistent) contract rather than "fixing" it
   — flag this to the team separately; it's out of scope here.
 
-`requireBearerToken` (above) gates every route here except `/__test__/*` —
-including the two REST endpoints, not just `/v1/graphql` — returning 401 on
-a missing/invalid/expired token, which is what `Api.ts`'s `fetchQuery` and
+`requireBearerToken` (above) gates every route on this server — including
+the two REST endpoints, not just `/v1/graphql` — returning 401 on a
+missing/invalid/expired token, which is what `Api.ts`'s `fetchQuery` and
 `registerLogoutHandler` wiring are designed to react to.
 
 ### 3.5 Playwright harness
@@ -372,23 +413,22 @@ web/e2e/
       secrets.ts                # ACCESS_TOKEN_SECRET, imported by both processes -- see below
     mock-auth-server/
       index.ts                 # CLI entrypoint: binds PORT (default 4300)
-      server.ts                # createMockAuthServer() -- returns an unbound http.Server for testability
-      store.ts                 # in-memory pending-codes map + the "next login" test user profile
+      server.ts                # createMockAuthServer(options, store?) -- unbound http.Server; store is injectable, defaults to a fresh AuthStore
+      store.ts                 # in-memory pending-codes map + the "next login" test user profile; plain reset()/setNextLoginUser(), no HTTP route
       loginPage.ts
       __tests__/
         server.test.ts
     mock-api-server/
       index.ts                 # CLI entrypoint: binds PORT (default 4200)
-      server.ts                # createMockApiServer() -- wires the router + withAuth wrapper
+      server.ts                # createMockApiServer(store?) -- wires the router + withAuth wrapper; store is injectable, defaults to a fresh MockApiStore
       auth.ts                  # verifyAccessToken(): real HS256 + exp check against the shared secret
-      store.ts                 # in-memory entities + the calorie/protein/added-sugar formulas
+      store.ts                 # in-memory entities + the calorie/protein/added-sugar formulas; plain reset(), no HTTP route
       resolvers.ts              # one function per GraphQL operation, dispatched by name substring
       restHandlers.ts           # canned /lookup and /upload responses
       __tests__/
         server.test.ts
   support/
-    testControl.ts             # thin HTTP client for the /__test__/* endpoints on both mock servers
-    login.ts                   # drives the fake login page from a Playwright Page
+    login.ts                   # drives the real login page from a Playwright Page
   tests/
     full-app-journey.spec.ts   # the single long test (§4)
 ```
@@ -520,7 +560,10 @@ occasional `expect.soft` only where a later step doesn't depend on an
 earlier assertion's outcome. No component is imported, no module is mocked,
 no fetch is intercepted in-process — every interaction is a real click/type
 against the real running app, and every check that isn't visible in the DOM
-goes through the mock servers' `/__test__/dump` endpoint.
+is checked against what the test itself already knows it created (an id
+returned from an earlier UI action, a value it typed into a form) rather
+than by asking either mock server what it's holding — neither has a
+`/__test__/*` endpoint to ask (§3.3, §3.4).
 
 `test.describe.serial` with a couple of `test()`s sharing one `page` fixture
 (via a manually-scoped fixture, since Playwright tears the `page` down
@@ -530,8 +573,9 @@ for one function body to stay readable — but the default target is a single
 
 ### 4.1 Step outline
 
-1. **Cold start, logged out.** Reset both mock servers (`__test__/reset`).
-   Navigate to `/`. Assert the "Log In" button renders (not authenticated).
+1. **Cold start, logged out.** Navigate to `/` (both mock servers already
+   start empty — freshly spawned processes, no reset needed). Assert the
+   "Log In" button renders (not authenticated).
 2. **Login (real PKCE round trip).** Click "Log In" → real full-page
    navigation to the mock auth server's `/authorize` page → fill/submit the
    fake login form → real redirect back to `/auth/callback` with `code`+`state`
@@ -573,15 +617,20 @@ for one function body to stay readable — but the default target is a single
 12. **Edit a diary entry.** Open the entry from step 5's edit form, change
     servings and the consumed time, Save, assert the list re-sorts/re-groups
     correctly (exercises `DiaryEntryEditForm` + day-grouping/time-sort logic).
-13. **Weekly stats + week navigation.** Use `/__test__/clock` to fix "now,"
-    seed (via the normal UI, from earlier steps) entries that land in both
-    the current and a prior week; assert "LAST 7 DAYS"/"4 WEEK AVG" values,
-    then click "Previous Week"/"Next Week" and assert the list changes to
-    match.
+13. **Weekly stats + week navigation.** The entries logged so far already
+    land in the current week (real wall-clock time, no clock override
+    needed). Using the same diary-entry edit UI as step 12, push one
+    entry's consumed time back into the previous week (a real, already-
+    exercised UI path — no need for the mock to support an independently
+    controllable clock). Assert "LAST 7 DAYS"/"4 WEEK AVG" reflect only the
+    current week's total, then click "Previous Week" and assert the list
+    now shows the pushed-back entry, "Next Week" to come back.
 14. **Most-logged + time-based suggestions.** Open "Add New Entry" again;
     assert the "Most Logged" section (backed by `GetTopLoggedItems`) and the
-    time-based suggestions section (backed by `TopEntriesAroundHour`, driven
-    off the fixed clock from step 13) now show the items logged so far.
+    time-based suggestions section (backed by `TopEntriesAroundHour`,
+    naturally around the real current hour, since everything so far was
+    logged within the last few minutes of real test execution) now show the
+    items logged so far.
 15. **Trends page.** Navigate to `/trends`; with entries now logged across
     more than one week, assert the trends chart/section renders (not the
     "no data" empty state) with values consistent with what was logged.
@@ -595,25 +644,29 @@ for one function body to stay readable — but the default target is a single
     state or `localStorage`.
 18. **CSV export.** From `/profile`, go to Export, pick "All dates," trigger
     the download, capture it via Playwright's `page.on("download")`, and
-    assert the CSV content contains rows for every diary entry currently
-    live in the mock store (cross-checked against `/__test__/dump`).
+    assert the CSV content contains rows matching what the test itself
+    tracked as it went (ids and values returned from the mutations/forms in
+    earlier steps) — no need to ask either mock server what it's holding.
 19. **CSV import.** Go to Import, upload the `import-entries.csv` fixture
     (containing at least one row that creates a brand-new nutrition item
     inline, exercising `insertDiaryEntries`'s nested insert), confirm the
     preview, import, and assert the new entries appear in the diary list.
-20. **Session expiry / 401 handling.** Arm `/__test__/force-error` on the
-    mock API server for the next request, trigger any authenticated action
-    (e.g. pull-to-refresh substitute: click into a route that refetches),
-    assert the app calls the registered logout handler and the user is
-    bounced through the mock auth server's `/v2/logout` back to a logged-out
-    `/` (Log In button visible again). This is the one flow
-    `AuthorizationErrorIntegration.test.tsx` currently only checks at the
-    component level — here it's a real 401 from a real server driving a real
-    logout redirect.
-21. **Logout via profile button** (if not already logged out by step 20 —
-    order these so both paths get exercised; e.g. re-login first). Click
-    "Log out" on `/profile`, assert the full redirect through
-    `/v2/logout` and back to a logged-out `/`.
+20. **Session expiry / 401 handling.** Log out (via `/profile`'s "Log out"
+    button), then log back in via the real login form, this time requesting
+    a short `ttl` (e.g. 5s — see §3.3) for this one login only. Wait for
+    that real token to genuinely expire (`page.waitForTimeout`), then
+    perform any normal authenticated action (e.g. a route change that
+    refetches). Assert the app calls the registered logout handler and the
+    user is bounced through the mock auth server's `/v2/logout` back to a
+    logged-out `/` (Log In button visible again) — a real 401 from a real
+    expired token driving a real logout redirect, not a simulated failure;
+    this is the one flow `AuthorizationErrorIntegration.test.tsx` currently
+    only checks at the component level.
+21. **Logout via profile button.** Step 20 already ended logged-out via the
+    *automatic* 401 path, so this step exercises the *manual* one instead:
+    log back in normally (no `ttl` override), click "Log out" on
+    `/profile`, and assert the full redirect through `/v2/logout` and back
+    to a logged-out `/`.
 22. **Re-login, data persists.** Log in again (step 2's helper, reusable),
     assert previously created items/entries are still present — proves
     session/auth is orthogonal to the data layer in this harness (both are
@@ -680,16 +733,21 @@ response shapes, including the naming mismatch between the two).
 2. ✅ Mock auth server (§3.3), against the confirmed contract in §3.2, with its
    own small unit tests (e.g. "a valid `/authorize` submission redirects with
    a code," "the token endpoint rejects a mismatched `code_verifier` with
-   `400 invalid_grant`," "a reused code is rejected"). 13 tests, all passing;
-   also smoke-tested as a real standalone `tsx`-run process with `curl`
+   `400 invalid_grant`," "a reused code is rejected"). 14 tests, all
+   passing (including the `ttl` login override — see §3.3); also
+   smoke-tested as a real standalone `tsx`-run process with `curl`
    (§3.5's directory listing shows the as-landed layout).
 3. ✅ Mock API server (§3.4), with its own small unit tests (one per operation
    in Appendix A is enough; plus a 401 test for `requireBearerToken`).
-   35 tests, all passing, covering every operation in Appendix A, the
+   32 tests, all passing, covering every operation in Appendix A and the
    derived calorie/protein/added-sugar formulas (verified against the real
-   Postgres functions in `graphql-engine/migrations/`, not guessed), and
-   all four test-control endpoints. Also verified end-to-end for the first
-   time across all three phases so far: built the app with
+   Postgres functions in `graphql-engine/migrations/`, not guessed). No
+   `/__test__/*` endpoints on either mock server — see §3.3/§3.4's "No
+   `/__test__/*` endpoints" notes; both servers' own unit tests construct
+   and reset a store directly instead, and the E2E suite's former
+   force-error use case moved to the auth server's `ttl` login override.
+   Also verified end-to-end for the first time across all three phases so
+   far: built the app with
    `FOOD_DIARY_MOCK_SERVER_URL` pointed at a real standalone mock API
    server process, served it with `vite preview`, drove a real PKCE login
    against a real standalone mock auth server process, and used the

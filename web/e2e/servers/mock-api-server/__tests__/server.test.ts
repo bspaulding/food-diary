@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { signHs256Jwt } from "../../shared/jwt.ts";
 import { ACCESS_TOKEN_SECRET } from "../../shared/secrets.ts";
 import { createMockApiServer } from "../server.ts";
+import { MockApiStore } from "../store.ts";
 
 const SUB = "e2e|test-user";
 
@@ -79,12 +80,15 @@ type WeeklyTrendRow = {
 type SearchResult = { id: number; description?: string; name?: string };
 
 describe("mock API server", () => {
+  // Constructed directly and reset between tests in-process -- no
+  // `/__test__/*` HTTP endpoints exist on the server itself; see server.ts.
+  const store = new MockApiStore();
   let server: Server;
   let baseUrl: string;
   let token: string;
 
   beforeAll(async () => {
-    server = createMockApiServer();
+    server = createMockApiServer(store);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const address = server.address() as AddressInfo;
     baseUrl = `http://localhost:${address.port}`;
@@ -96,9 +100,9 @@ describe("mock API server", () => {
     });
   });
 
-  beforeEach(async () => {
+  beforeEach(() => {
     token = mintAccessToken();
-    await fetch(`${baseUrl}/__test__/reset`, { method: "POST" });
+    store.reset();
   });
 
   async function gql(
@@ -716,55 +720,13 @@ describe("mock API server", () => {
     });
   });
 
-  describe("test-control endpoints", () => {
-    it("/__test__/reset wipes the store", async () => {
-      await createNutritionItem();
-      await fetch(`${baseUrl}/__test__/reset`, { method: "POST" });
-      const { body } = await gql("query GetEntries { }");
-      expect(
-        dataOf<{ food_diary_diary_entry: unknown[] }>(body)
-          .food_diary_diary_entry,
-      ).toEqual([]);
-    });
-
-    it("/__test__/clock freezes the default consumed_at for new entries", async () => {
-      await fetch(`${baseUrl}/__test__/clock`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ now: "2026-07-04T00:00:00.000Z" }),
-      });
-      const itemId = await createNutritionItem();
-      const entryId = await createDiaryEntry({
-        servings: 1,
-        nutrition_item_id: itemId,
-      });
-      const entry = await getDiaryEntry(entryId);
-      expect(entry?.consumed_at).toBe("2026-07-04T00:00:00.000Z");
-    });
-
-    it("/__test__/force-error makes the next N authenticated calls fail with the given status", async () => {
-      await fetch(`${baseUrl}/__test__/force-error`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: 401, times: 2 }),
-      });
-      const first = await gql("query GetEntries { }");
-      const second = await gql("query GetEntries { }");
-      const third = await gql("query GetEntries { }");
-      expect(first.status).toBe(401);
-      expect(second.status).toBe(401);
-      expect(third.status).toBe(200);
-    });
-
-    it("/__test__/dump returns the whole store as JSON", async () => {
-      await createNutritionItem();
-      const response = await fetch(`${baseUrl}/__test__/dump`);
-      const body = (await response.json()) as {
-        nutritionItems: unknown[];
-        now: string;
-      };
-      expect(body.nutritionItems).toHaveLength(1);
-      expect(body.now).toBeTruthy();
-    });
+  it("store.reset() (used directly by beforeEach above) actually wipes the store", async () => {
+    await createNutritionItem();
+    store.reset();
+    const { body } = await gql("query GetEntries { }");
+    expect(
+      dataOf<{ food_diary_diary_entry: unknown[] }>(body)
+        .food_diary_diary_entry,
+    ).toEqual([]);
   });
 });

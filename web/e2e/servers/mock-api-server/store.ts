@@ -83,10 +83,13 @@ export class MockApiStore {
   private nextNutritionItemId = 1;
   private nextRecipeId = 1;
   private nextDiaryEntryId = 1;
-  private clockOverrideMs: number | null = null;
-  private armedErrorStatus: number | null = null;
-  private armedErrorRemaining = 0;
 
+  /**
+   * For this repo's own unit tests to isolate `it()` blocks by constructing
+   * (or clearing) a store directly, in-process -- not exposed over HTTP.
+   * The E2E suite needs no equivalent: Playwright spawns a fresh server
+   * process per run, so the store already starts empty.
+   */
   reset(): void {
     this.nutritionItems.clear();
     this.recipes.clear();
@@ -95,37 +98,10 @@ export class MockApiStore {
     this.nextNutritionItemId = 1;
     this.nextRecipeId = 1;
     this.nextDiaryEntryId = 1;
-    this.clockOverrideMs = null;
-    this.armedErrorStatus = null;
-    this.armedErrorRemaining = 0;
-  }
-
-  // --- forced-error injection (for the 401/session-expiry test path) -----
-
-  /** Arms the next `times` authenticated requests (any endpoint) to fail with `status`. */
-  armError(status: number, times: number): void {
-    this.armedErrorStatus = status;
-    this.armedErrorRemaining = times;
-  }
-
-  /** Consumes one armed failure, if any are pending, returning its status. */
-  consumeArmedError(): number | null {
-    if (this.armedErrorRemaining <= 0) return null;
-    this.armedErrorRemaining -= 1;
-    const status = this.armedErrorStatus;
-    if (this.armedErrorRemaining <= 0) this.armedErrorStatus = null;
-    return status;
-  }
-
-  // --- clock -----------------------------------------------------------
-
-  /** Freezes "now" for deterministic day-grouping/weekly-stats assertions. */
-  setClock(iso: string): void {
-    this.clockOverrideMs = new Date(iso).getTime();
   }
 
   now(): Date {
-    return new Date(this.clockOverrideMs ?? Date.now());
+    return new Date();
   }
 
   // --- nutrition items ---------------------------------------------------
@@ -359,23 +335,5 @@ export class MockApiStore {
   ): NutritionTargetRecord {
     this.nutritionTarget = { user_id: userId, ...attrs };
     return this.nutritionTarget;
-  }
-
-  // --- debug/test-control ---------------------------------------------------
-
-  dump(): {
-    nutritionItems: NutritionItemRecord[];
-    recipes: RecipeRecord[];
-    diaryEntries: DiaryEntryRecord[];
-    nutritionTarget: NutritionTargetRecord | null;
-    now: string;
-  } {
-    return {
-      nutritionItems: [...this.nutritionItems.values()],
-      recipes: [...this.recipes.values()],
-      diaryEntries: [...this.diaryEntries.values()],
-      nutritionTarget: this.nutritionTarget,
-      now: this.now().toISOString(),
-    };
   }
 }

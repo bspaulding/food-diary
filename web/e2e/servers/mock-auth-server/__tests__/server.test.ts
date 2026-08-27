@@ -9,6 +9,7 @@ import {
 } from "../../shared/jwt.ts";
 import { ACCESS_TOKEN_SECRET } from "../../shared/secrets.ts";
 import { createMockAuthServer } from "../server.ts";
+import { AuthStore } from "../store.ts";
 
 const ISSUER = "http://localhost:4300/";
 const CLIENT_ID = "e2e-test-client";
@@ -31,11 +32,14 @@ function makePkcePair(): { codeVerifier: string; codeChallenge: string } {
 }
 
 describe("mock auth server", () => {
+  // Constructed directly and reset between tests in-process -- no
+  // `/__test__/*` HTTP endpoints exist on the server itself; see server.ts.
+  const store = new AuthStore();
   let server: Server;
   let baseUrl: string;
 
   beforeAll(async () => {
-    server = createMockAuthServer({ issuer: ISSUER });
+    server = createMockAuthServer({ issuer: ISSUER }, store);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const address = server.address() as AddressInfo;
     baseUrl = `http://localhost:${address.port}`;
@@ -47,12 +51,13 @@ describe("mock auth server", () => {
     });
   });
 
-  async function resetStore(): Promise<void> {
-    await fetch(`${baseUrl}/__test__/reset`, { method: "POST" });
-  }
-
   async function loginAndGetCode(
-    overrides: { state?: string; nonce?: string; email?: string } = {},
+    overrides: {
+      state?: string;
+      nonce?: string;
+      email?: string;
+      ttl?: number;
+    } = {},
   ): Promise<{
     code: string;
     codeVerifier: string;
@@ -71,6 +76,7 @@ describe("mock auth server", () => {
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
       email: overrides.email ?? "test-user@example.com",
+      ...(overrides.ttl ? { ttl: String(overrides.ttl) } : {}),
     });
     const response = await fetch(`${baseUrl}/authorize`, {
       method: "POST",
@@ -129,7 +135,7 @@ describe("mock auth server", () => {
   });
 
   it("a valid /authorize submission redirects to redirect_uri with a code and the original state", async () => {
-    await resetStore();
+    store.reset();
     const { code } = await loginAndGetCode();
     expect(code.length).toBeGreaterThan(0);
   });
@@ -144,7 +150,7 @@ describe("mock auth server", () => {
   });
 
   it("exchanges a valid code + code_verifier for an access_token and id_token", async () => {
-    await resetStore();
+    store.reset();
     const { code, codeVerifier, nonce } = await loginAndGetCode();
 
     const tokenResponse = await exchangeCode(code, codeVerifier);
@@ -167,7 +173,7 @@ describe("mock auth server", () => {
   });
 
   it("rejects a token exchange with a mismatched code_verifier", async () => {
-    await resetStore();
+    store.reset();
     const { code } = await loginAndGetCode();
     const { codeVerifier: wrongVerifier } = makePkcePair();
 
@@ -178,7 +184,7 @@ describe("mock auth server", () => {
   });
 
   it("rejects reusing an already-exchanged code", async () => {
-    await resetStore();
+    store.reset();
     const { code, codeVerifier } = await loginAndGetCode();
 
     const first = await exchangeCode(code, codeVerifier);
@@ -227,27 +233,34 @@ describe("mock auth server", () => {
     expect(response.status).toBe(400);
   });
 
-  it("/__test__/set-user overrides the profile used by the next login", async () => {
-    await resetStore();
-    await fetch(`${baseUrl}/__test__/set-user`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Alice Example", sub: "e2e|alice" }),
+  it("the login form's email field overrides the profile used by that login", async () => {
+    store.reset();
+    const { code, codeVerifier } = await loginAndGetCode({
+      email: "alice@example.com",
     });
-
-    const { code, codeVerifier } = await loginAndGetCode();
     const tokenResponse = await exchangeCode(code, codeVerifier);
     const body = (await tokenResponse.json()) as TokenResponse;
     const claims = decodeJwtPayload(body.id_token);
-    expect(claims.name).toBe("Alice Example");
-    expect(claims.sub).toBe("e2e|alice");
+    expect(claims.email).toBe("alice@example.com");
   });
 
-  it("/__test__/reset clears pending codes", async () => {
+  it("store.reset() (used directly by tests above) actually clears pending codes", async () => {
     const { code, codeVerifier } = await loginAndGetCode();
-    await resetStore();
+    store.reset();
 
     const response = await exchangeCode(code, codeVerifier);
     expect(response.status).toBe(400);
+  });
+
+  it("an optional ttl on the login request shortens the issued token's real lifetime", async () => {
+    store.reset();
+    const { code, codeVerifier } = await loginAndGetCode({ ttl: 5 });
+
+    const tokenResponse = await exchangeCode(code, codeVerifier);
+    const body = (await tokenResponse.json()) as TokenResponse;
+    expect(body.expires_in).toBe(5);
+
+    const claims = decodeJwtPayload(body.access_token);
+    expect((claims.exp as number) - (claims.iat as number)).toBe(5);
   });
 });

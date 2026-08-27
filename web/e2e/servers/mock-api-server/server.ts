@@ -16,13 +16,21 @@ type GraphQLRequestBody = {
   variables?: Record<string, unknown>;
 };
 type LookupRequestBody = { description: string };
-type ForceErrorRequestBody = { status?: number; times?: number };
-type ClockRequestBody = { now?: string };
 
 type AuthedHandler = (ctx: RequestContext, sub: string) => void | Promise<void>;
 
-export function createMockApiServer(): Server {
-  const store = new MockApiStore();
+/**
+ * No `/__test__/*` HTTP endpoints here on purpose -- a test driver reaching
+ * around the UI to poke bespoke server-internals routes isn't testing the
+ * contract a real backend (or a rewrite's replacement mock) would have to
+ * honor. `store` is exposed as a plain constructor parameter instead, so
+ * *this repo's own* unit tests can construct a fresh one directly rather
+ * than resetting a shared instance over the network; the E2E suite needs no
+ * equivalent at all, since Playwright spawns a fresh process per run.
+ */
+export function createMockApiServer(
+  store: MockApiStore = new MockApiStore(),
+): Server {
   const router = createRouter();
 
   function withAuth(handler: AuthedHandler) {
@@ -32,20 +40,6 @@ export function createMockApiServer(): Server {
         sendJson(ctx.res, 401, {
           error: "unauthorized",
           error_description: "Missing, invalid, or expired access token",
-        });
-        return;
-      }
-      // Applies to every authenticated endpoint, not just /v1/graphql --
-      // the E2E session-expiry test just needs "the next authenticated
-      // call fails," regardless of which UI action triggers it.
-      const armedStatus = store.consumeArmedError();
-      if (armedStatus !== null) {
-        sendJson(ctx.res, armedStatus, {
-          errors: [
-            {
-              message: `mock server: forced ${armedStatus} via /__test__/force-error`,
-            },
-          ],
         });
         return;
       }
@@ -92,34 +86,6 @@ export function createMockApiServer(): Server {
       sendJson(res, 200, handleUpload());
     }),
   );
-
-  router.on("POST", "/__test__/reset", ({ res }) => {
-    store.reset();
-    sendJson(res, 200, { ok: true });
-  });
-
-  router.on("POST", "/__test__/clock", async ({ req, res }) => {
-    const body = await readJsonBody<ClockRequestBody>(req);
-    if (!body.now) {
-      sendJson(res, 400, {
-        error: "invalid_request",
-        error_description: "Missing required field: now",
-      });
-      return;
-    }
-    store.setClock(body.now);
-    sendJson(res, 200, { ok: true });
-  });
-
-  router.on("POST", "/__test__/force-error", async ({ req, res }) => {
-    const body = await readJsonBody<ForceErrorRequestBody>(req);
-    store.armError(body.status ?? 401, body.times ?? 1);
-    sendJson(res, 200, { ok: true });
-  });
-
-  router.on("GET", "/__test__/dump", ({ res }) => {
-    sendJson(res, 200, store.dump());
-  });
 
   return createServer(router.toRequestListener());
 }

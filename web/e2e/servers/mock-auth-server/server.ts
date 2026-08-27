@@ -11,11 +11,7 @@ import {
 import { signHs256Jwt, signRs256Jwt } from "../shared/jwt.ts";
 import { ACCESS_TOKEN_SECRET } from "../shared/secrets.ts";
 import { renderLoginPage } from "./loginPage.ts";
-import {
-  AuthStore,
-  type PendingAuthorization,
-  type TestUserProfile,
-} from "./store.ts";
+import { AuthStore, type PendingAuthorization } from "./store.ts";
 
 export type MockAuthServerOptions = {
   /**
@@ -56,9 +52,17 @@ function missingParams(
   return required.filter((name) => !get(name));
 }
 
-export function createMockAuthServer(options: MockAuthServerOptions): Server {
+/**
+ * No `/__test__/*` HTTP endpoints on purpose -- see mock-api-server/server.ts
+ * for the rationale. `store` is a plain constructor parameter so this
+ * repo's own unit tests can construct/reset one directly rather than
+ * resetting a shared instance over the network.
+ */
+export function createMockAuthServer(
+  options: MockAuthServerOptions,
+  store: AuthStore = new AuthStore(),
+): Server {
   const tokenTtlSeconds = options.tokenTtlSeconds ?? 86400;
-  const store = new AuthStore();
   // Generated fresh per process boot rather than shared/fixed: nothing ever
   // verifies this signature (confirmed against @auth0/auth0-spa-js's
   // source -- see spec §3.2), so all that matters is a well-formed RS256
@@ -101,11 +105,15 @@ export function createMockAuthServer(options: MockAuthServerOptions): Server {
     const email = form.get("email");
     if (email) store.setNextLoginUser({ email });
 
+    const ttlParam = form.get("ttl");
+    const ttlSeconds = ttlParam ? Number(ttlParam) : undefined;
+
     const code = store.issueCode({
       clientId: form.get("client_id") as string,
       redirectUri: form.get("redirect_uri") as string,
       codeChallenge: form.get("code_challenge") as string,
       nonce: form.get("nonce") as string,
+      ttlSeconds,
     });
 
     const redirectUrl = new URL(form.get("redirect_uri") as string);
@@ -172,6 +180,9 @@ export function createMockAuthServer(options: MockAuthServerOptions): Server {
     }
 
     const now = Math.floor(Date.now() / 1000);
+    // Per-login override (real, since a real IdP can vary session length --
+    // see IssueCodeParams.ttlSeconds), falling back to the server default.
+    const ttlSeconds = pending.ttlSeconds ?? tokenTtlSeconds;
     const idToken = signRs256Jwt(
       {
         iss: options.issuer,
@@ -182,12 +193,12 @@ export function createMockAuthServer(options: MockAuthServerOptions): Server {
         email: pending.user.email,
         picture: pending.user.picture,
         iat: now,
-        exp: now + tokenTtlSeconds,
+        exp: now + ttlSeconds,
       },
       privateKey,
     );
     const accessToken = signHs256Jwt(
-      { sub: pending.user.sub, iat: now, exp: now + tokenTtlSeconds },
+      { sub: pending.user.sub, iat: now, exp: now + ttlSeconds },
       ACCESS_TOKEN_SECRET,
     );
 
@@ -195,7 +206,7 @@ export function createMockAuthServer(options: MockAuthServerOptions): Server {
       access_token: accessToken,
       id_token: idToken,
       token_type: "Bearer",
-      expires_in: tokenTtlSeconds,
+      expires_in: ttlSeconds,
     });
   });
 
@@ -218,17 +229,6 @@ export function createMockAuthServer(options: MockAuthServerOptions): Server {
   }
   router.on("GET", "/v2/logout", handleLogout);
   router.on("POST", "/v2/logout", handleLogout);
-
-  router.on("POST", "/__test__/reset", ({ res }) => {
-    store.reset();
-    sendJson(res, 200, { ok: true });
-  });
-
-  router.on("POST", "/__test__/set-user", async ({ req, res }) => {
-    const overrides = await readJsonBody<TestUserProfile>(req);
-    store.setNextLoginUser(overrides);
-    sendJson(res, 200, { ok: true });
-  });
 
   return createServer(router.toRequestListener());
 }
