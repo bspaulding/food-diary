@@ -57,13 +57,28 @@ function createAuthorizedResource<S = true, T = unknown, R = unknown>(
     finalFetcher = fetcher as AuthorizedResourceFetcher<S, T>;
   }
   const [{ accessToken, auth0 }] = useAuth();
-  const tokenizedSource: () => {
-    accessToken: string;
-    source: S | true;
-  } = () => ({
-    accessToken: accessToken(),
-    source: finalSource === true ? (true as true) : (finalSource as () => S)(),
-  });
+  const tokenizedSource: () =>
+    | {
+        accessToken: string;
+        source: S | true;
+      }
+    | false = () => {
+    const token = accessToken();
+    // useAuth() starts every instance at accessToken() === "" until its own
+    // async resource resolves (each call site gets its own independent
+    // instance -- there's no shared auth context). Without this guard,
+    // Solid's createResource below fires immediately on mount using that
+    // empty placeholder, sending one real request with a blank bearer
+    // token before the reactive re-run with the real token ever happens.
+    // Returning `false` is Solid's documented way to skip a fetch until
+    // the source is ready.
+    if (!token) return false;
+    return {
+      accessToken: token,
+      source:
+        finalSource === true ? (true as true) : (finalSource as () => S)(),
+    };
+  };
   return createResource(
     tokenizedSource,
     async ({

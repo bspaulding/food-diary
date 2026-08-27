@@ -21,7 +21,20 @@ export function useAuth() {
     const client = await configureAuth0Client();
     const params = new URLSearchParams(location.search);
     if (params.has("code") && params.has("state")) {
-      await client.handleRedirectCallback(location.href);
+      // useAuth() has no shared context -- every component that calls it
+      // creates its own Auth0Client and resource. On a fresh login,
+      // multiple instances race to redeem the same one-time code; exactly
+      // one wins, and the rest must not crash, since they're then stuck
+      // with an empty accessToken for the lifetime of the page even though
+      // the app renders as authenticated. Losing the race isn't a real
+      // failure -- the winner already populated the shared localStorage
+      // cache both instances read from, so just fall through to it below.
+      try {
+        await client.handleRedirectCallback(location.href);
+      } catch {
+        // ignore: either a losing racer, or a genuine failure that the
+        // isAuthenticated() check below will correctly re-route to login.
+      }
       navigate("/", { replace: true });
     }
 

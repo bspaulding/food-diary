@@ -40,6 +40,27 @@ export function createRouter(): Router {
     req: IncomingMessage,
     res: ServerResponse,
   ): Promise<void> {
+    // The frontend calls the mock auth server's /oauth/token via XHR/fetch
+    // from its own origin (a different port), which is a genuine
+    // cross-origin request a real browser preflights -- unlike the
+    // GraphQL/REST calls to the mock API server, which only ever go
+    // through Vite's same-origin proxy. There's no security reason for a
+    // test-only mock to restrict this, so every response allows it.
+    res.setHeader("Access-Control-Allow-Origin", req.headers.origin ?? "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    // Reflect whatever the preflight actually asked for (e.g. the SDK's own
+    // `Auth0-Client` telemetry header) rather than hardcoding a guessed list.
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      req.headers["access-control-request-headers"] ??
+        "Content-Type, Authorization",
+    );
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     const url = new URL(req.url ?? "/", "http://localhost");
     const route = routes.find(
       (r) => r.method === req.method && r.path === url.pathname,

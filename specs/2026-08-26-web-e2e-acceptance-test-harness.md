@@ -433,7 +433,14 @@ web/e2e/
     full-app-journey.spec.ts   # the single long test (§4)
 ```
 
-`playwright.config.ts` sketch:
+`playwright.config.ts` sketch (as landed in phase 4, the real config also
+sets `outputDir`/`reporter` explicitly — Playwright's defaults for both
+resolve relative to the invoking process's `cwd` (`web/`), not this config
+file's directory, unlike `testDir`/`webServer.cwd`, confirmed by hitting it —
+and adds `launchOptions.args`/`permissions` on the `chromium` project for
+the fake camera device, and `npx tsx ...`/`env: {PORT: ...}` on the two mock
+server `webServer` entries so each binds the port Playwright expects it on
+regardless of the script's own hardcoded default):
 
 ```ts
 import { defineConfig, devices } from "@playwright/test";
@@ -755,9 +762,44 @@ response shapes, including the naming mismatch between the two).
    `/llm/lookup` through the app's own unchanged relative-path proxy —
    confirming §3.1's phase-1 proxy design and this phase's server work
    compose correctly, not just in isolation.
-4. Playwright harness scaffolding (§3.5–3.7): config, fixtures, support
-   helpers, empty `webServer` wiring — verify all three processes boot and
-   the app loads logged-out.
+4. ✅ Playwright harness scaffolding (§3.5–3.7): `e2e/playwright.config.ts`
+   wiring all three `webServer` entries, `e2e/support/login.ts`, and the
+   `e2e/fixtures/` (`import-entries.csv`, `nutrition-label.jpg` — the latter
+   verified to actually decode as a real image in a real browser, not just
+   structurally valid bytes). `e2e/tests/full-app-journey.spec.ts` currently
+   covers step 1 (cold start) and step 2 (a real PKCE login round trip) as
+   its scaffolding-verification smoke test; the rest of §4's outline lands
+   in phase 5.
+
+   Getting even this far uncovered two real, pre-existing bugs in the app
+   itself — both fixed here, since phase 5 can't proceed without them, and
+   both are exactly the kind of thing a real multi-process black-box test
+   catches that a mocked-in-process one never could:
+   - **`useAuth()` has no shared context** (`web/src/Auth0.ts`) — every
+     component that calls it creates its own `Auth0Client` and resource.
+     On a fresh login, multiple instances race to redeem the same one-time
+     authorization code; the losers' `handleRedirectCallback()` throws
+     (code already consumed), and that was unhandled. Fixed by catching it
+     and falling through to the `isAuthenticated()`/cache check below,
+     which the winner's exchange already populated. Real Auth0's network
+     latency likely serializes this in practice; the mock's in-memory speed
+     made the race land essentially every time.
+   - **`createAuthorizedResource` had no guard against firing with an empty
+     token** (`web/src/createAuthorizedResource.ts`) — its Solid resource
+     source always returned a truthy object regardless of whether
+     `accessToken()` had resolved yet, so the very first fetch on mount
+     went out with a blank `Authorization: Bearer` header, 401'd, and
+     triggered the app's own logout-on-401 handling — immediately
+     logging the user back out right after login. Fixed by returning
+     Solid's `false` sentinel (skip this fetch) until a real token exists.
+
+   Also had to add CORS handling to the mock auth server (`e2e/servers/shared/httpServer.ts`,
+   now applied to both mock servers): `/oauth/token` is called via XHR from
+   the app's own origin, a genuinely different port, which a real browser
+   preflights — unlike the GraphQL/REST calls, which only ever go through
+   Vite's same-origin proxy (§3.1) and never leave the browser's own origin.
+   Both unit-test suites (249 app + 46 harness) and the E2E smoke test pass;
+   `tsc`, 100% type-coverage, and `prettier:check` are all clean.
 5. The journey test itself (§4), built up step by step, each step runnable
    and green before adding the next.
 6. Coverage wiring (§3.6).
