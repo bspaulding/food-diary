@@ -234,8 +234,12 @@ function resolveGetNutritionItem(
   variables: Record<string, unknown>,
   store: MockApiStore,
 ): Record<string, unknown> {
-  const { id } = variables as { id: number };
-  const item = store.getNutritionItem(id);
+  // Real Hasura coerces a numeric string to Int for an `Int!` variable
+  // (the frontend sends route-param ids as strings in a couple of places
+  // and relies on this); Number(...) here matches that leniency instead
+  // of this mock's otherwise-strict Map<number, ...> lookup rejecting it.
+  const { id } = variables as { id: number | string };
+  const item = store.getNutritionItem(Number(id));
   return {
     food_diary_nutrition_item_by_pk: item
       ? nutritionItemToCamelCase(item)
@@ -370,8 +374,10 @@ function resolveGetDiaryEntry(
   variables: Record<string, unknown>,
   store: MockApiStore,
 ): Record<string, unknown> {
-  const { id } = variables as { id: number };
-  const entry = store.getDiaryEntry(id);
+  // See resolveGetNutritionItem's note: real Hasura coerces a numeric
+  // string to Int for an `Int!` variable, which the frontend relies on.
+  const { id } = variables as { id: number | string };
+  const entry = store.getDiaryEntry(Number(id));
   return {
     food_diary_diary_entry_by_pk: entry ? store.expandDiaryEntry(entry) : null,
   };

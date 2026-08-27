@@ -268,6 +268,19 @@ describe("mock API server", () => {
       ).toBeNull();
     });
 
+    it("fetches a nutrition item by a numeric-string id, matching real Hasura's Int coercion", async () => {
+      const id = await createNutritionItem({ description: "Almonds" });
+
+      const { body } = await gql("query GetNutritionItem { }", {
+        id: String(id),
+      });
+      expect(
+        dataOf<{ food_diary_nutrition_item_by_pk: NutritionItemCamel | null }>(
+          body,
+        ).food_diary_nutrition_item_by_pk?.description,
+      ).toBe("Almonds");
+    });
+
     it("updates a nutrition item", async () => {
       const id = await createNutritionItem({ calories: 100 });
       await gql("mutation UpdateItem { }", {
@@ -390,6 +403,23 @@ describe("mock API server", () => {
       expect(entry?.calories).toBe(210);
       expect(entry?.nutrition_item?.id).toBe(itemId);
       expect(entry?.consumed_at).toBeTruthy();
+    });
+
+    it("fetches a diary entry by a numeric-string id, matching real Hasura's Int coercion", async () => {
+      const itemId = await createNutritionItem({ calories: 105 });
+      const entryId = await createDiaryEntry({
+        servings: 1,
+        nutrition_item_id: itemId,
+      });
+
+      const { body } = await gql("query GetDiaryEntry { }", {
+        id: String(entryId),
+      });
+      expect(
+        dataOf<{ food_diary_diary_entry_by_pk: ExpandedDiaryEntry | null }>(
+          body,
+        ).food_diary_diary_entry_by_pk?.id,
+      ).toBe(entryId);
     });
 
     it("logs a recipe and computes calories = servings * recipe.calories (per serving)", async () => {

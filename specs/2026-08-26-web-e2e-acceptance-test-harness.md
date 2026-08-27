@@ -819,21 +819,25 @@ response shapes, including the naming mismatch between the two).
    principle as every other diary entry in this test) and hands it to
    `setInputFiles()` as a buffer; the static fixture was deleted.
 
-   This phase surfaced three more real, pre-existing bugs — all fixed here,
-   none in the test:
-   - **Route-param ids sent to the GraphQL API as strings, not numbers**
-     (`NutritionItemShow.tsx`, `NutritionItemEdit.tsx`,
-     `DiaryEntryEditForm.tsx`) — `params.id` from `@solidjs/router` is
-     always a string; these three passed it straight through to
-     `fetchNutritionItem`/`getDiaryEntry` (typed to accept `number | string`
-     for exactly this reason) instead of `parseInt`-ing it first, unlike
-     `RecipeShow.tsx`/`RecipeEdit.tsx`, which already did. This mock enforces
-     it (`Map<number, ...>.get("1")` misses), surfacing what a real
-     strictly-typed GraphQL `Int!` variable would also reject; the old
-     MSW-based suite never noticed because it stubbed responses by
-     substring-matching the query text, never validating variables. Fixed
-     by adding `parseInt(id, 10)` at all three call sites and tightening
-     `fetchNutritionItem`/`getDiaryEntry`'s signatures to `number` only.
+   This phase surfaced one mock-harness gap and one real SDK constraint
+   worth documenting (an initial third item, about route-param ids being
+   sent to the GraphQL API as strings, turned out not to be an app bug at
+   all — real Hasura coerces a numeric string to `Int!` fine, so that's a
+   mock strictness gap, not a frontend defect; see below):
+   - **`NutritionItemShow.tsx`, `NutritionItemEdit.tsx`, and
+     `DiaryEntryEditForm.tsx` pass `params.id` (always a string, from
+     `@solidjs/router`) straight through to `fetchNutritionItem`/
+     `getDiaryEntry`** without `parseInt`-ing it first, unlike
+     `RecipeShow.tsx`/`RecipeEdit.tsx`, which already do. This mock's
+     `Map<number, ...>.get("1")` initially rejected that (a string key
+     miss), which looked like an app bug and was fixed as one — wrongly:
+     real Hasura's GraphQL scalar coercion accepts a numeric string for an
+     `Int!` variable, so the frontend's existing (inconsistent, but
+     harmless) behavior was correct all along. Reverted the app-side
+     `parseInt` calls and `Api.ts`'s tightened signatures; fixed the mock
+     instead, coercing with `Number(id)` in `resolveGetNutritionItem`/
+     `resolveGetDiaryEntry` to match Hasura's real leniency (with a
+     regression test for each, passing a numeric-string id).
    - **The mock auth server's canned user `picture` pointed at a real
      external URL** (`https://example.com/avatar.png`) — harmless against
      real internet access, but the header's `<img src>` then blocks any
