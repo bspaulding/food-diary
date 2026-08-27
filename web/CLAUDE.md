@@ -14,8 +14,8 @@ TZ=America/Los_Angeles npx vitest --run --coverage
 # 3. Install Playwright browsers (first time only)
 npx playwright install chromium
 
-# 4. Acceptance tests
-TZ=America/Los_Angeles npm run test:acceptance -- --run
+# 4. E2E acceptance tests (builds the app + boots the mock servers itself)
+TZ=America/Los_Angeles npm run test:e2e
 ```
 
 Or run them all in sequence:
@@ -23,7 +23,7 @@ Or run them all in sequence:
 ```bash
 npm run prettier:check && \
 TZ=America/Los_Angeles npx vitest --run --coverage && \
-TZ=America/Los_Angeles npm run test:acceptance -- --run
+TZ=America/Los_Angeles npm run test:e2e
 ```
 
 > The `TZ=America/Los_Angeles` env var is required for any test that involves date/time formatting.

@@ -7,11 +7,22 @@ export type TestUserProfile = {
   picture: string;
 };
 
+// A real external URL here would make the header's <img src> block a full
+// page navigation's "load" event on outbound network access this harness
+// otherwise never needs -- and CI runners commonly firewall it off entirely,
+// hanging the image forever with no response to even fail fast on. A data
+// URI resolves instantly and hermetically regardless of network policy.
+const PLACEHOLDER_AVATAR =
+  "data:image/svg+xml;base64," +
+  Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="#818cf8"/></svg>',
+  ).toString("base64");
+
 export const DEFAULT_TEST_USER: TestUserProfile = {
   sub: "e2e|test-user",
   name: "Test User",
   email: "test-user@example.com",
-  picture: "https://example.com/avatar.png",
+  picture: PLACEHOLDER_AVATAR,
 };
 
 const CODE_TTL_MS = 60_000;
