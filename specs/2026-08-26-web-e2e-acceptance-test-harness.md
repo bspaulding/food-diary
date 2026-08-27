@@ -539,6 +539,20 @@ from the Istanbul-based unit-test coverage already gated in
 answer different questions ("do unit tests exercise this branch" vs. "does a
 real user journey reach this line").
 
+**As landed** (phase 6 — see its rollout notes for the two real gaps this
+sketch had): `vite-plugin-istanbul: ^9.0.1` (`8.0.0` was just what was
+current at research time), added to `vite.config.mts`'s `plugins` array
+behind a `useE2ECoverage` flag with `forceBuildInstrument: true` and
+`checkProd: false` (the plugin no-ops during `vite build` otherwise — it's
+built for instrumenting the dev server). The single end-of-test
+`window.__coverage__` read as sketched above undercounts badly across this
+journey's many real navigations; landed as a `localStorage`-based
+accumulator instead, written from a `pagehide` listener (`page.evaluate`'s
+round trip back to Node isn't reliably fast enough to beat a document
+tearing down). No `posttest:e2e` lifecycle hook — `test:e2e:coverage` is
+one explicit script per §3.7's own code block, avoiding a report running
+against stale/absent data on a plain `npm run test:e2e`.
+
 ### 3.7 `package.json` / CI wiring
 
 New scripts:
@@ -547,6 +561,10 @@ New scripts:
 "test:e2e": "playwright test --config e2e/playwright.config.ts",
 "test:e2e:coverage": "E2E_COVERAGE=true npm run test:e2e && nyc report --reporter=text --reporter=html"
 ```
+
+**As landed:** `--report-dir e2e-coverage` added to the `nyc report` call —
+`nyc`'s own default report directory (`./coverage`) collides with the
+Istanbul-based unit-test coverage output above.
 
 `.github/workflows/ci-cd.yml`'s `test-web` job: replace the existing
 "Acceptance tests" step (`npm run test:acceptance`) with `npm run test:e2e`
@@ -875,9 +893,56 @@ response shapes, including the naming mismatch between the two).
 
    Full suite (`npm run test:e2e`) passed twice in a row locally before
    landing.
-6. Coverage wiring (§3.6) — not done. Left for a follow-up: it's additive
-   (an alternate coverage report, gated behind `E2E_COVERAGE=true`) and
-   isn't a prerequisite for phase 7's CI cutover.
+6. ✅ Coverage wiring (§3.6): `vite-plugin-istanbul` (`^9.0.1` — the spec's
+   `8.0.0` was just the version available at research time; `>=7` is still
+   the declared peer range) instruments `src/**/*.{ts,tsx}` in
+   `vite.config.mts`, gated behind `E2E_COVERAGE=true` (a `useE2ECoverage`
+   flag alongside the existing `useHttps`/`mockServerUrl` ones, following
+   the same pattern). `npm run test:e2e:coverage` sets that env var, runs
+   the suite, and reports via `nyc` into `e2e-coverage/` (a distinct
+   directory from the unit-test coverage's `coverage/`, since — per the
+   spec's framing — they answer different questions and shouldn't merge).
+
+   Two things the spec's sketch didn't anticipate, found by actually running
+   it rather than taking `vite-plugin-istanbul`'s README at face value:
+   - **The plugin only instruments `vite serve` (the dev server) by
+     default** — `apply()` returns `env.command == "serve"` unless
+     `forceBuildInstrument: true` is passed, which this harness needs since
+     it always runs `vite build && vite preview` (verifying the real
+     production build is the whole point of this suite). Also set
+     `checkProd: false`, since `checkProd`'s production-mode skip would
+     otherwise fight the same override (confirmed harmless once
+     `forceBuildInstrument` is set — traced through the plugin's own
+     `configResolved` logic — but set explicitly for clarity). Discovered
+     by checking the built bundle for the literal string `__coverage__`
+     after a first "0% coverage on every file" report — it was never
+     getting instrumented at all.
+   - **A single end-of-test `window.__coverage__` read massively
+     undercounts.** This journey crosses many real page navigations (login
+     redirects, `<a>` links to edit pages, logout), each of which destroys
+     `window` and anything istanbul had accumulated on it since the last
+     one. First attempt used `pagehide` + `page.exposeFunction()` to report
+     each document's coverage back to Node before it unloaded, which
+     silently dropped nearly everything except the final page — the
+     `exposeFunction` round trip is async and isn't guaranteed to land
+     before Chromium tears down a `pagehide`-ing document. Fixed by
+     accumulating into `localStorage` instead (same-origin, synchronous,
+     survives every navigation within the app's own origin — the mock
+     auth server's pages aren't instrumented so crossing to that origin and
+     back loses nothing), with a small hand-rolled counter-merge in the
+     browser (istanbul's own merge logic wasn't worth shipping into the
+     page bundle for this). Went from ~20% reported (index.tsx/App.tsx/
+     DiaryList.tsx only — whatever was still live on the final page) to a
+     genuinely "very high" ~85% statements once fixed, with most
+     individual components (RecipeShow, RecipeEdit, NutritionItemEdit,
+     Trends, SegmentedControl, ...) at 100%.
+   - A related type-checking wrinkle: `vite-plugin-istanbul`'s own ambient
+     types declare a global `__coverage__: any`; re-declaring
+     `Window.__coverage__` with a specific type doesn't narrow it (it still
+     resolves to `any` at every read, defeating 100% type-coverage even
+     under a wrapping `as`) — worked around by casting `window` itself to a
+     local object-literal type instead of augmenting the global `Window`
+     interface.
 7. ✅ CI cutover (§3.7): `.github/workflows/ci-cd.yml`'s `test-web` job now
    runs `npm run test:e2e` in place of `npm run test:acceptance`. The old
    suite is deleted (`vitest.acceptance.config.mts`, `src/acceptance*.test.tsx`,

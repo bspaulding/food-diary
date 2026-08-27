@@ -1,7 +1,98 @@
 import { readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { createCoverageMap, type CoverageMapData } from "istanbul-lib-coverage";
 import { completeMockLogin } from "../support/login.ts";
+
+// vite-plugin-istanbul's own ambient types already declare a global
+// `__coverage__: any` (see its dist/index.d.mts); re-declaring it as a
+// Window member conflicts with that rather than narrowing it (any access
+// through `window.__coverage__` resolves back to `any` regardless of a
+// wrapping `as`). Casting `window` itself to this local shape sidesteps it.
+type WindowWithCoverage = { __coverage__?: CoverageMapData };
+
+// localStorage key the browser-side accumulator below reads/writes.
+const COVERAGE_STORAGE_KEY = "__e2e_coverage__";
+
+// Instrumented only when `E2E_COVERAGE=true` (see vite.config.mts) --
+// `npm run test:e2e:coverage` sets it and turns this into a real report.
+const E2E_COVERAGE = process.env.E2E_COVERAGE === "true";
+let coverageMap = createCoverageMap({});
+
+test.beforeEach(async ({ page }) => {
+  if (!E2E_COVERAGE) return;
+  coverageMap = createCoverageMap({});
+  // This journey deliberately crosses many *real* page navigations (login
+  // redirects, logout, plain <a> links to edit pages, etc.), each of which
+  // destroys `window` and any coverage it accumulated since the last one --
+  // a single end-of-test `window.__coverage__` read would only reflect
+  // whatever ran since the final navigation. `exposeFunction`'s round trip
+  // back to Node is async and isn't guaranteed to land before the browser
+  // tears down a `pagehide`-ing document (tried that first: it silently
+  // dropped nearly everything except the final page). localStorage is
+  // same-origin and synchronous, so accumulating into it from the pagehide
+  // handler itself is what actually survives every navigation -- merging
+  // istanbul's counters by hand here since istanbul-lib-coverage's own
+  // (correct, but heavier) merge logic isn't worth shipping into the page.
+  await page.addInitScript(
+    ({ storageKey }) => {
+      window.addEventListener("pagehide", () => {
+        const coverage = (window as unknown as WindowWithCoverage).__coverage__;
+        if (!coverage) return;
+        const raw = localStorage.getItem(storageKey);
+        const acc: CoverageMapData = raw ? JSON.parse(raw) : {};
+        for (const [file, data] of Object.entries(coverage)) {
+          const existing = acc[file];
+          if (!existing) {
+            acc[file] = data;
+            continue;
+          }
+          for (const key of ["s", "f"] as const) {
+            for (const id of Object.keys(data[key])) {
+              existing[key][id] = (existing[key][id] ?? 0) + data[key][id];
+            }
+          }
+          for (const id of Object.keys(data.b)) {
+            existing.b[id] = existing.b[id]
+              ? existing.b[id].map((count, i) => count + data.b[id][i])
+              : data.b[id].slice();
+          }
+        }
+        localStorage.setItem(storageKey, JSON.stringify(acc));
+      });
+    },
+    { storageKey: COVERAGE_STORAGE_KEY },
+  );
+});
+
+test.afterEach(async ({ page }) => {
+  if (!E2E_COVERAGE) return;
+  try {
+    const accumulated = (await page.evaluate((storageKey) => {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : undefined;
+    }, COVERAGE_STORAGE_KEY)) as CoverageMapData | undefined;
+    if (accumulated) coverageMap.merge(accumulated);
+
+    // Covers whatever the *current* document ran that hasn't hit a
+    // pagehide yet (there's always exactly one: the last page of the run).
+    const finalCoverage = await page.evaluate<CoverageMapData | undefined>(
+      () => (window as unknown as WindowWithCoverage).__coverage__,
+    );
+    if (finalCoverage) coverageMap.merge(finalCoverage);
+  } catch {
+    // The page may already be closed or crashed after a failing test --
+    // whatever localStorage already accumulated is still worth keeping
+    // rather than losing the whole run over this last read.
+  }
+  const outDir = join(__dirname, "..", "..", ".nyc_output");
+  await mkdir(outDir, { recursive: true });
+  await writeFile(
+    join(outDir, "e2e.json"),
+    JSON.stringify(coverageMap.toJSON()),
+  );
+});
 
 /**
  * The single long, stateful journey (specs/2026-08-26-web-e2e-acceptance-test-harness.md
