@@ -231,6 +231,54 @@ describe("createAuthorizedResource", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  it("does not invoke the fetcher until accessToken is populated, then fetches once it is", async () => {
+    // useAuth() has no shared context -- every call site gets its own
+    // instance, starting at accessToken() === "" until its own async
+    // resource resolves. Without the `false`-source guard, Solid's
+    // createResource would fire immediately on mount using that empty
+    // placeholder, sending one real request with a blank bearer token.
+    // The file-level mock above already loaded "./createAuthorizedResource"
+    // bound to it; without resetting the module registry, a fresh
+    // import("./createAuthorizedResource") below would return that cached
+    // instance instead of picking up this test's accessToken signal.
+    vi.resetModules();
+    const [accessToken, setAccessToken] = createSignal("");
+    vi.doMock("./Auth0", () => ({
+      useAuth: () => [
+        {
+          isAuthenticated: () => true,
+          user: () => ({ name: "Test User" }),
+          accessToken,
+          auth0: () => ({ logout: mockLogout }),
+        },
+      ],
+    }));
+
+    const { default: createAuthorizedResourceTest } =
+      await import("./createAuthorizedResource");
+    const fetcher = vi.fn(async (token: string) => ({ token }));
+
+    const TestComponent: Component = () => {
+      const [data] = createAuthorizedResourceTest(fetcher);
+      return <div>{data()?.token ?? "none"}</div>;
+    };
+
+    render(() => <TestComponent />);
+
+    // Give an (incorrect) immediate fetch a chance to fire before asserting
+    // it didn't.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetcher).not.toHaveBeenCalled();
+
+    setAccessToken("real-token");
+
+    await waitFor(() => {
+      expect(screen.getByText("real-token")).toBeTruthy();
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith("real-token", true);
+  });
+
   it("re-fetches with the new value when the source signal changes", async () => {
     const [source, setSource] = createSignal("first");
     const fetcher = vi.fn(async (token: string, src: string) => ({ src }));

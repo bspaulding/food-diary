@@ -94,6 +94,49 @@ describe("Auth0", () => {
     expect(authState.accessToken()).toBe(mockToken);
   });
 
+  it("should fall through to the cache check when handleRedirectCallback fails (e.g. losing a race with another useAuth() instance for the same one-time code)", async () => {
+    // useAuth() has no shared context -- every component that calls it gets
+    // its own Auth0Client and resource. On a fresh login, multiple
+    // instances can race to redeem the same code; the loser's exchange
+    // fails, but the winner already populated the shared localStorage
+    // cache, so isAuthenticated()/getTokenSilently() should still succeed.
+    window.location.search = "?code=test-code&state=test-state";
+    window.location.href =
+      "http://localhost:3000?code=test-code&state=test-state";
+
+    // A previous test's dynamic import of "./Auth0" is still cached in the
+    // module registry; without resetting it, `import("./Auth0")` below
+    // would return that stale instance instead of picking up this test's
+    // mockNavigate.
+    vi.resetModules();
+    const mockNavigate = vi.fn();
+    vi.doMock("@solidjs/router", () => ({
+      useNavigate: () => mockNavigate,
+    }));
+
+    const mockClient = {
+      handleRedirectCallback: vi
+        .fn()
+        .mockRejectedValue(new Error("invalid_grant")),
+      isAuthenticated: vi.fn().mockResolvedValue(true),
+      getUser: vi.fn().mockResolvedValue({ name: "Test User" }),
+      getTokenSilently: vi.fn().mockResolvedValue("shared-cache-token"),
+      loginWithRedirect: vi.fn().mockResolvedValue(undefined),
+    };
+    vi.mocked(createAuth0Client).mockResolvedValue(mockClient as any);
+
+    const { useAuth: useAuthTest } = await import("./Auth0");
+    const [authState] = useAuthTest();
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockClient.handleRedirectCallback).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith("/", { replace: true });
+    expect(mockClient.loginWithRedirect).not.toHaveBeenCalled();
+    expect(authState.isAuthenticated()).toBe(true);
+    expect(authState.accessToken()).toBe("shared-cache-token");
+  });
+
   it("should redirect to login when the session looks active but the cached token is gone", async () => {
     const mockClient = {
       isAuthenticated: vi.fn().mockResolvedValue(true),
