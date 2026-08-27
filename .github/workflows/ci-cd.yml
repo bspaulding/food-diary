@@ -75,8 +75,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Acceptance tests
-        run: npm run test:acceptance
+      - name: E2E acceptance tests
+        run: npm run test:e2e
         env:
           TZ: America/Los_Angeles
 

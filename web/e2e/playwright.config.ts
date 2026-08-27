@@ -6,6 +6,10 @@ const WEB_PORT = 5173;
 
 export default defineConfig({
   testDir: "./tests",
+  // One long journey covering the whole app, including a real ~80s wait
+  // for a short-lived token to expire (see the "session expiry" step) --
+  // comfortably past Playwright's 30s per-test default.
+  timeout: 300_000,
   // Playwright's outputDir/reporter default to paths relative to the
   // invoking process's cwd (web/), not this config file's directory --
   // pin them explicitly so run artifacts land under e2e/ alongside

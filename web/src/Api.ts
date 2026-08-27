@@ -455,7 +455,7 @@ export type GetNutritionItemQueryResponse = {
 
 export async function fetchNutritionItem(
   accessToken: string,
-  id: number | string,
+  id: number,
 ): Promise<GetNutritionItemQueryResponse> {
   return await fetchQuery(accessToken, getNutritionItemQuery, { id });
 }
@@ -782,7 +782,7 @@ const getDiaryEntryQuery = `
     }
   }
 `;
-export async function getDiaryEntry(accessToken: string, id: number | string) {
+export async function getDiaryEntry(accessToken: string, id: number) {
   return await fetchQuery(accessToken, getDiaryEntryQuery, { id });
 }
 

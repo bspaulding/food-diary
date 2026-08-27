@@ -405,7 +405,8 @@ server-side tests aren't coverage-gated or run as part of `npm test`):
 web/e2e/
   vitest.config.ts             # dedicated config for these servers' own unit tests (npm run test:e2e:servers)
   playwright.config.ts         # not yet landed (phase 4)
-  fixtures/                    # not yet landed (phase 4) -- import-entries.csv, nutrition-label.jpg
+  fixtures/                    # landed phase 4 -- nutrition-label.jpg (CSV fixtures are
+                                # generated inline in the test instead; see phase 5's note)
   servers/
     shared/
       httpServer.ts            # tiny exact-match router + body/response helpers, used by both mock servers
@@ -581,8 +582,13 @@ for one function body to stay readable — but the default target is a single
 ### 4.1 Step outline
 
 1. **Cold start, logged out.** Navigate to `/` (both mock servers already
-   start empty — freshly spawned processes, no reset needed). Assert the
-   "Log In" button renders (not authenticated).
+   start empty — freshly spawned processes, no reset needed). **As landed:**
+   `Auth0.ts`'s resource calls `loginWithRedirect()` itself the moment it
+   resolves an unauthenticated session, so there's no stable logged-out page
+   to assert a "Log In" button on — the fallback button only exists for the
+   (here, unreachable) case where that redirect fails. Assert the real
+   redirect instead: wait for the URL to land on the mock auth server's
+   `/authorize` page.
 2. **Login (real PKCE round trip).** Click "Log In" → real full-page
    navigation to the mock auth server's `/authorize` page → fill/submit the
    fake login form → real redirect back to `/auth/callback` with `code`+`state`
@@ -654,10 +660,14 @@ for one function body to stay readable — but the default target is a single
     assert the CSV content contains rows matching what the test itself
     tracked as it went (ids and values returned from the mutations/forms in
     earlier steps) — no need to ask either mock server what it's holding.
-19. **CSV import.** Go to Import, upload the `import-entries.csv` fixture
-    (containing at least one row that creates a brand-new nutrition item
-    inline, exercising `insertDiaryEntries`'s nested insert), confirm the
-    preview, import, and assert the new entries appear in the diary list.
+19. **CSV import.** Go to Import, upload a CSV (containing at least one row
+    that creates a brand-new nutrition item inline, exercising
+    `insertDiaryEntries`'s nested insert), confirm the preview, import, and
+    assert the new entries appear in the diary list. **As landed:** the CSV
+    is built inline in the test with a `consumed_at` a couple of days before
+    the real "now" and handed to `setInputFiles()` as a buffer, rather than
+    a static fixture file — a fixed date would eventually fall outside the
+    diary list's rolling "this week" window this step asserts against.
 20. **Session expiry / 401 handling.** Log out (via `/profile`'s "Log out"
     button), then log back in via the real login form, this time requesting
     a short `ttl` (e.g. 5s — see §3.3) for this one login only. Wait for
@@ -800,10 +810,77 @@ response shapes, including the naming mismatch between the two).
    Vite's same-origin proxy (§3.1) and never leave the browser's own origin.
    Both unit-test suites (249 app + 46 harness) and the E2E smoke test pass;
    `tsc`, 100% type-coverage, and `prettier:check` are all clean.
-5. The journey test itself (§4), built up step by step, each step runnable
-   and green before adding the next.
-6. Coverage wiring (§3.6).
-7. CI cutover + delete the old suite (§3.7's last paragraph).
+5. ✅ The journey test itself (§4.1's full 22 steps), built up step by step,
+   each batch runnable and green before adding the next.
+   `e2e/fixtures/import-entries.csv` (phase 4) turned out to be a dead end:
+   its fixed date would eventually fall outside the diary list's rolling
+   "this week" window the test asserts against, so step 19 instead builds
+   the CSV content inline with a date relative to the real clock (same
+   principle as every other diary entry in this test) and hands it to
+   `setInputFiles()` as a buffer; the static fixture was deleted.
+
+   This phase surfaced three more real, pre-existing bugs — all fixed here,
+   none in the test:
+   - **Route-param ids sent to the GraphQL API as strings, not numbers**
+     (`NutritionItemShow.tsx`, `NutritionItemEdit.tsx`,
+     `DiaryEntryEditForm.tsx`) — `params.id` from `@solidjs/router` is
+     always a string; these three passed it straight through to
+     `fetchNutritionItem`/`getDiaryEntry` (typed to accept `number | string`
+     for exactly this reason) instead of `parseInt`-ing it first, unlike
+     `RecipeShow.tsx`/`RecipeEdit.tsx`, which already did. This mock enforces
+     it (`Map<number, ...>.get("1")` misses), surfacing what a real
+     strictly-typed GraphQL `Int!` variable would also reject; the old
+     MSW-based suite never noticed because it stubbed responses by
+     substring-matching the query text, never validating variables. Fixed
+     by adding `parseInt(id, 10)` at all three call sites and tightening
+     `fetchNutritionItem`/`getDiaryEntry`'s signatures to `number` only.
+   - **The mock auth server's canned user `picture` pointed at a real
+     external URL** (`https://example.com/avatar.png`) — harmless against
+     real internet access, but the header's `<img src>` then blocks any
+     full page navigation's `load` event on outbound network access this
+     harness otherwise never needs, and a firewalled CI runner (or this
+     sandbox) hangs the request forever with no response to even fail fast
+     on. Fixed by replacing it with an inline `data:` URI in
+     `mock-auth-server/store.ts`, making the whole harness hermetic
+     regardless of network policy.
+   - **`getTokenSilently()` cannot be given a short-lived token via a
+     `ttl` login override** — confirmed against the SDK's source,
+     `_getEntryFromCache` hardcodes a 60-second freshness leeway
+     independent of the `DEFAULT_EXPIRY_ADJUSTMENT_SECONDS = 0` used
+     elsewhere, so *any* cached token with under 60s of remaining life is
+     always treated as stale and triggers an immediate `prompt=none`
+     silent-auth iframe attempt — which this mock can't satisfy (no SSO
+     session), so it hangs. This isn't an app bug (nothing in `Auth0.ts`
+     needed to change) but it invalidates §3.3's `ttl` design note taken at
+     face value: a `ttl` under 60s makes *login itself* hang, not just
+     expire sooner. Step 20 uses `ttlSeconds: 75` (comfortably over the
+     margin, so login succeeds immediately) and waits 77s for genuine
+     expiry — the app only calls `getTokenSilently()` once per mount,
+     caching the result in a plain signal, so the eventual 401 comes from
+     the JWT's own `exp` claim on the next API call, unrelated to that
+     cache-freshness heuristic. `playwright.config.ts` now sets an explicit
+     `timeout: 300_000` to comfortably cover that wait.
+
+   Two Playwright-locator gotchas worth noting for anyone extending this
+   test: `getByText()` matches case-insensitive substrings by default, so
+   asserting a "RECIPE" badge needs `{ exact: true }` or it also matches
+   "...Recipe" in a name; and `DiaryList.tsx` nests one `<li>` per entry
+   inside an outer per-day `<li>` that "contains" the same text, so
+   `locator("li").filter({ hasText })` resolves to two elements there (the
+   outer one first, in document order) — `.last()` picks the entry row.
+
+   Full suite (`npm run test:e2e`) passed twice in a row locally before
+   landing.
+6. Coverage wiring (§3.6) — not done. Left for a follow-up: it's additive
+   (an alternate coverage report, gated behind `E2E_COVERAGE=true`) and
+   isn't a prerequisite for phase 7's CI cutover.
+7. ✅ CI cutover (§3.7): `.github/workflows/ci-cd.yml`'s `test-web` job now
+   runs `npm run test:e2e` in place of `npm run test:acceptance`. The old
+   suite is deleted (`vitest.acceptance.config.mts`, `src/acceptance*.test.tsx`,
+   `src/test-setup-browser.ts`, `ACCEPTANCE_TESTS.md`, and the now-unused
+   `@vitest/browser-playwright`/`playwright` devDependencies), and
+   `web/CLAUDE.md`'s pre-PR checklist and `web/e2e/README.md` point at the
+   new suite.
 
 ## 7. Open risks
 
