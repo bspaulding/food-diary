@@ -364,7 +364,49 @@ test("the full app journey", async ({ page }) => {
   await test.step("add item flow #3 -- camera scan", async () => {
     await page.goto("/nutrition_item/new");
     await page.getByRole("button", { name: "Scan" }).click();
+
+    // Live "Take Picture" capture path (the modal's default mode; the fake
+    // camera device starts automatically) -- exercises captureAndUpload's
+    // video-frame-to-canvas route, which the Upload Image path below never
+    // touches. Both hit the same canned /labeller/upload response, so
+    // populating the form here and again via Upload Image just re-fills it
+    // with identical values -- only the final Save persists anything.
+    const captureButton = page.getByRole("button", {
+      name: "Capture & Import",
+    });
+    await expect(captureButton).toBeEnabled();
+    // The button is enabled as soon as the modal mounts, well before the
+    // fake camera device's video element actually has a frame ready --
+    // capturing too early draws a 0x0 canvas and captureAndUpload's own
+    // error path fires instead (the modal stays open, "Scan Nutrition
+    // Label" among other things never becomes hidden below).
+    await page.waitForFunction(() => {
+      const video = document.querySelector("video");
+      return !!video && video.videoWidth > 0;
+    });
+    await captureButton.click();
+    await expect(page.getByText("Scan Nutrition Label")).toBeHidden();
+    await expect(page.locator('input[name="description"]')).toHaveValue(
+      "Mock Scanned Nutrition Label",
+    );
+
+    // Re-open for the Upload Image path: first a rejected non-image file,
+    // then the real fixture through to a save.
+    await page.getByRole("button", { name: "Scan" }).click();
     await page.getByRole("button", { name: "Upload Image" }).click();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "not-an-image.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("not an image"),
+    });
+    await expect(
+      page.getByText("Please select a valid image file"),
+    ).toBeVisible();
+    // The error message replaces the file input in the DOM entirely (a
+    // ternary, not a dismissible banner) -- re-clicking the tab re-runs its
+    // handler, which clears the error and brings the input back.
+    await page.getByRole("button", { name: "Upload Image" }).click();
+
     await page
       .locator('input[type="file"]')
       .setInputFiles(join(__dirname, "..", "fixtures", "nutrition-label.jpg"));
@@ -622,6 +664,27 @@ test("the full app journey", async ({ page }) => {
     ).toHaveCount(0);
   });
 
+  await test.step("log Peanut Butter directly (plain-item CSV export coverage)", async () => {
+    // Every diary entry logged so far is either the (now-deleted) Banana
+    // entry or the recipe entry -- CSVExport.ts's plain-nutrition-item row
+    // branch (as opposed to its recipe-item branch) would otherwise never
+    // run. Peanut Butter itself has only ever been used inside the recipe
+    // until now.
+    await page.goto("/");
+    await page.getByRole("link", { name: "Add New Entry" }).click();
+    await page.getByText("Search", { exact: true }).click();
+    await page.fill('input[name="entry-item-search"]', "Peanut Butter");
+    const row = page.locator("li").filter({ hasText: "Peanut Butter" });
+    await row.getByRole("button", { name: "⊕" }).click();
+    await row.getByRole("button", { name: "Save" }).click();
+    await expect(row.getByText("✔")).toBeVisible();
+
+    await page.getByRole("link", { name: "Back to Diary" }).click();
+    await expect(
+      page.getByRole("link", { name: "Peanut Butter", exact: true }),
+    ).toBeVisible();
+  });
+
   await test.step("nutrition targets persist across reload", async () => {
     await page.goto("/profile");
     await page.getByLabel("Calorie min (kcal)").fill("1800");
@@ -642,13 +705,29 @@ test("the full app journey", async ({ page }) => {
 
   await test.step("CSV export", async () => {
     await page.getByRole("link", { name: "Export Entries" }).click();
-    await page.getByLabel("All dates").check();
-    const downloadPromise = page.waitForEvent("download");
+
+    // Default date range (the last 13 days, per ExportDiaryEntries.tsx's
+    // own default) covers everything logged so far without checking "All
+    // dates" -- exercises the date-range query variant fetchExportEntries
+    // otherwise never uses, since every other export in this suite used
+    // "All dates."
+    const rangeDownloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Export As CSV" }).click();
-    const download = await downloadPromise;
-    const downloadPath = await download.path();
-    if (!downloadPath) throw new Error("Export did not produce a file");
-    const csv = readFileSync(downloadPath, "utf-8");
+    const rangeDownload = await rangeDownloadPromise;
+    const rangeDownloadPath = await rangeDownload.path();
+    if (!rangeDownloadPath) throw new Error("Export did not produce a file");
+    const rangeCsv = readFileSync(rangeDownloadPath, "utf-8");
+    // A plain (non-recipe) item row -- CSVExport.ts's other formatting
+    // branch, which the recipe-only entries below don't reach.
+    expect(rangeCsv).toContain(`Peanut Butter",1,${peanutButter.calories}`);
+
+    await page.getByLabel("All dates").check();
+    const allDownloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export As CSV" }).click();
+    const allDownload = await allDownloadPromise;
+    const allDownloadPath = await allDownload.path();
+    if (!allDownloadPath) throw new Error("Export did not produce a file");
+    const csv = readFileSync(allDownloadPath, "utf-8");
 
     expect(csv).toContain(
       `PB Mix Recipe - Banana",${recipeEntryServings},${banana.calories}`,
@@ -674,13 +753,19 @@ test("the full app journey", async ({ page }) => {
     const header =
       "Consumed At,Servings,Description,Calories,Total Fat (g),Saturated Fat (g),Trans Fat (g),Polyunsaturated Fat (g),Monounsaturated Fat (g),Cholesterol (mg),Sodium (mg),Total Carbohydrate (g),Dietary Fiber (g),Total Sugars (g),Added Sugars (g),Protein (g)";
     const row = `${importedAt.toISOString()},1,CSV Imported Oatmeal,150,3,0.5,0,1,1,0,2,27,4,1,0,5`;
+    // An unparseable date -- rowToEntry's one validity check (CSVImport.ts)
+    // -- so this row lands in the parser's `Left`/error bucket instead of
+    // being imported, exercising that branch (and the preview's error
+    // count) alongside an otherwise all-valid file.
+    const badRow =
+      "not-a-real-date,1,Bad Row Item,100,1,0.5,0,1,1,0,2,27,4,1,0,5";
     await page.locator('input[name="diary-import-file"]').setInputFiles({
       name: "import-entries.csv",
       mimeType: "text/csv",
-      buffer: Buffer.from(`${header}\n${row}\n`, "utf-8"),
+      buffer: Buffer.from(`${header}\n${row}\n${badRow}\n`, "utf-8"),
     });
 
-    await expect(page.getByText("1 rows parsed. 0 errors.")).toBeVisible();
+    await expect(page.getByText("1 rows parsed. 1 errors.")).toBeVisible();
     await page.getByRole("button", { name: "Import Entries" }).click();
     await expect(page.getByText("Import successful!")).toBeVisible();
 
