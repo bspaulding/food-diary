@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 import solidPlugin from "vite-plugin-solid";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import tailwindcss from "@tailwindcss/vite";
+import istanbul from "vite-plugin-istanbul";
 
 const useLocalHasura: boolean =
   process.env.FOOD_DIARY_USE_LOCAL_HASURA === "true";
@@ -25,15 +26,41 @@ const mockServerUrl = process.env.FOOD_DIARY_MOCK_SERVER_URL;
 // localhost, which Chromium treats as a secure context on its own) and
 // needs to disable this self-signed-cert plugin to do so.
 const useHttps: boolean = process.env.FOOD_DIARY_HTTPS !== "false";
+// Instruments the production build so the E2E journey's own coverage can be
+// measured separately from the unit-test coverage below (see `npm run
+// test:e2e:coverage`) -- answers "does a real user journey reach this
+// line," not "do unit tests exercise this branch."
+const useE2ECoverage: boolean = process.env.E2E_COVERAGE === "true";
 console.log({
   useLocalHasura,
   useLocalLlmNutritionApi,
   mockServerUrl,
   useHttps,
+  useE2ECoverage,
 });
 
 export default defineConfig({
-  plugins: [tailwindcss(), solidPlugin(), ...(useHttps ? [basicSsl()] : [])],
+  plugins: [
+    tailwindcss(),
+    solidPlugin(),
+    ...(useHttps ? [basicSsl()] : []),
+    ...(useE2ECoverage
+      ? [
+          istanbul({
+            include: "src/**/*.{ts,tsx}",
+            exclude: ["src/**/*.test.{ts,tsx}", "src/assets/**"],
+            extension: [".ts", ".tsx"],
+            // Defaults to only instrumenting `vite serve` (dev server);
+            // this harness always runs `vite build && vite preview` (the
+            // suite's whole point is verifying the real production build),
+            // so both this and checkProd's production-mode skip need
+            // overriding to actually get any coverage out of it.
+            forceBuildInstrument: true,
+            checkProd: false,
+          }),
+        ]
+      : []),
+  ],
   publicDir: "src/assets/public",
   server: {
     host: "0.0.0.0",
@@ -70,17 +97,16 @@ export default defineConfig({
   },
   build: {
     target: "esnext",
+    // vite-plugin-istanbul needs a sourcemap to attribute instrumented
+    // coverage back to the original source; only produced when actually
+    // instrumenting, so the normal production build stays untouched.
+    sourcemap: useE2ECoverage,
   },
   test: {
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test-setup.ts"],
-    exclude: [
-      "**/node_modules/**",
-      "**/dist/**",
-      "**/acceptance*.test.*",
-      "e2e/**",
-    ],
+    exclude: ["**/node_modules/**", "**/dist/**", "e2e/**"],
     browser: {
       enabled: false, // Can be enabled when browser providers are installed
       instances: [{ browser: "chromium" }],
@@ -89,13 +115,7 @@ export default defineConfig({
       provider: "istanbul",
       reporter: ["text", "json", "html"],
       include: ["src/**/*.{ts,tsx}"],
-      exclude: [
-        "src/**/*.test.{ts,tsx}",
-        "src/test-setup.ts",
-        "src/test-setup-browser.ts",
-        "src/acceptance*.test.{ts,tsx}",
-        "src/assets/**",
-      ],
+      exclude: ["src/**/*.test.{ts,tsx}", "src/test-setup.ts", "src/assets/**"],
       thresholds: {
         lines: 96,
         functions: 96,

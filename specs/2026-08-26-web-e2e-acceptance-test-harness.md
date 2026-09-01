@@ -539,6 +539,20 @@ from the Istanbul-based unit-test coverage already gated in
 answer different questions ("do unit tests exercise this branch" vs. "does a
 real user journey reach this line").
 
+**As landed** (phase 6 — see its rollout notes for the two real gaps this
+sketch had): `vite-plugin-istanbul: ^9.0.1` (`8.0.0` was just what was
+current at research time), added to `vite.config.mts`'s `plugins` array
+behind a `useE2ECoverage` flag with `forceBuildInstrument: true` and
+`checkProd: false` (the plugin no-ops during `vite build` otherwise — it's
+built for instrumenting the dev server). The single end-of-test
+`window.__coverage__` read as sketched above undercounts badly across this
+journey's many real navigations; landed as a `localStorage`-based
+accumulator instead, written from a `pagehide` listener (`page.evaluate`'s
+round trip back to Node isn't reliably fast enough to beat a document
+tearing down). No `posttest:e2e` lifecycle hook — `test:e2e:coverage` is
+one explicit script per §3.7's own code block, avoiding a report running
+against stale/absent data on a plain `npm run test:e2e`.
+
 ### 3.7 `package.json` / CI wiring
 
 New scripts:
@@ -547,6 +561,10 @@ New scripts:
 "test:e2e": "playwright test --config e2e/playwright.config.ts",
 "test:e2e:coverage": "E2E_COVERAGE=true npm run test:e2e && nyc report --reporter=text --reporter=html"
 ```
+
+**As landed:** `--report-dir e2e-coverage` added to the `nyc report` call —
+`nyc`'s own default report directory (`./coverage`) collides with the
+Istanbul-based unit-test coverage output above.
 
 `.github/workflows/ci-cd.yml`'s `test-web` job: replace the existing
 "Acceptance tests" step (`npm run test:acceptance`) with `npm run test:e2e`
@@ -875,9 +893,56 @@ response shapes, including the naming mismatch between the two).
 
    Full suite (`npm run test:e2e`) passed twice in a row locally before
    landing.
-6. Coverage wiring (§3.6) — not done. Left for a follow-up: it's additive
-   (an alternate coverage report, gated behind `E2E_COVERAGE=true`) and
-   isn't a prerequisite for phase 7's CI cutover.
+6. ✅ Coverage wiring (§3.6): `vite-plugin-istanbul` (`^9.0.1` — the spec's
+   `8.0.0` was just the version available at research time; `>=7` is still
+   the declared peer range) instruments `src/**/*.{ts,tsx}` in
+   `vite.config.mts`, gated behind `E2E_COVERAGE=true` (a `useE2ECoverage`
+   flag alongside the existing `useHttps`/`mockServerUrl` ones, following
+   the same pattern). `npm run test:e2e:coverage` sets that env var, runs
+   the suite, and reports via `nyc` into `e2e-coverage/` (a distinct
+   directory from the unit-test coverage's `coverage/`, since — per the
+   spec's framing — they answer different questions and shouldn't merge).
+
+   Two things the spec's sketch didn't anticipate, found by actually running
+   it rather than taking `vite-plugin-istanbul`'s README at face value:
+   - **The plugin only instruments `vite serve` (the dev server) by
+     default** — `apply()` returns `env.command == "serve"` unless
+     `forceBuildInstrument: true` is passed, which this harness needs since
+     it always runs `vite build && vite preview` (verifying the real
+     production build is the whole point of this suite). Also set
+     `checkProd: false`, since `checkProd`'s production-mode skip would
+     otherwise fight the same override (confirmed harmless once
+     `forceBuildInstrument` is set — traced through the plugin's own
+     `configResolved` logic — but set explicitly for clarity). Discovered
+     by checking the built bundle for the literal string `__coverage__`
+     after a first "0% coverage on every file" report — it was never
+     getting instrumented at all.
+   - **A single end-of-test `window.__coverage__` read massively
+     undercounts.** This journey crosses many real page navigations (login
+     redirects, `<a>` links to edit pages, logout), each of which destroys
+     `window` and anything istanbul had accumulated on it since the last
+     one. First attempt used `pagehide` + `page.exposeFunction()` to report
+     each document's coverage back to Node before it unloaded, which
+     silently dropped nearly everything except the final page — the
+     `exposeFunction` round trip is async and isn't guaranteed to land
+     before Chromium tears down a `pagehide`-ing document. Fixed by
+     accumulating into `localStorage` instead (same-origin, synchronous,
+     survives every navigation within the app's own origin — the mock
+     auth server's pages aren't instrumented so crossing to that origin and
+     back loses nothing), with a small hand-rolled counter-merge in the
+     browser (istanbul's own merge logic wasn't worth shipping into the
+     page bundle for this). Went from ~20% reported (index.tsx/App.tsx/
+     DiaryList.tsx only — whatever was still live on the final page) to a
+     genuinely "very high" ~85% statements once fixed, with most
+     individual components (RecipeShow, RecipeEdit, NutritionItemEdit,
+     Trends, SegmentedControl, ...) at 100%.
+   - A related type-checking wrinkle: `vite-plugin-istanbul`'s own ambient
+     types declare a global `__coverage__: any`; re-declaring
+     `Window.__coverage__` with a specific type doesn't narrow it (it still
+     resolves to `any` at every read, defeating 100% type-coverage even
+     under a wrapping `as`) — worked around by casting `window` itself to a
+     local object-literal type instead of augmenting the global `Window`
+     interface.
 7. ✅ CI cutover (§3.7): `.github/workflows/ci-cd.yml`'s `test-web` job now
    runs `npm run test:e2e` in place of `npm run test:acceptance`. The old
    suite is deleted (`vitest.acceptance.config.mts`, `src/acceptance*.test.tsx`,
@@ -885,6 +950,11 @@ response shapes, including the naming mismatch between the two).
    `@vitest/browser-playwright`/`playwright` devDependencies), and
    `web/CLAUDE.md`'s pre-PR checklist and `web/e2e/README.md` point at the
    new suite.
+8. 🔍 Exploratory only, not scheduled (§8): running the real `graphql-engine`
+   (Postgres + Hasura) as this suite's data layer instead of
+   `mock-api-server`'s in-memory GraphQL resolvers, to eliminate the
+   schema/formula drift risk a hand-written mock always carries. Design
+   space and open questions written up in §8; nothing implemented.
 
 ## 7. Open risks
 
@@ -903,3 +973,164 @@ response shapes, including the naming mismatch between the two).
   but re-diff `node_modules/@auth0/auth0-spa-js/package.json`'s resolved
   version against this doc if the mock auth server's tests start failing
   after a routine `npm install`/lockfile update.
+
+---
+
+## 8. Phase 8 (exploratory) — a real Hasura backend instead of a mocked GraphQL layer
+
+Not yet decided or scheduled; this section exists to think through the design
+space before committing to it, per the same "research before building"
+discipline as §3.2's Auth0 SDK read. **Nothing below has been implemented.**
+
+### 8.1 The idea
+
+`mock-api-server`'s GraphQL layer (`store.ts` + `resolvers.ts`) is a
+hand-written, hand-verified stand-in for Hasura: substring-matches operation
+names (§3.4), and its calorie/protein/added-sugar formulas were manually
+checked against the real Postgres functions in `graphql-engine/migrations/`
+(phase 3's rollout note). Both of those are permanent maintenance liabilities
+— every schema change or formula tweak in `graphql-engine/` has to be noticed
+and re-mirrored by hand, and a mock that's *lenient* about unrecognized
+fields (§3.4's Appendix A note: "a superset of what any one query asks for is
+harmless") can't catch a real GraphQL validation error a schema-breaking
+change would produce. Running the **actual** `graphql-engine` (Postgres +
+Hasura, migrations and metadata applied) as this suite's data layer instead
+would eliminate both: real schema, real functions, real permission-scoped
+row-level security, no drift possible because there's nothing left to drift
+from the thing it's mirroring.
+
+### 8.2 What already exists to build on
+
+- `graphql-engine/docker-compose.test.yml` already stands up exactly this
+  (`postgres:14` + a `food-diary-hasura:ci` image built from
+  `graphql-engine/Dockerfile`) for the `test-graphql-engine` CI job, with a
+  healthcheck (`curl .../healthz`, up to `20 × 10s` after a `60s`
+  `start_period`).
+- That `Dockerfile`'s base image is
+  `hasura/graphql-engine:v2.48.16.cli-migrations-v3` — the `cli-migrations`
+  variant auto-applies everything under `/hasura-migrations` and
+  `/hasura-metadata` (baked in via `COPY`) on container boot. A fresh
+  container is a fully-migrated, empty-data instance with no separate
+  `hasura migrate apply` step needed — the same "starts empty" property
+  §3.4 designed the mock around falls out for free here too.
+- `graphql-engine/metadata/actions.yaml` is empty (`actions: []`) — no
+  Hasura Action webhook backend to also stand up.
+- 14 migrations total (`graphql-engine/migrations/default/`) — a small
+  enough schema that apply time shouldn't be a meaningful part of boot time.
+
+### 8.3 The hard part: auth — and prior art that sidesteps it
+
+The real blocker for pointing the built app at real Hasura is that Hasura
+needs to turn the app's `Authorization: Bearer <token>` into the
+`X-Hasura-User-Id`/`X-Hasura-Role` session variables its permission rules
+key on (every table's `select`/`insert`/`update` permission filters on
+`user_id: x-hasura-User-Id` — confirmed by grepping
+`graphql-engine/metadata/databases/default/tables/*.yaml`). What that costs
+to reproduce for real turns out to be genuinely unclear from this repo alone
+— the two other services that talk to the same Hasura instance disagree with
+each other about what `HASURA_GRAPHQL_JWT_SECRET` (the real, uncommitted
+production secret) even contains:
+- `mcp-server/src/token.ts`/`auth.ts` `JSON.parse` it as `{ type, key }` and
+  use `key` as a **plain HS256 shared secret** (`createSecretKey` +
+  `jwt.verify(..., { algorithms: ["HS256"] })`) — though `token.ts`'s own
+  comment says this is for a *different*, self-issued token, and that "Hasura
+  verifies Auth0 tokens (JWKS/RS256); it cannot verify tokens we sign,"
+  implying the real Hasura config is actually RS256/JWKS-based and
+  mcp-server's reuse of the same env var name for its own HS256 signing is
+  an unrelated convenience, not evidence of Hasura's own algorithm.
+- `llm-nutrition-api/src/auth.zig` reads the same env var's `key` field as a
+  **PEM/X.509 certificate** and does real RS256 signature verification
+  against it — but its own doc comment says it's verifying "an Auth0 RS256
+  **ID token**," not the GraphQL access token, so this doesn't directly
+  confirm what Hasura itself is configured with either.
+
+Rather than resolve that ambiguity (which needs the real secret's actual
+shape — not discoverable from source, and asking for it would mean handling
+a live production credential inside this test harness, which this suite has
+deliberately avoided everywhere else), there's a cleaner way out already
+proven **inside this exact repo**: `graphql-engine/tests/src/client.ts`'s
+`userClient(userId)` talks to the real Hasura instance as a specific user
+by sending `X-Hasura-Admin-Secret` + `X-Hasura-Role: user` +
+`X-Hasura-User-Id: <userId>` together — no JWT at all. Hasura's admin
+secret bypasses auth entirely by default, but *combined with* an explicit
+`X-Hasura-Role`, it evaluates that role's real permission rules (including
+the real `user_id` row-level filter) using whatever session variables you
+assert. This is exactly what real Hasura's own test suite already relies on
+for user-scoped assertions, so it's not a workaround invented for this
+suite — it's the established pattern for testing this database's
+permissions at all.
+
+### 8.4 Proposed shape (not built)
+
+Keep the "one mock server URL" design (§3.1) intact — no `vite.config.mts`
+or app changes — by turning `mock-api-server`'s **GraphQL route only** into
+a thin shim instead of an in-memory resolver:
+
+1. Verify the incoming bearer token exactly as today (`auth.ts`'s
+   `verifyAccessToken` — same signature+expiry check, so the session-expiry/
+   401 test (step 20) and everything else about the mock auth boundary is
+   completely unaffected).
+2. Take the verified token's `sub`, forward the GraphQL request body
+   verbatim to the real `graphql-engine` container with
+   `X-Hasura-Admin-Secret`/`X-Hasura-Role: user`/`X-Hasura-User-Id: <sub>`
+   substituted for the `Authorization` header (§8.3's pattern).
+3. Return Hasura's real response as-is.
+
+`mock-api-server`'s REST routes (`/lookup`, `/upload` — llm-nutrition-api's
+job, not Hasura's) are untouched; a real hosted LLM call has no place in a
+deterministic test regardless of how the GraphQL layer is sourced.
+Orchestration-wise, this adds two more `webServer` entries (postgres,
+graphql-engine) with the same healthcheck-based readiness Playwright already
+uses for the other three processes.
+
+### 8.5 What this would cost
+
+- **A new hard dependency: Docker.** Today `npm run test:e2e` is pure Node —
+  no toolchain beyond what `npm install` gets you. This would require Docker
+  (or a local Postgres+Hasura setup) to run the suite **at all**, on every
+  contributor's machine, not just in CI.
+- **Slower, less deterministic boot.** The existing CI healthcheck budget
+  (up to ~120s: `20 × 10s` after `60s start_period`) dwarfs the mock
+  servers' near-instant startup; this suite's total runtime (already ~1.7
+  minutes per §"as landed" phase-5 notes) would grow meaningfully, and gains
+  a new source of CI flakiness (container startup) it doesn't have today.
+- **New coupling to worry about.** Real Postgres `now()`/sequence-generated
+  ids replace the mock's controlled in-memory counters — likely a
+  non-issue since the test already only ever learns ids back from the UI
+  itself (never queries the store directly), but worth confirming rather
+  than assuming, especially anywhere ordering matters (e.g. CSV export).
+- **Still not total-realism.** Auth0 and llm-nutrition-api stay mocked
+  regardless (§8.4) — this is a GraphQL-layer fidelity upgrade only, not a
+  "replace every mock" one.
+
+### 8.6 What this would gain
+
+Real schema (a genuinely broken query/mutation gets a real GraphQL
+validation error instead of the mock's lenient superset-matching), the real
+Postgres calorie/protein/added-sugar functions with zero hand-verification
+or drift risk, and real permission/row-level-security filter evaluation —
+closing exactly the gap phase 3's rollout note flagged as a manual,
+by-hand-verified liability.
+
+### 8.7 Recommendation and open questions
+
+Prototype this as an **opt-in variant alongside** the current suite (a
+second Playwright project/config, or an env-gated `test:e2e:real-hasura`
+script) rather than replacing it — the existing suite's speed and
+zero-extra-toolchain property is valuable on its own for everyday/PR-gating
+CI, and phases 1–7 shouldn't become dead weight the moment this looks
+promising. Open questions before any of this gets built:
+
+1. Does admin-secret-and-role-impersonation (§8.3) satisfy what "verify a
+   rewrite" needs here, or does the real Auth0↔Hasura JWT boundary itself
+   need proving? If the latter, someone with access to the real
+   `HASURA_GRAPHQL_JWT_SECRET` needs to resolve §8.3's ambiguity directly —
+   not guessable from this repo.
+2. Build `food-diary-hasura:ci` fresh per run (matching what
+   `test-graphql-engine`'s CI job already does, guaranteeing migrations/
+   metadata match the branch under test) or rely on a pre-built image?
+   Fresh is slower but can't drift from the branch; pre-built is faster but
+   needs its own rebuild-on-change story.
+3. Should this eventually delete `mock-api-server`'s GraphQL resolvers
+   entirely (keeping only its REST handlers), or keep the in-memory mock
+   as a Docker-less fallback for contributors/environments without it?
