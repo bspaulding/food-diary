@@ -225,7 +225,37 @@ async function editDiaryEntryServings(
   await page.waitForURL("/");
 }
 
+// Pre-migration nutrition targets a legacy localStorage-only user would
+// have. NutritionTargets.tsx's syncFromBackend only reads localStorage when
+// the backend has no target row yet, so this only ever matters for the
+// very first sync after this test's first-ever login below.
+const legacyLocalStorageTargets = {
+  calories: 1600,
+  calories_max: 2200,
+  protein_grams: 100,
+  dietary_fiber_grams: 20,
+  added_sugars_grams: 15,
+};
+
 test("the full app journey", async ({ page }) => {
+  // Seeds localStorage as if a returning user already had targets saved
+  // there from before targets were synced to the backend. Guarded by a
+  // one-time marker so it only seeds the very first page load of this test
+  // (the app's origin doesn't exist yet to write to before that) rather
+  // than re-seeding on every later navigation/reload in this long journey.
+  await page.addInitScript(
+    ({ seededKey, storageKey, targets }) => {
+      if (localStorage.getItem(seededKey)) return;
+      localStorage.setItem(storageKey, JSON.stringify(targets));
+      localStorage.setItem(seededKey, "1");
+    },
+    {
+      seededKey: "__e2e_legacy_targets_seeded__",
+      storageKey: "nutrition_targets",
+      targets: legacyLocalStorageTargets,
+    },
+  );
+
   await test.step("cold start, logged out -> auto-redirects to login", async () => {
     // Auth0.ts's resource calls loginWithRedirect() itself as soon as it
     // resolves an unauthenticated session -- there's no stable "logged out"
@@ -240,6 +270,35 @@ test("the full app journey", async ({ page }) => {
     await completeMockLogin(page);
     await expect(page).toHaveURL("/");
     await expect(page.locator("header img")).toBeVisible();
+  });
+
+  await test.step("nutrition targets migrate from legacy localStorage", async () => {
+    // The backend has no target row yet for this brand-new user, so the
+    // createEffect in App.tsx that fires on login should have pushed the
+    // localStorage values seeded above to the backend and cleared them.
+    await page.goto("/profile");
+    await expect(page.getByLabel("Calorie min (kcal)")).toHaveValue(
+      String(legacyLocalStorageTargets.calories),
+    );
+    await expect(page.getByLabel("Calorie max (kcal)")).toHaveValue(
+      String(legacyLocalStorageTargets.calories_max),
+    );
+    await expect(page.getByLabel("Protein (g)")).toHaveValue(
+      String(legacyLocalStorageTargets.protein_grams),
+    );
+    await expect(page.getByLabel("Dietary Fiber (g)")).toHaveValue(
+      String(legacyLocalStorageTargets.dietary_fiber_grams),
+    );
+    await expect(page.getByLabel("Added Sugar (g)")).toHaveValue(
+      String(legacyLocalStorageTargets.added_sugars_grams),
+    );
+
+    const stillStored = await page.evaluate(() =>
+      localStorage.getItem("nutrition_targets"),
+    );
+    expect(stillStored).toBeNull();
+
+    await page.goto("/");
   });
 
   await test.step("empty diary state", async () => {
