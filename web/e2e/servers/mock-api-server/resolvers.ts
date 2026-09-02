@@ -44,7 +44,10 @@ export const E2E_GRAPHQL_ERROR_SENTINEL = "__E2E_TRIGGER_GRAPHQL_ERROR__";
 
 function containsErrorSentinel(value: unknown): boolean {
   if (typeof value === "string") return value === E2E_GRAPHQL_ERROR_SENTINEL;
-  if (Array.isArray(value)) return value.some(containsErrorSentinel);
+  if (Array.isArray(value)) {
+    const items: unknown[] = value;
+    return items.some(containsErrorSentinel);
+  }
   if (value && typeof value === "object") {
     return Object.values(value).some(containsErrorSentinel);
   }
