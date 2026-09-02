@@ -65,6 +65,10 @@ export function createMockApiServer(
         });
         return;
       }
+      if ("__mockGraphQLError" in result) {
+        sendJson(res, 200, { errors: [{ message: result.message }] });
+        return;
+      }
       sendJson(res, 200, { data: result });
     }),
   );

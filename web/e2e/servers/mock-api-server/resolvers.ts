@@ -25,12 +25,44 @@ import {
  * caller turns into a loud 500 -- mirroring the "strict mode" MSW setup
  * this replaces, so the mock can't silently drift from what the app sends.
  */
+export type MockGraphQLErrorResult = {
+  __mockGraphQLError: true;
+  message: string;
+};
+
+/**
+ * Any variable value equal to this exact string makes the mock reject the
+ * whole operation with a real `{errors: [...]}` GraphQL-error body at HTTP
+ * 200 -- the shape a real backend uses for a rejected mutation (a check
+ * constraint or permission failure, say), as opposed to this mock's
+ * generic "unrecognized operation" 500 in server.ts. It's the E2E suite's
+ * one deliberate, documented way to trigger that response shape, since no
+ * organic mock failure reaches it. Must match the same literal in
+ * web/e2e/tests/full-app-journey.spec.ts.
+ */
+export const E2E_GRAPHQL_ERROR_SENTINEL = "__E2E_TRIGGER_GRAPHQL_ERROR__";
+
+function containsErrorSentinel(value: unknown): boolean {
+  if (typeof value === "string") return value === E2E_GRAPHQL_ERROR_SENTINEL;
+  if (Array.isArray(value)) return value.some(containsErrorSentinel);
+  if (value && typeof value === "object") {
+    return Object.values(value).some(containsErrorSentinel);
+  }
+  return false;
+}
+
 export function resolveOperation(
   query: string,
   variables: Record<string, unknown>,
   store: MockApiStore,
   sub: string,
-): Record<string, unknown> | null {
+): Record<string, unknown> | MockGraphQLErrorResult | null {
+  if (containsErrorSentinel(variables)) {
+    return {
+      __mockGraphQLError: true,
+      message: "mock server: rejected due to E2E error sentinel",
+    };
+  }
   if (query.includes("GetWeeklyStats")) {
     return resolveGetWeeklyStats(variables, store);
   }
