@@ -839,6 +839,36 @@ test("the full app journey", async ({ page }) => {
     await expect(oatmealRow.getByText("150 kcal")).toBeVisible();
   });
 
+  await test.step("CSV import: backend rejection surfaces to the user", async () => {
+    // The mock server treats this exact value, found anywhere in a
+    // mutation's variables, as a signal to reject the whole operation with
+    // a real GraphQL `errors` body at HTTP 200 instead of its usual data
+    // response (see mock-api-server/resolvers.ts) -- this suite's one
+    // deliberate, documented way to inject a backend-side failure, since no
+    // organic mock failure reaches Api.ts's `json.errors` branch. Must
+    // match the literal in resolvers.ts.
+    const E2E_GRAPHQL_ERROR_SENTINEL = "__E2E_TRIGGER_GRAPHQL_ERROR__";
+
+    await page.goto("/diary_entry/import");
+    const header =
+      "Consumed At,Servings,Description,Calories,Total Fat (g),Saturated Fat (g),Trans Fat (g),Polyunsaturated Fat (g),Monounsaturated Fat (g),Cholesterol (mg),Sodium (mg),Total Carbohydrate (g),Dietary Fiber (g),Total Sugars (g),Added Sugars (g),Protein (g)";
+    const row = `${new Date().toISOString()},1,${E2E_GRAPHQL_ERROR_SENTINEL},100,1,0.5,0,1,1,0,2,27,4,1,0,5`;
+    await page.locator('input[name="diary-import-file"]').setInputFiles({
+      name: "import-error.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(`${header}\n${row}\n`, "utf-8"),
+    });
+
+    await expect(page.getByText("1 rows parsed. 0 errors.")).toBeVisible();
+    await page.getByRole("button", { name: "Import Entries" }).click();
+    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(
+      page.getByText("mock server: rejected due to E2E error sentinel"),
+    ).toBeVisible();
+
+    await page.goto("/");
+  });
+
   await test.step("session expiry / 401 handling", async () => {
     await page.goto("/profile");
     await page.getByRole("button", { name: "Logout" }).click();

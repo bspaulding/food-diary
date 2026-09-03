@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { signHs256Jwt } from "../../shared/jwt.ts";
 import { ACCESS_TOKEN_SECRET } from "../../shared/secrets.ts";
 import { createMockApiServer } from "../server.ts";
+import { E2E_GRAPHQL_ERROR_SENTINEL } from "../resolvers.ts";
 import { MockApiStore } from "../store.ts";
 
 const SUB = "e2e|test-user";
@@ -240,6 +241,30 @@ describe("mock API server", () => {
       );
       expect(status).toBe(500);
       expect(errorsOf(body)[0].message).toContain("unhandled operation");
+    });
+  });
+
+  describe("E2E error sentinel", () => {
+    it("responds with a GraphQL-style errors body at HTTP 200 when a variable matches the sentinel", async () => {
+      const { status, body } = await gql("mutation CreateNutritionItem { }", {
+        nutritionItem: {
+          description: E2E_GRAPHQL_ERROR_SENTINEL,
+          calories: 100,
+        },
+      });
+      expect(status).toBe(200);
+      expect(errorsOf(body)[0].message).toBeTruthy();
+      expect((body as { data?: unknown }).data).toBeUndefined();
+    });
+
+    it("only matches an exact value, not a substring", async () => {
+      const { status } = await gql("mutation CreateNutritionItem { }", {
+        nutritionItem: {
+          description: `not quite ${E2E_GRAPHQL_ERROR_SENTINEL}`,
+          calories: 100,
+        },
+      });
+      expect(status).toBe(200);
     });
   });
 
