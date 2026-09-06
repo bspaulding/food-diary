@@ -4,11 +4,17 @@ import { debounce } from "@solid-primitives/scheduled";
 import {
   searchItemsAndRecipes,
   searchItemsOnly,
+  SearchItemsAndRecipesQueryResponse,
+  SearchItemsOnlyQueryResponse,
   SearchNutritionItem,
   SearchRecipe,
   SearchResultRow,
 } from "./Api";
 import createAuthorizedResource from "./createAuthorizedResource";
+
+type SearchQueryResponse =
+  | SearchItemsAndRecipesQueryResponse
+  | SearchItemsOnlyQueryResponse;
 
 type ItemOrRecipe = {
   clear?: () => void;
@@ -31,7 +37,7 @@ const SearchItemsForm: Component<Props> = (props: Props) => {
   const [search, setSearch] = createSignal("");
   const [getItemsQuery] = createAuthorizedResource(
     search,
-    (token: string, searchValue: string) => {
+    (token: string, searchValue: string): Promise<SearchQueryResponse> => {
       return "undefined" === typeof props.queryType ||
         props.queryType === ItemsQueryType.ItemsAndRecipes
         ? searchItemsAndRecipes(token, searchValue)
@@ -40,10 +46,18 @@ const SearchItemsForm: Component<Props> = (props: Props) => {
   );
   const isItemsOnly = (): boolean =>
     props.queryType === ItemsQueryType.ItemsOnly;
-  const itemsOnly = (): SearchNutritionItem[] =>
-    getItemsQuery()?.data?.food_diary_search_nutrition_items || [];
-  const results = (): SearchResultRow[] =>
-    getItemsQuery()?.data?.food_diary_search_all || [];
+  const itemsOnly = (): SearchNutritionItem[] => {
+    const data = getItemsQuery()?.data;
+    return data && "food_diary_search_nutrition_items" in data
+      ? data.food_diary_search_nutrition_items
+      : [];
+  };
+  const results = (): SearchResultRow[] => {
+    const data = getItemsQuery()?.data;
+    return data && "food_diary_search_all" in data
+      ? data.food_diary_search_all
+      : [];
+  };
   const resultCount = (): number =>
     isItemsOnly() ? itemsOnly().length : results().length;
   const clear = (): string => setSearch("");
