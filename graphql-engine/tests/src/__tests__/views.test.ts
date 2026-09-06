@@ -344,15 +344,17 @@ describe('food_diary_trends_weekly view', () => {
     expect(data.food_diary_trends_weekly[0].week_of_year).toBe(3);
   });
 
-  test('calories is the average diary_entry_calories for the week', async () => {
+  test('calories is the average of per-day calorie totals for the week', async () => {
+    // Averages the daily sums (day1: 736.5, day2: 330), not the individual entries.
     const data = await userClient(USER_A).request<any>(`
       query { food_diary_trends_weekly { calories } }
     `);
     expect(data.food_diary_trends_weekly[0].calories).toBeCloseTo(WEEKLY_AVG_CALORIES, 2);
   });
 
-  test('protein is the average diary_entry_protein for the week', async () => {
+  test('protein is the average of per-day protein totals for the week', async () => {
     // recipe_protein divides by total_servings (= 33.5/serving), matching recipe_calories behaviour.
+    // Averages the daily sums (day1: 85, day2: 62), not the individual entries.
     const data = await userClient(USER_A).request<any>(`
       query { food_diary_trends_weekly { protein } }
     `);
