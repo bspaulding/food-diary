@@ -63,11 +63,11 @@ export const CALORIES_ENTRY4 = 2 * 165;     // 330
 export const CALORIES_DAY1 = CALORIES_ENTRY1 + CALORIES_ENTRY2 + CALORIES_ENTRY3; // 736.5
 export const CALORIES_DAY2 = CALORIES_ENTRY4; // 330
 
-// trends_weekly (week 3, all 4 entries):
+// trends_weekly (week 3): averages the per-day totals, not the per-entry values.
 // recipe_protein per serving = (2*31 + 1*5) / 2 = 33.5  (divided by total_servings like recipe_calories)
-// protein per entry: 46.5, 5, 33.5, 62
+// protein per entry: 46.5, 5, 33.5, 62 → day1 sum = 85, day2 sum = 62
 export const RECIPE_PROTEIN_PER_SERVING = (2 * 31 + 1 * 5) / CHICKEN_BOWL_TOTAL_SERVINGS; // 33.5
-export const WEEKLY_AVG_CALORIES =
-  (CALORIES_ENTRY1 + CALORIES_ENTRY2 + CALORIES_ENTRY3 + CALORIES_ENTRY4) / 4; // 266.625
-export const WEEKLY_AVG_PROTEIN =
-  (1.5 * 31 + 1 * 5 + 1 * RECIPE_PROTEIN_PER_SERVING + 2 * 31) / 4; // 36.75
+export const PROTEIN_DAY1 = 1.5 * 31 + 1 * 5 + 1 * RECIPE_PROTEIN_PER_SERVING; // 85
+export const PROTEIN_DAY2 = 2 * 31; // 62
+export const WEEKLY_AVG_CALORIES = (CALORIES_DAY1 + CALORIES_DAY2) / 2; // 533.25
+export const WEEKLY_AVG_PROTEIN = (PROTEIN_DAY1 + PROTEIN_DAY2) / 2; // 73.5
