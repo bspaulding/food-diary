@@ -97,11 +97,12 @@ const SearchItemsForm: Component<Props> = (props: Props) => {
             <Show when={!isItemsOnly()}>
               <For each={results()}>
                 {(result: SearchResultRow) =>
-                  props.children(
-                    result.type === "recipe"
-                      ? { clear, recipe: result.recipe! }
-                      : { clear, nutritionItem: result.nutrition_item! },
-                  )
+                  result.recipe
+                    ? props.children({ clear, recipe: result.recipe })
+                    : props.children({
+                        clear,
+                        nutritionItem: result.nutrition_item ?? undefined,
+                      })
                 }
               </For>
             </Show>
