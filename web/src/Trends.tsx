@@ -25,7 +25,7 @@ const Trends: Component = () => {
 
     // Map backend data to our chart format
     return data.map((item: WeeklyTrendsData) => ({
-      weekStart: item.week_of_year,
+      weekStart: `${item.year}-${item.week_of_year}`,
       avgCalories: Math.round(item.calories),
       avgProtein: Math.round(item.protein),
       avgAddedSugar: Math.round(item.added_sugar),

@@ -9,6 +9,7 @@ select_permissions:
         - protein
         - added_sugar
         - user_id
+        - year
         - week_of_year
       filter:
         user_id:
