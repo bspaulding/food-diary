@@ -236,7 +236,7 @@ query GetWeeklyStats($currentWeekStart: timestamptz!, $todayStart: timestamptz!,
     }
   }
   past_four_weeks: food_diary_diary_entry_aggregate(
-    where: { 
+    where: {
       consumed_at: { _gte: $fourWeeksAgoStart, _lt: $todayStart }
     }
   ) {
@@ -815,6 +815,7 @@ export async function updateDiaryEntry(
 const getWeeklyTrendsQuery = `
 query GetWeeklyTrends {
   food_diary_trends_weekly {
+    year
     week_of_year
     protein
     calories
@@ -824,7 +825,8 @@ query GetWeeklyTrends {
 `;
 
 export type WeeklyTrendsData = {
-  week_of_year: string;
+  year: number;
+  week_of_year: number;
   protein: number;
   calories: number;
   added_sugar: number;
