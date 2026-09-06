@@ -147,30 +147,32 @@ const DiaryList: Component = () => {
         <ButtonLink href="/recipe/new">Add Recipe</ButtonLink>
       </div>
       <Show when={weeklyStatsQuery()?.data}>
-        <div class="flex justify-around mb-6 border-t border-b border-slate-200 py-2">
-          <EntryMacro
-            value={String(
-              calculateDailyAverage(
-                weeklyStatsQuery()?.data?.current_week?.aggregate?.sum
-                  ?.calories || 0,
-                currentWeekDays,
-              ),
-            )}
-            unit=" kcal/day"
-            label="Last 7 Days"
-          />
-          <EntryMacro
-            value={String(
-              calculateDailyAverage(
-                weeklyStatsQuery()?.data?.past_four_weeks?.aggregate?.sum
-                  ?.calories || 0,
-                fourWeeksDays,
-              ),
-            )}
-            unit=" kcal/day"
-            label="4 Week Avg"
-          />
-          <div class="text-center mb-4">
+        <div class="mb-6 border-t border-b border-slate-200 py-2">
+          <div class="flex justify-around">
+            <EntryMacro
+              value={String(
+                calculateDailyAverage(
+                  weeklyStatsQuery()?.data?.current_week?.aggregate?.sum
+                    ?.calories || 0,
+                  currentWeekDays,
+                ),
+              )}
+              unit=" kcal/day"
+              label="Last 7 Days"
+            />
+            <EntryMacro
+              value={String(
+                calculateDailyAverage(
+                  weeklyStatsQuery()?.data?.past_four_weeks?.aggregate?.sum
+                    ?.calories || 0,
+                  fourWeeksDays,
+                ),
+              )}
+              unit=" kcal/day"
+              label="4 Week Avg"
+            />
+          </div>
+          <div class="text-center mt-2">
             <a
               href="/trends"
               class="text-indigo-600 hover:text-indigo-800 underline"
