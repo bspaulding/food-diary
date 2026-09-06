@@ -3,5 +3,6 @@ function:
   schema: food_diary
 configuration:
   exposed_as: query
+  session_argument: hasura_session
 permissions:
   - role: user
