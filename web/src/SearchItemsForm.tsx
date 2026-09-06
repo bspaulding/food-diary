@@ -6,6 +6,7 @@ import {
   searchItemsOnly,
   SearchNutritionItem,
   SearchRecipe,
+  SearchResultRow,
 } from "./Api";
 import createAuthorizedResource from "./createAuthorizedResource";
 
@@ -37,10 +38,14 @@ const SearchItemsForm: Component<Props> = (props: Props) => {
         : searchItemsOnly(token, searchValue);
     },
   );
-  const nutritionItems = (): SearchNutritionItem[] =>
+  const isItemsOnly = (): boolean =>
+    props.queryType === ItemsQueryType.ItemsOnly;
+  const itemsOnly = (): SearchNutritionItem[] =>
     getItemsQuery()?.data?.food_diary_search_nutrition_items || [];
-  const recipes = (): SearchRecipe[] =>
-    getItemsQuery()?.data?.food_diary_search_recipes || [];
+  const results = (): SearchResultRow[] =>
+    getItemsQuery()?.data?.food_diary_search_all || [];
+  const resultCount = (): number =>
+    isItemsOnly() ? itemsOnly().length : results().length;
   const clear = (): string => setSearch("");
 
   return (
@@ -79,19 +84,27 @@ const SearchItemsForm: Component<Props> = (props: Props) => {
         <Show when={search().length}>
           <p class="text-center mt-4 text-slate-400">
             <Show when={getItemsQuery.loading}>Searching...</Show>
-            <Show when={!getItemsQuery.loading}>
-              {nutritionItems().length + recipes().length} items
-            </Show>
+            <Show when={!getItemsQuery.loading}>{resultCount()} items</Show>
           </p>
           <ul>
-            <For each={nutritionItems()}>
-              {(nutritionItem: SearchNutritionItem) =>
-                props.children({ clear, nutritionItem })
-              }
-            </For>
-            <For each={recipes()}>
-              {(recipe: SearchRecipe) => props.children({ clear, recipe })}
-            </For>
+            <Show when={isItemsOnly()}>
+              <For each={itemsOnly()}>
+                {(nutritionItem: SearchNutritionItem) =>
+                  props.children({ clear, nutritionItem })
+                }
+              </For>
+            </Show>
+            <Show when={!isItemsOnly()}>
+              <For each={results()}>
+                {(result: SearchResultRow) =>
+                  props.children(
+                    result.type === "recipe"
+                      ? { clear, recipe: result.recipe! }
+                      : { clear, nutritionItem: result.nutrition_item! },
+                  )
+                }
+              </For>
+            </Show>
           </ul>
         </Show>
       </div>

@@ -283,14 +283,16 @@ export async function fetchWeeklyStats(
 
 const searchItemsAndRecipesQuery = `
 query SearchItemsAndRecipes($search: String!) {
-  food_diary_search_nutrition_items(args: { search: $search }) {
-    id,
-    description
-  }
-
-  food_diary_search_recipes(args: { search: $search }) {
-    id,
-    name
+  food_diary_search_all(args: { search: $search }, order_by: { score: desc }) {
+    type,
+    nutrition_item {
+      id,
+      description
+    },
+    recipe {
+      id,
+      name
+    }
   }
 }
 `;
@@ -306,10 +308,15 @@ export type SearchRecipe = {
   name: string;
 };
 
+export type SearchResultRow = {
+  type: "item" | "recipe";
+  nutrition_item: SearchNutritionItem | null;
+  recipe: SearchRecipe | null;
+};
+
 export type SearchItemsAndRecipesQueryResponse = {
   data?: {
-    food_diary_search_nutrition_items: SearchNutritionItem[];
-    food_diary_search_recipes: SearchRecipe[];
+    food_diary_search_all: SearchResultRow[];
   };
 };
 

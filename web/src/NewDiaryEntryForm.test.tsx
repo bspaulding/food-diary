@@ -289,10 +289,13 @@ describe("NewDiaryEntryForm", () => {
         if (query.includes("SearchItemsAndRecipes")) {
           return HttpResponse.json({
             data: {
-              food_diary_search_nutrition_items: [
-                { id: 10, description: "Search Result Item" },
+              food_diary_search_all: [
+                {
+                  type: "item",
+                  nutrition_item: { id: 10, description: "Search Result Item" },
+                  recipe: null,
+                },
               ],
-              food_diary_search_recipes: [],
             },
           });
         }

@@ -52,10 +52,18 @@ describe("SearchItemsForm", () => {
         if (query.includes("SearchItemsAndRecipes")) {
           return HttpResponse.json({
             data: {
-              food_diary_search_nutrition_items: [
-                { id: 1, description: "Test Item" },
+              food_diary_search_all: [
+                {
+                  type: "item",
+                  nutrition_item: { id: 1, description: "Test Item" },
+                  recipe: null,
+                },
+                {
+                  type: "recipe",
+                  nutrition_item: null,
+                  recipe: { id: 2, name: "Test Recipe" },
+                },
               ],
-              food_diary_search_recipes: [{ id: 2, name: "Test Recipe" }],
             },
           });
         }
@@ -98,8 +106,7 @@ describe("SearchItemsForm", () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
         return HttpResponse.json({
           data: {
-            food_diary_search_nutrition_items: [],
-            food_diary_search_recipes: [],
+            food_diary_search_all: [],
           },
         });
       }),
@@ -130,10 +137,13 @@ describe("SearchItemsForm", () => {
       http.post("*/api/v1/graphql", async () => {
         return HttpResponse.json({
           data: {
-            food_diary_search_nutrition_items: [
-              { id: 1, description: "Test Item" },
+            food_diary_search_all: [
+              {
+                type: "item",
+                nutrition_item: { id: 1, description: "Test Item" },
+                recipe: null,
+              },
             ],
-            food_diary_search_recipes: [],
           },
         });
       }),

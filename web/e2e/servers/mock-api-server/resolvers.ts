@@ -250,18 +250,24 @@ function resolveSearch(
   store: MockApiStore,
 ): Record<string, unknown> {
   const { search } = variables as { search: string };
+  if (query.includes("SearchItemsAndRecipes")) {
+    const results = store.searchAll(search).map((result) => ({
+      type: result.type,
+      nutrition_item: result.nutritionItem
+        ? {
+            id: result.nutritionItem.id,
+            description: result.nutritionItem.description,
+          }
+        : null,
+      recipe: result.recipe
+        ? { id: result.recipe.id, name: result.recipe.name }
+        : null,
+    }));
+    return { food_diary_search_all: results };
+  }
   const items = store
     .searchNutritionItems(search)
     .map((item) => ({ id: item.id, description: item.description }));
-  if (query.includes("SearchItemsAndRecipes")) {
-    const recipes = store
-      .searchRecipes(search)
-      .map((r) => ({ id: r.id, name: r.name }));
-    return {
-      food_diary_search_nutrition_items: items,
-      food_diary_search_recipes: recipes,
-    };
-  }
   return { food_diary_search_nutrition_items: items };
 }
 

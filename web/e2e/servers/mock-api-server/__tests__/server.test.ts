@@ -356,7 +356,7 @@ describe("mock API server", () => {
       expect(recipe.recipe_items).toHaveLength(1);
     });
 
-    it("searches recipes by name substring", async () => {
+    it("searches recipes by name substring, merged and ranked with items", async () => {
       const itemId = await createNutritionItem({
         description: "Bread",
         calories: 80,
@@ -367,11 +367,48 @@ describe("mock API server", () => {
         search: "toast",
       });
       const data = dataOf<{
-        food_diary_search_nutrition_items: SearchResult[];
-        food_diary_search_recipes: SearchResult[];
+        food_diary_search_all: Array<{
+          type: "item" | "recipe";
+          nutrition_item: SearchResult | null;
+          recipe: SearchResult | null;
+        }>;
       }>(body);
-      expect(data.food_diary_search_recipes).toHaveLength(1);
-      expect(data.food_diary_search_nutrition_items).toBeDefined();
+      const recipeResults = data.food_diary_search_all.filter(
+        (r) => r.type === "recipe",
+      );
+      expect(recipeResults).toHaveLength(1);
+      expect(recipeResults[0].recipe?.name).toBe("Toast");
+    });
+
+    it("ranks a strong recipe-name match above a weaker item-description match", async () => {
+      await createNutritionItem({
+        description: "Ramen Chicken Flavor Packet",
+        calories: 10,
+      });
+      const chickenId = await createNutritionItem({
+        description: "Chicken Breast",
+        calories: 165,
+      });
+      await createRecipe(
+        2,
+        [{ servings: 1, nutrition_item_id: chickenId }],
+        "Ramen Chicken Salad",
+      );
+
+      const { body } = await gql("query SearchItemsAndRecipes { }", {
+        search: "ramen chicken salad",
+      });
+      const data = dataOf<{
+        food_diary_search_all: Array<{
+          type: "item" | "recipe";
+          nutrition_item: SearchResult | null;
+          recipe: SearchResult | null;
+        }>;
+      }>(body);
+      expect(data.food_diary_search_all[0].type).toBe("recipe");
+      expect(data.food_diary_search_all[0].recipe?.name).toBe(
+        "Ramen Chicken Salad",
+      );
     });
 
     it("updates a recipe, replacing its items and reporting affected_rows", async () => {
