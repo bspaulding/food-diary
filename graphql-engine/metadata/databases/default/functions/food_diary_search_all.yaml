@@ -1,0 +1,7 @@
+function:
+  name: search_all
+  schema: food_diary
+configuration:
+  exposed_as: query
+permissions:
+  - role: user

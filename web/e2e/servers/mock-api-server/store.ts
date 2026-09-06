@@ -75,6 +75,40 @@ export type ExpandedDiaryEntry = {
   recipe: ExpandedRecipe | null;
 };
 
+export type SearchAllResult = {
+  type: "item" | "recipe";
+  score: number;
+  nutritionItem: NutritionItemRecord | null;
+  recipe: RecipeRecord | null;
+};
+
+/**
+ * Jaccard similarity over padded trigrams, the same formula Postgres'
+ * pg_trgm `similarity()` uses -- close enough to the real
+ * `food_diary.search_all` ranking to exercise merge order in tests without
+ * needing a real Postgres trigram index here.
+ */
+function trigramSet(value: string): Set<string> {
+  const padded = `  ${value.toLowerCase()} `;
+  const grams = new Set<string>();
+  for (let i = 0; i < padded.length - 2; i++) {
+    grams.add(padded.slice(i, i + 3));
+  }
+  return grams;
+}
+
+function trigramSimilarity(a: string, b: string): number {
+  const setA = trigramSet(a);
+  const setB = trigramSet(b);
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let intersection = 0;
+  for (const gram of setA) {
+    if (setB.has(gram)) intersection++;
+  }
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
 export class MockApiStore {
   private nutritionItems = new Map<number, NutritionItemRecord>();
   private recipes = new Map<number, RecipeRecord>();
@@ -179,6 +213,33 @@ export class MockApiStore {
     return [...this.recipes.values()].filter((recipe) =>
       recipe.name.toLowerCase().includes(needle),
     );
+  }
+
+  /**
+   * Mirrors the real `food_diary.search_all` Postgres function: items and
+   * recipes matched by substring (same filter as searchNutritionItems /
+   * searchRecipes) but merged into one list ranked by a shared trigram
+   * similarity score, so a strong recipe-name match can outrank a weaker
+   * item-description match instead of always sorting after every item.
+   */
+  searchAll(search: string): SearchAllResult[] {
+    const items: SearchAllResult[] = this.searchNutritionItems(search).map(
+      (item) => ({
+        type: "item",
+        score: trigramSimilarity(search, item.description),
+        nutritionItem: item,
+        recipe: null,
+      }),
+    );
+    const recipes: SearchAllResult[] = this.searchRecipes(search).map(
+      (recipe) => ({
+        type: "recipe",
+        score: trigramSimilarity(search, recipe.name),
+        nutritionItem: null,
+        recipe,
+      }),
+    );
+    return [...items, ...recipes].sort((a, b) => b.score - a.score);
   }
 
   /** Per-serving calories for a recipe: sum(item.servings * item.calories) / recipe.total_servings. */
