@@ -20,6 +20,9 @@ graphql-engine/db_data/
 llm-nutrition-api/*.gguf
 llm-nutrition-api/eval/__pycache__/
 
+# ios on-device LLM eval model (downloaded by ios/scripts/download-on-device-model.sh)
+ios/.cache/
+
 # git worktrees
 .worktrees/
 

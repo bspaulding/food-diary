@@ -59,4 +59,54 @@ struct ProfileViewModelTests {
 
         #expect(config.backend.graphQLBaseURL == BackendEnvironment.production.graphQLBaseURL)
     }
+
+    @Test func useOnDeviceLLMDefaultsToFalseWhenNoStoredValue() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let viewModel = ProfileViewModel(
+            user: AuthenticatedUser(), environmentConfig: AppEnvironmentConfig(), userDefaults: defaults)
+
+        #expect(!viewModel.useOnDeviceLLM)
+    }
+
+    @Test func setUseOnDeviceLLMUpdatesValueAndPersistsToUserDefaults() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let viewModel = ProfileViewModel(
+            user: AuthenticatedUser(), environmentConfig: AppEnvironmentConfig(), userDefaults: defaults)
+
+        viewModel.setUseOnDeviceLLM(true)
+
+        #expect(viewModel.useOnDeviceLLM)
+        #expect(defaults.bool(forKey: ProfileViewModel.useOnDeviceLLMKey))
+    }
+
+    @Test func useOnDeviceLLMReadsExistingStoredValueOnInit() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        defaults.set(true, forKey: ProfileViewModel.useOnDeviceLLMKey)
+        let viewModel = ProfileViewModel(
+            user: AuthenticatedUser(), environmentConfig: AppEnvironmentConfig(), userDefaults: defaults)
+
+        #expect(viewModel.useOnDeviceLLM)
+    }
+
+    @Test func supportsOnDeviceLLMDefaultsToDeviceCapabilityWhenNotInjected() {
+        let viewModel = ProfileViewModel(user: AuthenticatedUser(), environmentConfig: AppEnvironmentConfig())
+
+        #expect(viewModel.supportsOnDeviceLLM == DeviceCapability.supportsOnDeviceLLM())
+    }
+
+    @Test func supportsOnDeviceLLMCanBeOverriddenForTesting() {
+        let viewModel = ProfileViewModel(
+            user: AuthenticatedUser(), environmentConfig: AppEnvironmentConfig(), supportsOnDeviceLLM: true)
+
+        #expect(viewModel.supportsOnDeviceLLM)
+    }
+
+    @Test func onDeviceModelManagerIsNilByDefault() {
+        let viewModel = ProfileViewModel(user: AuthenticatedUser(), environmentConfig: AppEnvironmentConfig())
+
+        #expect(viewModel.onDeviceModelManager == nil)
+    }
 }

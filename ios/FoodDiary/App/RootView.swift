@@ -56,13 +56,13 @@ struct RootView: View {
             ItemFormView(
                 viewModel: ItemFormViewModel(
                     itemID: nil, itemRepository: environment.nutritionItemRepository,
-                    autofillClient: environment.sidecarClient),
+                    autofillClient: environment.autofillClient),
                 onSave: { environment.router.popToRoot() })
         case .itemEdit(let id):
             ItemFormView(
                 viewModel: ItemFormViewModel(
                     itemID: id, itemRepository: environment.nutritionItemRepository,
-                    autofillClient: environment.sidecarClient),
+                    autofillClient: environment.autofillClient),
                 onSave: { environment.router.popToRoot() })
         case .itemDetail(let id):
             ItemDetailView(
@@ -91,7 +91,8 @@ struct RootView: View {
         case .profile:
             ProfileView(
                 viewModel: ProfileViewModel(
-                    user: currentUser, environmentConfig: environment.environmentConfig),
+                    user: currentUser, environmentConfig: environment.environmentConfig,
+                    onDeviceModelManager: environment.onDeviceModelManager),
                 authService: environment.authService,
                 onEditTargets: { environment.router.push(.targets) },
                 onExport: { environment.router.push(.exportEntries) },
