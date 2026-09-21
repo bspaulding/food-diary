@@ -27,3 +27,10 @@ TZ=America/Los_Angeles npm run test:e2e
 ```
 
 > The `TZ=America/Los_Angeles` env var is required for any test that involves date/time formatting.
+
+## Code comments
+
+Default to zero comments. Only add one when the code truly cannot explain
+itself. Never comment to restate what the code does, narrate a fix, or log
+a decision — that belongs in the commit/PR description, not inline. When
+in doubt, leave it out.
