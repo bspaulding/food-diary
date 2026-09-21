@@ -12,14 +12,13 @@ import { LoggableItem } from "./NewDiaryEntryForm";
 
 const RESULT_LIMIT = 3;
 
-// The panel opens on click/focus, not just once a query exists, so the
-// dropdown must be able to render with an empty query (no results, no
-// fallback yet) -- that's the "isOpen" gate below.
+// The panel is driven entirely by whether there's a query -- no
+// focus/blur tracking. Clicking inside the results (e.g. to log an item)
+// never blurs the panel closed; the clear button is the only way to
+// dismiss it, and it dismisses by clearing the input.
 const Omnibar: Component = () => {
   const [search, setSearch] = createSignal("");
-  const [isOpen, setIsOpen] = createSignal(false);
   const navigate = useNavigate();
-  let containerRef: HTMLDivElement | undefined;
 
   const [getResults] = createAuthorizedResource(
     search,
@@ -34,21 +33,11 @@ const Omnibar: Component = () => {
     (getResults()?.data?.food_diary_search_all ?? []).slice(0, RESULT_LIMIT);
 
   const trimmedSearch = (): string => search().trim();
-  const showPanel = (): boolean => isOpen() && trimmedSearch().length > 0;
+  const showPanel = (): boolean => trimmedSearch().length > 0;
   const hasResults = (): boolean => results().length > 0;
 
   const clear = (): void => {
     setSearch("");
-  };
-
-  // Logging a result inline (typing a servings amount, clicking Save) moves
-  // focus around inside the panel -- only close once focus actually leaves
-  // the omnibar entirely, not just the search input itself.
-  const handleFocusOut = (event: FocusEvent): void => {
-    const next = event.relatedTarget as Node | null;
-    if (!containerRef || !next || !containerRef.contains(next)) {
-      setIsOpen(false);
-    }
   };
 
   const addAsItem = (): void => {
@@ -56,22 +45,16 @@ const Omnibar: Component = () => {
       `/nutrition_item/new?description=${encodeURIComponent(trimmedSearch())}`,
     );
     clear();
-    setIsOpen(false);
   };
 
   const addAsRecipe = (): void => {
     navigate(`/recipe/new?name=${encodeURIComponent(trimmedSearch())}`);
     clear();
-    setIsOpen(false);
   };
 
   return (
     <div class="fixed bottom-0 left-0 right-0 z-40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 pointer-events-none">
-      <div
-        ref={containerRef}
-        class="relative max-w-xl mx-auto pointer-events-auto"
-        onFocusOut={handleFocusOut}
-      >
+      <div class="relative max-w-xl mx-auto pointer-events-auto">
         <Show when={showPanel()}>
           <div class="absolute bottom-full left-0 right-0 mb-2 bg-white border border-slate-300 rounded-lg shadow-lg overflow-hidden max-h-80 overflow-y-auto">
             <Show when={getResults.loading}>
@@ -129,7 +112,6 @@ const Omnibar: Component = () => {
             aria-label="Search items and recipes"
             name="omnibar-search"
             value={search()}
-            onFocus={() => setIsOpen(true)}
             onInput={debounce((event: InputEvent): void => {
               const target = event.target;
               if (target instanceof HTMLInputElement) {
