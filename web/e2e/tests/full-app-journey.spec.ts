@@ -293,10 +293,17 @@ test("the full app journey", async ({ page }) => {
       String(legacyLocalStorageTargets.added_sugars_grams),
     );
 
-    const stillStored = await page.evaluate(() =>
-      localStorage.getItem("nutrition_targets"),
-    );
-    expect(stillStored).toBeNull();
+    // The form above reflects the localStorage-seeded value immediately
+    // (NutritionTargets.tsx seeds its signal from localStorage synchronously
+    // on init), so those assertions passing gives no guarantee that the
+    // async migration -- fetch, then POST to the backend, then clear
+    // localStorage -- has actually finished. Poll instead of a one-shot
+    // check so this doesn't race that in-flight migration.
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem("nutrition_targets")),
+      )
+      .toBeNull();
 
     await page.goto("/");
   });
