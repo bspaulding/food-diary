@@ -26,6 +26,21 @@ const fromTextInput =
     setter(event.target.value || "");
   };
 
+const hasNutritionData = (attrs: NutritionItemAttrs): boolean =>
+  attrs.calories !== 0 ||
+  attrs.totalFatGrams !== 0 ||
+  attrs.saturatedFatGrams !== 0 ||
+  attrs.transFatGrams !== 0 ||
+  attrs.polyunsaturatedFatGrams !== 0 ||
+  attrs.monounsaturatedFatGrams !== 0 ||
+  attrs.cholesterolMilligrams !== 0 ||
+  attrs.sodiumMilligrams !== 0 ||
+  attrs.totalCarbohydrateGrams !== 0 ||
+  attrs.dietaryFiberGrams !== 0 ||
+  attrs.totalSugarsGrams !== 0 ||
+  attrs.addedSugarsGrams !== 0 ||
+  attrs.proteinGrams !== 0;
+
 const fromNumberInput =
   (setter: Setter<number>) =>
   (event: InputEvent & { target: HTMLInputElement }) => {
@@ -137,7 +152,7 @@ const NewNutritionItemForm: Component<Props> = ({
   const [duplicateItemQuery] = createAuthorizedResource(
     () => {
       const attrs = duplicateCheckAttrs();
-      if (!attrs || !attrs.description.trim()) return false;
+      if (!attrs || !hasNutritionData(attrs)) return false;
       return attrs;
     },
     (token: string, attrs: NutritionItemAttrs) =>

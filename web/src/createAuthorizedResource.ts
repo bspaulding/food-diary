@@ -73,10 +73,12 @@ function createAuthorizedResource<S = true, T = unknown, R = unknown>(
     // Returning `false` is Solid's documented way to skip a fetch until
     // the source is ready.
     if (!token) return false;
+    const source: S | true =
+      finalSource === true ? (true as true) : (finalSource as () => S)();
+    if (source === false) return false;
     return {
       accessToken: token,
-      source:
-        finalSource === true ? (true as true) : (finalSource as () => S)(),
+      source,
     };
   };
   return createResource(
