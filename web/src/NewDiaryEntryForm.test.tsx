@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@solidjs/testing-library";
 import { http, HttpResponse } from "msw";
 import { server } from "./test-setup";
-import NewDiaryEntryForm from "./NewDiaryEntryForm";
+import NewDiaryEntryForm, { LoggableItem } from "./NewDiaryEntryForm";
 
 interface GraphQLRequest {
   query: string;
@@ -782,5 +782,23 @@ describe("NewDiaryEntryForm", () => {
     // Time-based and recently logged sections should not appear
     expect(screen.queryByText("Logged at this time of day")).toBeNull();
     expect(screen.queryByText("Recently logged")).toBeNull();
+  });
+});
+
+describe("LoggableItem", () => {
+  it("should link the nutrition item text to its nutrition item page", () => {
+    render(() => (
+      <LoggableItem nutritionItem={{ id: 123, description: "Apple" }} />
+    ));
+
+    const link = screen.getByText("Apple") as HTMLAnchorElement;
+    expect(link.href).toContain("/nutrition_item/123");
+  });
+
+  it("should link the recipe text to its recipe page", () => {
+    render(() => <LoggableItem recipe={{ id: 456, name: "Smoothie" }} />);
+
+    const link = screen.getByText("Smoothie") as HTMLAnchorElement;
+    expect(link.href).toContain("/recipe/456");
   });
 });
