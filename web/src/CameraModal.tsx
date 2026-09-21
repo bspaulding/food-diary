@@ -43,6 +43,11 @@ const CameraModal: Component<Props> = (props: Props) => {
       streamRef = stream;
       if (videoRef) {
         videoRef.srcObject = stream;
+        try {
+          await videoRef.play();
+        } catch (playErr: unknown) {
+          console.error("Error starting video playback:", playErr);
+        }
       }
     } catch (err: unknown) {
       let errorMessage: string = "Unable to access camera.";
@@ -449,6 +454,7 @@ const CameraModal: Component<Props> = (props: Props) => {
               ref={videoRef}
               autoplay
               playsinline
+              muted
               class="max-w-full max-h-full object-contain"
             />
           ) : (
