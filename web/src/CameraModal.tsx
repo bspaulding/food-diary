@@ -43,11 +43,6 @@ const CameraModal: Component<Props> = (props: Props) => {
       streamRef = stream;
       if (videoRef) {
         videoRef.srcObject = stream;
-        // iOS Safari does not reliably start painting frames from the
-        // `autoplay` attribute alone for a getUserMedia stream -- the
-        // camera indicator lights up but the <video> stays black until
-        // play() is called explicitly (must also be `muted`, since iOS
-        // blocks unmuted autoplay entirely).
         try {
           await videoRef.play();
         } catch (playErr: unknown) {
