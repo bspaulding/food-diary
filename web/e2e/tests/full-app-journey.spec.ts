@@ -293,10 +293,11 @@ test("the full app journey", async ({ page }) => {
       String(legacyLocalStorageTargets.added_sugars_grams),
     );
 
-    const stillStored = await page.evaluate(() =>
-      localStorage.getItem("nutrition_targets"),
-    );
-    expect(stillStored).toBeNull();
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem("nutrition_targets")),
+      )
+      .toBeNull();
 
     await page.goto("/");
   });
