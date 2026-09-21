@@ -469,7 +469,6 @@ export async function fetchNutritionItem(
 
 const findExactMatchNutritionItemQuery = `
 query FindExactMatchNutritionItem(
-  $description: String!
   $calories: Int!
   $totalFatGrams: numeric!
   $saturatedFatGrams: numeric!
@@ -487,7 +486,6 @@ query FindExactMatchNutritionItem(
 ) {
   food_diary_nutrition_item(
     where: {
-      description: { _eq: $description }
       calories: { _eq: $calories }
       total_fat_grams: { _eq: $totalFatGrams }
       saturated_fat_grams: { _eq: $saturatedFatGrams }
@@ -522,8 +520,9 @@ export async function findExactMatchNutritionItem(
   item: NutritionItemAttrs,
   excludeIds: number[] = [],
 ): Promise<FindExactMatchNutritionItemQueryResponse> {
+  const { description: _description, ...nutritionFacts } = item;
   return await fetchQuery(accessToken, findExactMatchNutritionItemQuery, {
-    ...item,
+    ...nutritionFacts,
     excludeIds,
   });
 }
