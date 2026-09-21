@@ -37,7 +37,9 @@ const Omnibar: Component = () => {
   const showPanel = (): boolean => isOpen() && trimmedSearch().length > 0;
   const hasResults = (): boolean => results().length > 0;
 
-  const clear = (): void => setSearch("");
+  const clear = (): void => {
+    setSearch("");
+  };
 
   // Logging a result inline (typing a servings amount, clicking Save) moves
   // focus around inside the panel -- only close once focus actually leaves
