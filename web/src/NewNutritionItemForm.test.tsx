@@ -531,6 +531,103 @@ describe("NewNutritionItemForm", () => {
     expect(proteinInput.value).toBe("6");
   });
 
+  it("should show duplicate warning with link when an exact match is found", async () => {
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    server.use(
+      http.post("/api/v1/graphql", async ({ request }) => {
+        const body: unknown = await request.json();
+        if (
+          isGraphQLRequest(body) &&
+          body.query.includes("FindExactMatchNutritionItem")
+        ) {
+          return HttpResponse.json({
+            data: {
+              food_diary_nutrition_item: [{ id: 42, description: "Apple" }],
+            },
+          });
+        }
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+
+    render(() => <NewNutritionItemForm />);
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    await user.type(descInput, "Apple");
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    await waitFor(() => {
+      expect(screen.getByText(/This item looks exactly like/)).toBeTruthy();
+      const link = screen.getByText("Apple", {
+        selector: "a",
+      }) as HTMLAnchorElement;
+      expect(link.getAttribute("href")).toBe("/nutrition_item/42");
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("should not show duplicate warning when description is empty", async () => {
+    let queryCalled = false;
+    server.use(
+      http.post("/api/v1/graphql", async ({ request }) => {
+        const body: unknown = await request.json();
+        if (
+          isGraphQLRequest(body) &&
+          body.query.includes("FindExactMatchNutritionItem")
+        ) {
+          queryCalled = true;
+        }
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+
+    render(() => <NewNutritionItemForm />);
+
+    expect(queryCalled).toBe(false);
+    expect(screen.queryByText(/This item looks exactly like/)).toBeNull();
+  });
+
+  it("should not show duplicate warning when no exact match is found", async () => {
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    server.use(
+      http.post("/api/v1/graphql", async ({ request }) => {
+        const body: unknown = await request.json();
+        if (
+          isGraphQLRequest(body) &&
+          body.query.includes("FindExactMatchNutritionItem")
+        ) {
+          return HttpResponse.json({
+            data: { food_diary_nutrition_item: [] },
+          });
+        }
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+
+    render(() => <NewNutritionItemForm />);
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    await user.type(descInput, "Unique Food");
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/This item looks exactly like/)).toBeNull();
+    });
+
+    vi.useRealTimers();
+  });
+
   it.skip("should call updateNutritionItem when saving an existing item", async () => {
     const user = userEvent.setup();
     let updateCalled = false;

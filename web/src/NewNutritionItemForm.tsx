@@ -1,16 +1,19 @@
 import type { Component, Setter } from "solid-js";
-import { createSignal, Show } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { createSignal, createEffect, Show } from "solid-js";
+import { debounce } from "@solid-primitives/scheduled";
+import { useNavigate, A } from "@solidjs/router";
 import type { NutritionItem, NutritionItemAttrs } from "./Api";
 import {
   createNutritionItem,
   updateNutritionItem,
   lookupNutritionWithLLM,
+  findExactMatchNutritionItem,
 } from "./Api";
 import { useAuth } from "./Auth0";
 import { accessorsToObject } from "./Util";
 import styles from "./NewNutritionItemForm.module.css";
 import CameraModal from "./CameraModal";
+import createAuthorizedResource from "./createAuthorizedResource";
 
 interface GraphQLResponse<T> {
   data?: T;
@@ -110,6 +113,37 @@ const NewNutritionItemForm: Component<Props> = ({
     });
     return result as NutritionItem;
   };
+
+  const itemAttrs = (): NutritionItemAttrs => {
+    const { id: _id, ...attrs } = item();
+    return attrs;
+  };
+
+  const [duplicateCheckAttrs, setDuplicateCheckAttrs] =
+    createSignal<NutritionItemAttrs | null>(null);
+  const updateDuplicateCheckAttrs = debounce(
+    (attrs: NutritionItemAttrs) => setDuplicateCheckAttrs(attrs),
+    500,
+  );
+  createEffect(() => {
+    updateDuplicateCheckAttrs(itemAttrs());
+  });
+
+  const [duplicateItemQuery] = createAuthorizedResource(
+    () => {
+      const attrs = duplicateCheckAttrs();
+      if (!attrs || !attrs.description.trim()) return false;
+      return attrs;
+    },
+    (token: string, attrs: NutritionItemAttrs) =>
+      findExactMatchNutritionItem(
+        token,
+        attrs,
+        id() === undefined ? [] : [id() as number],
+      ),
+  );
+  const duplicateItem = () =>
+    duplicateItemQuery()?.data?.food_diary_nutrition_item?.[0];
 
   const handleAILookup = async (): Promise<void> => {
     setIsLookingUp(true);
@@ -239,6 +273,22 @@ const NewNutritionItemForm: Component<Props> = ({
         </Show>
       </div>
       <form class={styles.form}>
+        <Show when={duplicateItem()}>
+          {(match) => (
+            <div
+              role="alert"
+              class="bg-amber-50 border border-amber-300 text-amber-800 px-3 py-2 rounded-md text-sm w-full text-center mb-4"
+            >
+              This item looks exactly like{" "}
+              <A
+                href={`/nutrition_item/${match().id}`}
+                class="underline font-semibold"
+              >
+                {match().description}
+              </A>
+            </div>
+          )}
+        </Show>
         <fieldset class="flex flex-col">
           <label for="description">Description</label>
           <input
