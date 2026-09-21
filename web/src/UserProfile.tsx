@@ -2,6 +2,7 @@ import type { Component } from "solid-js";
 import { createSignal } from "solid-js";
 import { useAuth } from "./Auth0";
 import { useNutritionTargets } from "./NutritionTargets";
+import { useOmnibarFeatureFlag } from "./FeatureFlags";
 
 type Auth0User = {
   picture?: string;
@@ -15,6 +16,7 @@ const UserProfile: Component = () => {
   const userObj = (): Auth0User => (user() ?? {}) as Auth0User;
 
   const [targets, updateTargets] = useNutritionTargets();
+  const [omnibarEnabled, setOmnibarEnabled] = useOmnibarFeatureFlag();
   const [saved, setSaved] = createSignal(false);
 
   let caloriesRef!: HTMLInputElement;
@@ -110,6 +112,21 @@ const UserProfile: Component = () => {
             {saved() ? "Saved!" : "Save Targets"}
           </button>
         </form>
+      </div>
+
+      <div class="mt-6 w-full max-w-sm">
+        <h2 class="font-semibold text-lg mb-3">Features</h2>
+        <label class="flex justify-between items-center">
+          <span>Omnibar Search</span>
+          <input
+            type="checkbox"
+            checked={omnibarEnabled()}
+            onChange={(event: Event & { target: HTMLInputElement }) => {
+              setOmnibarEnabled(event.target.checked);
+            }}
+            class="w-5 h-5"
+          />
+        </label>
       </div>
 
       <div class="mt-6 flex flex-col gap-2 w-full max-w-sm">

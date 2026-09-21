@@ -1,7 +1,7 @@
 import type { Component } from "solid-js";
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, useSearchParams } from "@solidjs/router";
 import type { Recipe, SearchNutritionItem } from "./Api";
 import { createRecipe, updateRecipe } from "./Api";
 import SearchItemsForm, {
@@ -22,10 +22,13 @@ interface GraphQLResponse<T> {
 
 const NewRecipeForm: Component<Props> = ({ initialRecipe }: Props) => {
   const [{ accessToken }] = useAuth();
+  const [searchParams] = useSearchParams();
+  const initialName =
+    typeof searchParams.name === "string" ? searchParams.name : "";
   const [input, setInput] = createStore<Recipe>(
     initialRecipe ?? {
       id: 0,
-      name: "",
+      name: initialName,
       total_servings: 1,
       recipe_items: [],
     },

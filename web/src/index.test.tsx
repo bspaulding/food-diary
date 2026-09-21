@@ -27,6 +27,9 @@ vi.mock("./Trends", () => ({ default: vi.fn() }));
 vi.mock("./NutritionTargets", () => ({
   NutritionTargetsProvider: ({ children }: { children: unknown }) => children,
 }));
+vi.mock("./FeatureFlags", () => ({
+  OmnibarFeatureFlagProvider: ({ children }: { children: unknown }) => children,
+}));
 
 describe("index", () => {
   it("should call render with router and routes", async () => {

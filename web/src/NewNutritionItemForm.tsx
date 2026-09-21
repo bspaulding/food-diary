@@ -1,6 +1,6 @@
 import type { Component, Setter } from "solid-js";
 import { createSignal, Show } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, useSearchParams } from "@solidjs/router";
 import type { NutritionItem, NutritionItemAttrs } from "./Api";
 import {
   createNutritionItem,
@@ -47,10 +47,15 @@ const NewNutritionItemForm: Component<Props> = ({
   const [isLookingUp, setIsLookingUp] = createSignal(false);
   const [lookupError, setLookupError] = createSignal<string | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialDescription =
+    typeof searchParams.description === "string"
+      ? searchParams.description
+      : "";
 
   const [id, _setId] = createSignal(initialItem?.id);
   const [description, setDescription] = createSignal(
-    initialItem?.description || "",
+    initialItem?.description || initialDescription,
   );
   const [calories, setCalories] = createSignal(initialItem?.calories || 0);
   const [totalFatGrams, setTotalFatGrams] = createSignal(
