@@ -196,7 +196,17 @@ export const LoggableItem: Component<{
         >
           ⊕
         </button>
-        <p>{nutritionItem?.description || recipe?.name}</p>
+        <p>
+          <a
+            href={
+              recipe
+                ? `/recipe/${recipe.id}`
+                : `/nutrition_item/${nutritionItem?.id}`
+            }
+          >
+            {nutritionItem?.description || recipe?.name}
+          </a>
+        </p>
       </div>
       <Show when={logging()}>
         <div class="ml-2 flex">
