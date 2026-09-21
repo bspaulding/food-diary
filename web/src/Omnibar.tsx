@@ -8,6 +8,7 @@ import {
   SearchResultRow,
 } from "./Api";
 import createAuthorizedResource from "./createAuthorizedResource";
+import { LoggableItem } from "./NewDiaryEntryForm";
 
 const RESULT_LIMIT = 3;
 
@@ -18,6 +19,7 @@ const Omnibar: Component = () => {
   const [search, setSearch] = createSignal("");
   const [isOpen, setIsOpen] = createSignal(false);
   const navigate = useNavigate();
+  let containerRef: HTMLDivElement | undefined;
 
   const [getResults] = createAuthorizedResource(
     search,
@@ -37,19 +39,14 @@ const Omnibar: Component = () => {
 
   const clear = (): void => setSearch("");
 
-  // A mousedown on a panel button fires before the input's blur, so
-  // preventing its default keeps focus on the input (instead of closing the
-  // panel) long enough for the subsequent click to be handled.
-  const keepFocus = (event: MouseEvent): void => event.preventDefault();
-
-  const goToResult = (row: SearchResultRow): void => {
-    if (row.recipe) {
-      navigate(`/recipe/${row.recipe.id}`);
-    } else if (row.nutrition_item) {
-      navigate(`/nutrition_item/${row.nutrition_item.id}`);
+  // Logging a result inline (typing a servings amount, clicking Save) moves
+  // focus around inside the panel -- only close once focus actually leaves
+  // the omnibar entirely, not just the search input itself.
+  const handleFocusOut = (event: FocusEvent): void => {
+    const next = event.relatedTarget as Node | null;
+    if (!containerRef || !next || !containerRef.contains(next)) {
+      setIsOpen(false);
     }
-    clear();
-    setIsOpen(false);
   };
 
   const addAsItem = (): void => {
@@ -68,7 +65,11 @@ const Omnibar: Component = () => {
 
   return (
     <div class="fixed bottom-0 left-0 right-0 z-40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 pointer-events-none">
-      <div class="relative max-w-xl mx-auto pointer-events-auto">
+      <div
+        ref={containerRef}
+        class="relative max-w-xl mx-auto pointer-events-auto"
+        onFocusOut={handleFocusOut}
+      >
         <Show when={showPanel()}>
           <div class="absolute bottom-full left-0 right-0 mb-2 bg-white border border-slate-300 rounded-lg shadow-lg overflow-hidden max-h-80 overflow-y-auto">
             <Show when={getResults.loading}>
@@ -85,7 +86,6 @@ const Omnibar: Component = () => {
                     <button
                       type="button"
                       class="text-left px-2 py-2 rounded hover:bg-slate-100"
-                      onMouseDown={keepFocus}
                       onClick={addAsItem}
                     >
                       ⊕ Add &quot;{trimmedSearch()}&quot; as new item
@@ -93,7 +93,6 @@ const Omnibar: Component = () => {
                     <button
                       type="button"
                       class="text-left px-2 py-2 rounded hover:bg-slate-100"
-                      onMouseDown={keepFocus}
                       onClick={addAsRecipe}
                     >
                       ⊕ Add &quot;{trimmedSearch()}&quot; as new recipe
@@ -101,25 +100,17 @@ const Omnibar: Component = () => {
                   </div>
                 }
               >
-                <ul>
+                <ul class="p-2">
                   <For each={results()}>
                     {(row: SearchResultRow) => (
                       <li>
-                        <button
-                          type="button"
-                          class="w-full text-left px-3 py-2 hover:bg-slate-100 flex items-center justify-between"
-                          onMouseDown={keepFocus}
-                          onClick={() => goToResult(row)}
-                        >
-                          <span>
-                            {row.recipe
-                              ? row.recipe.name
-                              : row.nutrition_item?.description}
-                          </span>
-                          <span class="text-xs text-slate-400 ml-2">
-                            {row.recipe ? "Recipe" : "Item"}
-                          </span>
-                        </button>
+                        <LoggableItem
+                          nutritionItem={row.nutrition_item ?? undefined}
+                          recipe={row.recipe ?? undefined}
+                        />
+                        <span class="bg-slate-400 text-slate-50 px-2 py-1 rounded text-xs ml-8">
+                          {row.recipe ? "RECIPE" : "ITEM"}
+                        </span>
                       </li>
                     )}
                   </For>
@@ -137,7 +128,6 @@ const Omnibar: Component = () => {
             name="omnibar-search"
             value={search()}
             onFocus={() => setIsOpen(true)}
-            onBlur={() => setIsOpen(false)}
             onInput={debounce((event: InputEvent): void => {
               const target = event.target;
               if (target instanceof HTMLInputElement) {
@@ -149,7 +139,6 @@ const Omnibar: Component = () => {
             <button
               type="button"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl leading-none"
-              onMouseDown={keepFocus}
               onClick={clear}
               aria-label="Clear search"
             >
