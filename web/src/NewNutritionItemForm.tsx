@@ -26,10 +26,6 @@ const fromTextInput =
     setter(event.target.value || "");
   };
 
-// findExactMatchNutritionItem ignores description entirely (it matches on
-// nutrition facts only), so the duplicate check shouldn't require a
-// description either -- otherwise scanned items, which never come back with
-// a description, would never get checked.
 const hasNutritionData = (attrs: NutritionItemAttrs): boolean =>
   attrs.calories !== 0 ||
   attrs.totalFatGrams !== 0 ||
