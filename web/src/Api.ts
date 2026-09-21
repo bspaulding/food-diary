@@ -467,6 +467,66 @@ export async function fetchNutritionItem(
   return await fetchQuery(accessToken, getNutritionItemQuery, { id });
 }
 
+const findExactMatchNutritionItemQuery = `
+query FindExactMatchNutritionItem(
+  $calories: Int!
+  $totalFatGrams: numeric!
+  $saturatedFatGrams: numeric!
+  $transFatGrams: numeric!
+  $polyunsaturatedFatGrams: numeric!
+  $monounsaturatedFatGrams: numeric!
+  $cholesterolMilligrams: numeric!
+  $sodiumMilligrams: numeric!
+  $totalCarbohydrateGrams: numeric!
+  $dietaryFiberGrams: numeric!
+  $totalSugarsGrams: numeric!
+  $addedSugarsGrams: numeric!
+  $proteinGrams: numeric!
+  $excludeIds: [Int!]!
+) {
+  food_diary_nutrition_item(
+    where: {
+      calories: { _eq: $calories }
+      total_fat_grams: { _eq: $totalFatGrams }
+      saturated_fat_grams: { _eq: $saturatedFatGrams }
+      trans_fat_grams: { _eq: $transFatGrams }
+      polyunsaturated_fat_grams: { _eq: $polyunsaturatedFatGrams }
+      monounsaturated_fat_grams: { _eq: $monounsaturatedFatGrams }
+      cholesterol_milligrams: { _eq: $cholesterolMilligrams }
+      sodium_milligrams: { _eq: $sodiumMilligrams }
+      total_carbohydrate_grams: { _eq: $totalCarbohydrateGrams }
+      dietary_fiber_grams: { _eq: $dietaryFiberGrams }
+      total_sugars_grams: { _eq: $totalSugarsGrams }
+      added_sugars_grams: { _eq: $addedSugarsGrams }
+      protein_grams: { _eq: $proteinGrams }
+      id: { _nin: $excludeIds }
+    }
+    limit: 1
+  ) {
+    id
+    description
+  }
+}
+`;
+
+export type FindExactMatchNutritionItemQueryResponse = {
+  data?: {
+    food_diary_nutrition_item: SearchNutritionItem[];
+  };
+};
+
+export async function findExactMatchNutritionItem(
+  accessToken: string,
+  item: NutritionItemAttrs,
+  excludeIds: number[] = [],
+): Promise<FindExactMatchNutritionItemQueryResponse> {
+  const { description: _description, ...nutritionFacts } = item;
+  return await fetchQuery(accessToken, findExactMatchNutritionItemQuery, {
+    ...nutritionFacts,
+    excludeIds,
+  });
+}
+
 const getRecentEntriesQuery = `
 query GetRecentEntryItems {
   food_diary_diary_entry_recent(order_by: {consumed_at:desc}, limit: 5) {
