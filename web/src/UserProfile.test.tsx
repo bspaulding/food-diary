@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import UserProfile from "./UserProfile";
 import { NutritionTargetsProvider } from "./NutritionTargets";
+import { OmnibarFeatureFlagProvider } from "./FeatureFlags";
 
 vi.mock("./Auth0", () => ({
   useAuth: () => [
@@ -25,6 +26,32 @@ vi.mock("./Auth0", () => ({
 describe("UserProfile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it("should show the omnibar search toggle, enabled by default", () => {
+    render(() => <UserProfile />);
+
+    const toggle = screen.getByLabelText("Omnibar Search") as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+  });
+
+  it("should toggle the omnibar search feature flag off and persist it", async () => {
+    const user = userEvent.setup();
+
+    render(() => (
+      <OmnibarFeatureFlagProvider>
+        <UserProfile />
+      </OmnibarFeatureFlagProvider>
+    ));
+
+    const toggle = screen.getByLabelText("Omnibar Search") as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+
+    await user.click(toggle);
+
+    expect(toggle.checked).toBe(false);
+    expect(localStorage.getItem("feature_omnibar_search")).toBe("false");
   });
 
   it("should display user profile information", () => {

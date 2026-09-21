@@ -18,6 +18,7 @@ vi.mock("./Auth0", () => ({
 vi.mock("@solidjs/router", () => ({
   useParams: () => ({ id: "123" }),
   useNavigate: () => vi.fn(),
+  useSearchParams: () => [{}],
   A: ({ href, children }: { href: string; children: unknown }) => (
     <a href={href}>{children as Element}</a>
   ),

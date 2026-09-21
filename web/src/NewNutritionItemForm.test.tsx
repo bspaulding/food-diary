@@ -29,8 +29,10 @@ vi.mock("./Auth0", () => ({
 }));
 
 const mockNavigate = vi.fn();
+let mockSearchParams: Record<string, string> = {};
 vi.mock("@solidjs/router", () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => [mockSearchParams],
   A: ({ href, children }: { href: string; children: unknown }) => (
     <a href={href}>{children as Element}</a>
   ),
@@ -39,6 +41,44 @@ vi.mock("@solidjs/router", () => ({
 describe("NewNutritionItemForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchParams = {};
+  });
+
+  it("should prepopulate description from a ?description= query param", () => {
+    mockSearchParams = { description: "Banana" };
+    render(() => <NewNutritionItemForm />);
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    expect(descInput.value).toBe("Banana");
+  });
+
+  it("should prefer initialItem's description over a query param", () => {
+    mockSearchParams = { description: "Banana" };
+    const initialItem = {
+      id: 1,
+      description: "Existing Item",
+      calories: 105,
+      totalFatGrams: 0.4,
+      saturatedFatGrams: 0.1,
+      transFatGrams: 0,
+      polyunsaturatedFatGrams: 0.1,
+      monounsaturatedFatGrams: 0.1,
+      cholesterolMilligrams: 0,
+      sodiumMilligrams: 1,
+      totalCarbohydrateGrams: 27,
+      dietaryFiberGrams: 3,
+      totalSugarsGrams: 14,
+      addedSugarsGrams: 0,
+      proteinGrams: 1.3,
+    };
+    render(() => <NewNutritionItemForm initialItem={initialItem} />);
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    expect(descInput.value).toBe("Existing Item");
   });
 
   it("should render nutrition item form with all fields", () => {

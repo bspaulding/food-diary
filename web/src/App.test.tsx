@@ -12,6 +12,9 @@ vi.mock("./Auth0", () => ({
 vi.mock("./Api", () => ({
   registerLogoutHandler: mockRegisterLogoutHandler,
 }));
+vi.mock("@solidjs/router", () => ({
+  useNavigate: () => vi.fn(),
+}));
 
 // Must import after vi.mock so the mock is in place
 import App from "./App";

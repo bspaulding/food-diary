@@ -29,8 +29,10 @@ vi.mock("./Auth0", () => ({
 }));
 
 const mockNavigate = vi.fn();
+let mockSearchParams: Record<string, string> = {};
 vi.mock("@solidjs/router", () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => [mockSearchParams],
   A: ({ href, children }: { href: string; children: unknown }) => (
     <a href={href}>{children as Element}</a>
   ),
@@ -63,6 +65,33 @@ describe("NewRecipeForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchItems.length = 0;
+    mockSearchParams = {};
+  });
+
+  it("should prepopulate name from a ?name= query param", () => {
+    mockSearchParams = { name: "Smoothie" };
+    render(() => <NewRecipeForm />);
+
+    const nameInput = document.querySelector(
+      'input[name="name"]',
+    ) as HTMLInputElement;
+    expect(nameInput.value).toBe("Smoothie");
+  });
+
+  it("should prefer initialRecipe's name over a query param", () => {
+    mockSearchParams = { name: "Smoothie" };
+    const initialRecipe = {
+      id: 123,
+      name: "Existing Recipe",
+      total_servings: 2,
+      recipe_items: [],
+    };
+    render(() => <NewRecipeForm initialRecipe={initialRecipe} />);
+
+    const nameInput = document.querySelector(
+      'input[name="name"]',
+    ) as HTMLInputElement;
+    expect(nameInput.value).toBe("Existing Recipe");
   });
 
   it("should render new recipe form", () => {

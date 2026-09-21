@@ -4,6 +4,8 @@ import { Router, Route } from "@solidjs/router";
 import { useAuth } from "./Auth0";
 import { registerLogoutHandler } from "./Api";
 import { useNutritionTargets } from "./NutritionTargets";
+import { useOmnibarFeatureFlag } from "./FeatureFlags";
+import Omnibar from "./Omnibar";
 
 type Auth0User = {
   picture?: string;
@@ -12,7 +14,9 @@ type Auth0User = {
 const App: Component<ParentProps> = (props: ParentProps) => {
   const [{ user, isAuthenticated, auth0, accessToken }] = useAuth();
   const [, , syncNutritionTargets] = useNutritionTargets();
+  const [omnibarEnabled] = useOmnibarFeatureFlag();
   const userObj = (): Auth0User => (user() ?? {}) as Auth0User;
+  const showOmnibar = (): boolean => isAuthenticated() && omnibarEnabled();
 
   // Register the global logout handler once the Auth0 client is available.
   // auth0() starts as undefined (resource loading) and resolves to the client,
@@ -36,7 +40,9 @@ const App: Component<ParentProps> = (props: ParentProps) => {
   });
 
   return (
-    <div class="font-sans text-slate-800 flex flex-col bg-slate-50 relative px-4 pt-20">
+    <div
+      class={`font-sans text-slate-800 flex flex-col bg-slate-50 relative px-4 pt-20 ${showOmnibar() ? "pb-24" : ""}`}
+    >
       <header class="fixed top-0 left-0 right-0 h-16 flex px-4 justify-start items-center bg-slate-50">
         <h1 class="text-2xl font-bold">Food Diary</h1>
         <Show when={user()}>
@@ -64,6 +70,9 @@ const App: Component<ParentProps> = (props: ParentProps) => {
         }
       >
         {props.children}
+      </Show>
+      <Show when={showOmnibar()}>
+        <Omnibar />
       </Show>
     </div>
   );
