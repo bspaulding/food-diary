@@ -11,6 +11,7 @@ import {
 } from "./Api";
 import createAuthorizedResource from "./createAuthorizedResource";
 import { useAuth } from "./Auth0";
+import { notifyDiaryEntryCreated } from "./DiaryEntryEvents";
 import SearchItemsForm from "./SearchItemsForm";
 import ButtonLink from "./ButtonLink";
 import SegmentedControl from "./SegmentedControl";
@@ -248,6 +249,7 @@ export const LoggableItem: Component<{
               await createDiaryEntry(accessToken(), entry);
               setSaving(false);
               setCreated(true);
+              notifyDiaryEntryCreated();
               setTimeout(() => setCreated(false), 1000);
               setLogging(false);
             }}
