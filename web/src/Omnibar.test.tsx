@@ -312,8 +312,16 @@ describe("Omnibar", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/recipe/new?name=kombucha");
   });
 
-  it("should clear the search text when the clear button is clicked", async () => {
+  it("should clear the search text and close the results panel when the clear button is clicked", async () => {
     const user = userEvent.setup();
+
+    server.use(
+      http.post("*/api/v1/graphql", async () => {
+        return HttpResponse.json({
+          data: { food_diary_search_all: [] },
+        });
+      }),
+    );
 
     render(() => <Omnibar />);
     const input = screen.getByPlaceholderText(
@@ -327,9 +335,48 @@ describe("Omnibar", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("Clear search")).toBeTruthy();
     });
+    await waitFor(() => {
+      expect(screen.queryByText('⊕ Add "test" as new item')).not.toBeNull();
+    });
 
     await user.click(screen.getByLabelText("Clear search"));
 
     expect(input.value).toBe("");
+    expect(screen.queryByText('⊕ Add "test" as new item')).toBeNull();
+  });
+
+  it("should not close the results panel when clicking within it (no focus/blur tracking)", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.post("*/api/v1/graphql", async () => {
+        return HttpResponse.json({
+          data: {
+            food_diary_search_all: [
+              {
+                type: "item",
+                nutrition_item: { id: 42, description: "Apple" },
+                recipe: null,
+              },
+            ],
+          },
+        });
+      }),
+    );
+
+    render(() => <Omnibar />);
+    const input = screen.getByPlaceholderText("Search items and recipes...");
+    await user.click(input);
+    await user.type(input, "apple");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Apple")).not.toBeNull();
+    });
+
+    // Clicking a non-focusable element inside the panel (e.g. the type
+    // badge) used to blur the search input and close the panel.
+    await user.click(screen.getByText("ITEM"));
+
+    expect(screen.getByText("Apple")).toBeTruthy();
   });
 });
