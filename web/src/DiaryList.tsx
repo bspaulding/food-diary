@@ -1,5 +1,5 @@
 import type { Accessor, Component, Setter } from "solid-js";
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { For, Show, createEffect, createSignal, on } from "solid-js";
 import type {
   DiaryEntry,
   GetEntriesQueryResponse,
@@ -8,6 +8,7 @@ import type {
 } from "./Api";
 import { fetchEntries, deleteDiaryEntry, fetchWeeklyStats } from "./Api";
 import createAuthorizedResource from "./createAuthorizedResource";
+import { diaryEntriesVersion } from "./DiaryEntryEvents";
 import { useAuth } from "./Auth0";
 import { parseAndFormatTime, parseAndFormatDay, pluralize } from "./Util";
 import DateBadge from "./DateBadge";
@@ -138,6 +139,14 @@ const DiaryList: Component = () => {
   };
 
   const refresh = () => Promise.all([refetch(), refetchWeeklyStats()]);
+
+  createEffect(
+    on(diaryEntriesVersion, (_version, prevVersion) => {
+      if (prevVersion !== undefined) {
+        void refresh();
+      }
+    }),
+  );
 
   return (
     <PullToRefresh onRefresh={refresh}>
