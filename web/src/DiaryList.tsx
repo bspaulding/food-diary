@@ -140,10 +140,6 @@ const DiaryList: Component = () => {
 
   const refresh = () => Promise.all([refetch(), refetchWeeklyStats()]);
 
-  // The Omnibar stays mounted across route changes, so a diary entry it
-  // creates while this list is already showing won't otherwise trigger a
-  // refetch (unlike navigating to /diary_entry/new and back, which
-  // remounts this component).
   createEffect(
     on(diaryEntriesVersion, (_version, prevVersion) => {
       if (prevVersion !== undefined) {
