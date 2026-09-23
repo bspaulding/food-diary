@@ -37,6 +37,9 @@ eval/
   results/            Historical eval run output
 images/               Test images for the /upload benchmark (~230MB, not the eval/ dataset)
 test_cases.csv        Ground-truth for the /upload benchmark
+ocr_benchmark/        Python harness comparing small OCR frontends (PaddleOCR, GOT-OCR2.0,
+                      SmolVLM2, Florence-2, Moondream2) + Needle structured extraction against
+                      test_cases.csv/images/ -- independent of the Zig service; see its own README
 ```
 
 ## Design notes

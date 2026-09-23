@@ -1,0 +1,25 @@
+# Core harness (always required)
+pydantic>=2
+
+# Needle (Cactus Compute) - structured extraction from raw OCR text.
+# needle.extract(text, PydanticModel) -> PydanticModel instance.
+#
+# NOTE: the PyPI package literally named `needle` is an unrelated Selenium
+# visual-regression testing tool, not Cactus Compute's Needle -- there is no
+# public pip package matching the API this harness is written against. See
+# ocr_benchmark/README.md ("Important: `needle` is not actually installable
+# as specified"). Install your actual Needle SDK here under whatever name/
+# index it's really distributed as, and update the `import needle` in
+# runner.py's _needle_extract() to match.
+# needle
+
+# --- Per-frontend, optional: install only what you plan to run ---
+# PaddleOCR-mobile / PP-OCRv4
+# paddlepaddle
+# paddleocr
+
+# GOT-OCR2.0, SmolVLM2, Florence-2, Moondream2 (all via transformers)
+# torch
+# transformers
+# accelerate
+# pillow
