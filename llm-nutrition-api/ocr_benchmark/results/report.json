@@ -1,0 +1,39 @@
+{
+  "frontends": {
+    "PaddleOCR-mobile (PP-OCRv4)": {
+      "n_cases": 89,
+      "n_ok": 11,
+      "n_ocr_error": 0,
+      "n_extract_error": 78,
+      "overall_accuracy": 0.43636363636363634,
+      "exact_match_rate": 0.0,
+      "per_field_accuracy": {
+        "servings_per_container": 0.5454545454545454,
+        "serving_size_grams": 0.36363636363636365,
+        "calories": 0.6363636363636364,
+        "total_fat_grams": 0.0,
+        "saturated_fat_grams": 0.2727272727272727,
+        "trans_fat_grams": 0.9090909090909091,
+        "polyunsaturated_fat_grams": 0.8181818181818182,
+        "monounsaturated_fat_grams": 0.8181818181818182,
+        "cholesterol_mg": 0.45454545454545453,
+        "sodium_mg": 0.0,
+        "total_carbohydrates_g": 0.18181818181818182,
+        "dietary_fiber_g": 0.2727272727272727,
+        "total_sugars_g": 0.5454545454545454,
+        "added_sugars_g": 0.7272727272727273,
+        "protein_g": 0.0
+      },
+      "ocr_latency_mean_median": [
+        15.187037365044946,
+        13.656562072999805
+      ],
+      "extract_latency_mean_median": [
+        4.149433045000023,
+        3.554693835999842
+      ]
+    }
+  },
+  "skipped": [],
+  "universal_field_failures": {}
+}
