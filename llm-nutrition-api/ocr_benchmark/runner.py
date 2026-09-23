@@ -110,6 +110,14 @@ def run_frontend(
                 continue
             result.extract_latency_s = time.monotonic() - t1
 
+            if extracted is None:
+                result.status = "extract_error"
+                result.error = "needle.extract returned None (no match)"
+                results.append(result)
+                out.write(json.dumps(asdict(result)) + "\n")
+                out.flush()
+                continue
+
             predicted = extracted.model_dump() if hasattr(extracted, "model_dump") else dict(extracted)
             result.predicted = predicted
             result.field_correct = {
