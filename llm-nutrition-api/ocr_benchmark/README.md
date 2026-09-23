@@ -11,21 +11,22 @@ For every (frontend, test case) pair, the harness compares the extracted fields 
 `test_cases.csv`'s ground truth and produces a comparison report (per-field accuracy,
 exact-match rate, latency, errors) ranked best to worst.
 
-## Important: `needle` is not actually installable as specified
+## Installing Needle
 
-The task brief for this harness assumes Needle (Cactus Compute) is available as a pip
-package named `needle` with a `needle.extract(text, Model)` call. **That package name is
-already taken on PyPI by an unrelated Selenium-based visual-regression testing tool** (see
-`pip index versions needle`) — there is no public `needle` package matching the
-Cactus Compute structured-extraction API described in the brief.
+Cactus Compute's Needle is published on PyPI as **`cactus-needle`** (not `needle` — that
+name on PyPI belongs to an unrelated Selenium-based visual-regression testing tool, so
+don't `pip install needle` directly). The importable module is `needle`, matching the
+brief exactly:
 
-The harness is written against the assumed interface anyway (`runner.py`'s
-`_needle_extract()` does `import needle; needle.extract(text, schema_model)`), exactly as
-specified, and imports it lazily so this doesn't crash the run: every case cleanly records
-`status: "extract_error"` with a `ModuleNotFoundError` when `needle` isn't installed. If
-you have real access to Cactus Compute's Needle (private package, different import path,
-vendored SDK, etc.), point `_needle_extract()` in `runner.py` at the real import and
-everything downstream (schema, scoring, reporting) works unchanged.
+```bash
+pip install cactus-needle
+python -c "import needle; print(needle.extract)"
+```
+
+`runner.py`'s `_needle_extract()` does `import needle; needle.extract(raw_text, schema_model)`,
+which is `cactus-needle`'s real API (`needle.extract(text, schema, ...) -> schema instance |
+dict | None`, using the Pydantic model built from the CSV header as `schema`). Needle
+downloads its own small (8–29MB) on-device model from Hugging Face on first use.
 
 ## Layout
 
@@ -145,15 +146,11 @@ environment the run was produced in:
 
 - **PaddleOCR-mobile (PP-OCRv4)** ran for real: it downloaded the actual PP-OCRv4 mobile
   det/rec weights and produced real OCR text for every image.
+- **Needle (`cactus-needle`)** ran for real: it downloaded its own small on-device model
+  from Hugging Face and extracted structured fields from every PaddleOCR text output.
 - **GOT-OCR2.0, SmolVLM2, Florence-2, Moondream2** all require `torch`/`transformers`,
   which weren't installed for this run (multi-GB download, no GPU available) — each is
   recorded as **skipped** with its `ModuleNotFoundError` reason, exactly as the harness is
   designed to handle a missing frontend. The adapters are complete and will run for real
   once `pip install torch transformers accelerate pillow` is done in an environment with
   more headroom.
-- **Needle extraction failed for every case**, for the reason above: `needle` isn't a
-  real installable package matching the Cactus Compute API. This is visible in
-  `raw_results.jsonl` as `status: "extract_error"` on every row, and it's why the actual
-  run's accuracy numbers are all `0%`/`n/a` rather than meaningful — the report still
-  demonstrates the full pipeline (real OCR text was produced per image, and scoring code
-  is exercised and unit-testable against synthetic `needle.extract` outputs).
