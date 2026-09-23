@@ -56,7 +56,17 @@ const Omnibar: Component = () => {
     <div class="fixed bottom-0 left-0 right-0 z-40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 pointer-events-none">
       <div class="relative max-w-xl mx-auto pointer-events-auto">
         <Show when={showPanel()}>
-          <div class="absolute bottom-full left-0 right-0 mb-2 bg-white border border-slate-300 rounded-lg shadow-lg overflow-hidden max-h-80 overflow-y-auto">
+          <div
+            class="absolute bottom-full left-0 right-0 mb-2 bg-white border border-slate-300 rounded-lg shadow-lg overflow-hidden max-h-80 overflow-y-auto"
+            onMouseDown={(event: MouseEvent): void => {
+              if (
+                !(event.target instanceof HTMLInputElement) &&
+                !(event.target instanceof HTMLAnchorElement)
+              ) {
+                event.preventDefault();
+              }
+            }}
+          >
             <Show when={getResults.loading}>
               <p class="text-center text-slate-400 py-3">Searching...</p>
             </Show>
