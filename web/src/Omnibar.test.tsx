@@ -379,4 +379,39 @@ describe("Omnibar", () => {
 
     expect(screen.getByText("Apple")).toBeTruthy();
   });
+
+  it("should keep the search input focused when tapping a result, so the mobile keyboard doesn't close", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.post("*/api/v1/graphql", async () => {
+        return HttpResponse.json({
+          data: {
+            food_diary_search_all: [
+              {
+                type: "item",
+                nutrition_item: { id: 42, description: "Apple" },
+                recipe: null,
+              },
+            ],
+          },
+        });
+      }),
+    );
+
+    render(() => <Omnibar />);
+    const input = screen.getByPlaceholderText(
+      "Search items and recipes...",
+    ) as HTMLInputElement;
+    await user.click(input);
+    await user.type(input, "apple");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Apple")).not.toBeNull();
+    });
+
+    await user.click(screen.getByText("⊕"));
+
+    expect(document.activeElement).toBe(input);
+  });
 });
