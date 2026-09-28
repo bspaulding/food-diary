@@ -15,6 +15,8 @@ import DateBadge from "./DateBadge";
 import ButtonLink from "./ButtonLink";
 import PullToRefresh from "./PullToRefresh";
 import CircleProgress from "./CircleProgress";
+import Omnibar from "./Omnibar";
+import { useOmnibarFeatureFlag } from "./FeatureFlags";
 import { useNutritionTargets } from "./NutritionTargets";
 import {
   parseISO,
@@ -87,6 +89,8 @@ const PAGE_DAYS = 7;
 const DiaryList: Component = () => {
   const [{ accessToken }] = useAuth();
   const [targets] = useNutritionTargets();
+  const [omnibarEnabled] = useOmnibarFeatureFlag();
+  const [searchActive, setSearchActive] = createSignal(false);
   const now = new Date();
   // Page boundaries are the start of the day in the user's local timezone,
   // converted to UTC for the server, so each page covers whole days as the
@@ -150,172 +154,190 @@ const DiaryList: Component = () => {
 
   return (
     <PullToRefresh onRefresh={refresh}>
-      <div class="flex space-x-4 mb-4">
-        <ButtonLink href="/diary_entry/new">Add New Entry</ButtonLink>
-        <ButtonLink href="/nutrition_item/new">Add Item</ButtonLink>
-        <ButtonLink href="/recipe/new">Add Recipe</ButtonLink>
-      </div>
-      <Show when={weeklyStatsQuery()?.data}>
-        <div class="mb-6 border-t border-b border-slate-200 py-2">
-          <div class="flex justify-around">
-            <EntryMacro
-              value={String(
-                calculateDailyAverage(
-                  weeklyStatsQuery()?.data?.current_week?.aggregate?.sum
-                    ?.calories || 0,
-                  currentWeekDays,
-                ),
-              )}
-              unit=" kcal/day"
-              label="Last 7 Days"
-            />
-            <EntryMacro
-              value={String(
-                calculateDailyAverage(
-                  weeklyStatsQuery()?.data?.past_four_weeks?.aggregate?.sum
-                    ?.calories || 0,
-                  fourWeeksDays,
-                ),
-              )}
-              unit=" kcal/day"
-              label="4 Week Avg"
-            />
+      <Show
+        when={omnibarEnabled()}
+        fallback={
+          <div class="flex space-x-4 mb-4">
+            <ButtonLink href="/diary_entry/new">Add New Entry</ButtonLink>
+            <ButtonLink href="/nutrition_item/new">Add Item</ButtonLink>
+            <ButtonLink href="/recipe/new">Add Recipe</ButtonLink>
           </div>
-          <div class="text-center mt-2">
-            <a
-              href="/trends"
-              class="text-indigo-600 hover:text-indigo-800 underline"
-            >
-              View Trends
-            </a>
-          </div>
+        }
+      >
+        <div class="mb-4">
+          <Omnibar onActiveChange={setSearchActive} />
         </div>
       </Show>
-      <ul class="mt-4">
-        <Show when={entries().length === 0}>
-          <p class="text-slate-400 text-center">No entries this week.</p>
+      <Show when={!searchActive()}>
+        <Show when={weeklyStatsQuery()?.data}>
+          <div class="mb-6 border-t border-b border-slate-200 py-2">
+            <div class="flex justify-around">
+              <EntryMacro
+                value={String(
+                  calculateDailyAverage(
+                    weeklyStatsQuery()?.data?.current_week?.aggregate?.sum
+                      ?.calories || 0,
+                    currentWeekDays,
+                  ),
+                )}
+                unit=" kcal/day"
+                label="Last 7 Days"
+              />
+              <EntryMacro
+                value={String(
+                  calculateDailyAverage(
+                    weeklyStatsQuery()?.data?.past_four_weeks?.aggregate?.sum
+                      ?.calories || 0,
+                    fourWeeksDays,
+                  ),
+                )}
+                unit=" kcal/day"
+                label="4 Week Avg"
+              />
+            </div>
+            <div class="text-center mt-2">
+              <a
+                href="/trends"
+                class="text-indigo-600 hover:text-indigo-800 underline"
+              >
+                View Trends
+              </a>
+            </div>
+          </div>
         </Show>
-        <For each={entriesByDay()}>
-          {(dayEntries: [string, DiaryEntry[]]) => {
-            const [dateStr, entries] = dayEntries;
-            return (
-              <li class="grid grid-cols-8 -ml-4 mb-6">
-                <div class="col-span-2">
-                  <DateBadge class="col-span-1 mb-2" date={parseISO(dateStr)} />
-                  <CircleProgress
-                    value={Math.ceil(
-                      entries.reduce(
-                        (acc: number, entry: DiaryEntry) =>
-                          acc + entry.calories,
-                        0,
-                      ),
-                    )}
-                    target={targets().calories}
-                    max={targets().calories_max}
-                    label="KCAL"
-                  />
-                  <CircleProgress
-                    value={totalMacro("protein_grams", entries)}
-                    target={targets().protein_grams}
-                    label="Protein"
-                    unit="g"
-                  />
-                  <CircleProgress
-                    value={totalMacro("dietary_fiber_grams", entries)}
-                    target={targets().dietary_fiber_grams}
-                    label="Fiber"
-                    unit="g"
-                  />
-                  <CircleProgress
-                    value={totalMacro("added_sugars_grams", entries)}
-                    target={targets().added_sugars_grams}
-                    label="Added Sugar"
-                    unit="g"
-                    isLimit={true}
-                  />
-                </div>
-                <ul class="col-span-6 mb-6">
-                  <For each={entries.slice().sort(compareEntriesByConsumedAt)}>
-                    {(entry: DiaryEntry) => (
-                      <li class="mb-4">
-                        <p class="font-semibold">
-                          {Math.round(entry.calories)} kcal,{" "}
-                          {Math.round(entryTotalMacro("protein_grams", entry))}g
-                          protein,{" "}
-                          {Math.round(
-                            entryTotalMacro("dietary_fiber_grams", entry),
-                          )}
-                          g fiber
-                        </p>
-                        <p>
-                          <a
-                            href={
-                              entry.recipe?.id
-                                ? `/recipe/${entry.recipe?.id}`
-                                : `/nutrition_item/${entry.nutrition_item?.id}`
-                            }
-                          >
-                            {entry.nutrition_item?.description ||
-                              entry.recipe?.name}
-                          </a>
-                        </p>
-                        <p class="flex justify-between text-sm">
-                          {pluralize(entry.servings, "serving", "servings")} at{" "}
-                          {parseAndFormatTime(entry.consumed_at)}
-                          <span>
-                            <a href={`/diary_entry/${entry.id}/edit`}>Edit</a>
-                            <button
-                              class="ml-2"
-                              onClick={() => {
-                                const entries = getEntriesQuery();
-                                if (entries) {
-                                  deleteEntry(
-                                    accessToken,
-                                    entry,
-                                    entries as GetEntriesQueryResponse,
-                                    mutate,
-                                  );
-                                }
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </span>
-                        </p>
-                        <Show when={entry.recipe?.id}>
+        <ul class="mt-4">
+          <Show when={entries().length === 0}>
+            <p class="text-slate-400 text-center">No entries this week.</p>
+          </Show>
+          <For each={entriesByDay()}>
+            {(dayEntries: [string, DiaryEntry[]]) => {
+              const [dateStr, entries] = dayEntries;
+              return (
+                <li class="grid grid-cols-8 -ml-4 mb-6">
+                  <div class="col-span-2">
+                    <DateBadge
+                      class="col-span-1 mb-2"
+                      date={parseISO(dateStr)}
+                    />
+                    <CircleProgress
+                      value={Math.ceil(
+                        entries.reduce(
+                          (acc: number, entry: DiaryEntry) =>
+                            acc + entry.calories,
+                          0,
+                        ),
+                      )}
+                      target={targets().calories}
+                      max={targets().calories_max}
+                      label="KCAL"
+                    />
+                    <CircleProgress
+                      value={totalMacro("protein_grams", entries)}
+                      target={targets().protein_grams}
+                      label="Protein"
+                      unit="g"
+                    />
+                    <CircleProgress
+                      value={totalMacro("dietary_fiber_grams", entries)}
+                      target={targets().dietary_fiber_grams}
+                      label="Fiber"
+                      unit="g"
+                    />
+                    <CircleProgress
+                      value={totalMacro("added_sugars_grams", entries)}
+                      target={targets().added_sugars_grams}
+                      label="Added Sugar"
+                      unit="g"
+                      isLimit={true}
+                    />
+                  </div>
+                  <ul class="col-span-6 mb-6">
+                    <For
+                      each={entries.slice().sort(compareEntriesByConsumedAt)}
+                    >
+                      {(entry: DiaryEntry) => (
+                        <li class="mb-4">
+                          <p class="font-semibold">
+                            {Math.round(entry.calories)} kcal,{" "}
+                            {Math.round(
+                              entryTotalMacro("protein_grams", entry),
+                            )}
+                            g protein,{" "}
+                            {Math.round(
+                              entryTotalMacro("dietary_fiber_grams", entry),
+                            )}
+                            g fiber
+                          </p>
                           <p>
-                            <span class="bg-slate-400 text-slate-50 px-2 py-1 rounded text-xs">
-                              RECIPE
+                            <a
+                              href={
+                                entry.recipe?.id
+                                  ? `/recipe/${entry.recipe?.id}`
+                                  : `/nutrition_item/${entry.nutrition_item?.id}`
+                              }
+                            >
+                              {entry.nutrition_item?.description ||
+                                entry.recipe?.name}
+                            </a>
+                          </p>
+                          <p class="flex justify-between text-sm">
+                            {pluralize(entry.servings, "serving", "servings")}{" "}
+                            at {parseAndFormatTime(entry.consumed_at)}
+                            <span>
+                              <a href={`/diary_entry/${entry.id}/edit`}>Edit</a>
+                              <button
+                                class="ml-2"
+                                onClick={() => {
+                                  const entries = getEntriesQuery();
+                                  if (entries) {
+                                    deleteEntry(
+                                      accessToken,
+                                      entry,
+                                      entries as GetEntriesQueryResponse,
+                                      mutate,
+                                    );
+                                  }
+                                }}
+                              >
+                                Delete
+                              </button>
                             </span>
                           </p>
-                        </Show>
-                      </li>
-                    )}
-                  </For>
-                </ul>
-              </li>
-            );
-          }}
-        </For>
-      </ul>
-      <div class="flex justify-center space-x-8 mb-8">
-        <button
-          class="text-indigo-600 hover:text-indigo-800 underline disabled:text-slate-400"
-          disabled={getEntriesQuery.loading}
-          onClick={() => setPage((p) => p + 1)}
-        >
-          ← Previous Week
-        </button>
-        <Show when={page() > 0}>
+                          <Show when={entry.recipe?.id}>
+                            <p>
+                              <span class="bg-slate-400 text-slate-50 px-2 py-1 rounded text-xs">
+                                RECIPE
+                              </span>
+                            </p>
+                          </Show>
+                        </li>
+                      )}
+                    </For>
+                  </ul>
+                </li>
+              );
+            }}
+          </For>
+        </ul>
+        <div class="flex justify-center space-x-8 mb-8">
           <button
             class="text-indigo-600 hover:text-indigo-800 underline disabled:text-slate-400"
             disabled={getEntriesQuery.loading}
-            onClick={() => setPage((p) => p - 1)}
+            onClick={() => setPage((p) => p + 1)}
           >
-            Next Week →
+            ← Previous Week
           </button>
-        </Show>
-      </div>
+          <Show when={page() > 0}>
+            <button
+              class="text-indigo-600 hover:text-indigo-800 underline disabled:text-slate-400"
+              disabled={getEntriesQuery.loading}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Next Week →
+            </button>
+          </Show>
+        </div>
+      </Show>
     </PullToRefresh>
   );
 };
