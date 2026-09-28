@@ -5,6 +5,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "./test-setup";
 import DiaryList from "./DiaryList";
 import { notifyDiaryEntryCreated } from "./DiaryEntryEvents";
+import { OmnibarFeatureFlagProvider } from "./FeatureFlags";
 
 vi.mock("./Auth0", () => ({
   useAuth: () => [
@@ -17,12 +18,16 @@ vi.mock("./Auth0", () => ({
   ],
 }));
 
+vi.mock("@solidjs/router", () => ({
+  useNavigate: () => vi.fn(),
+}));
+
 describe("DiaryList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("should render navigation buttons", async () => {
+  it("should render the search bar in place of navigation buttons", async () => {
     server.use(
       http.post("/api/v1/graphql", () => {
         return HttpResponse.json({
@@ -38,9 +43,89 @@ describe("DiaryList", () => {
     render(() => <DiaryList />);
 
     await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText("Search items and recipes..."),
+      ).toBeTruthy();
+    });
+
+    expect(screen.queryByText("Add New Entry")).toBeNull();
+    expect(screen.queryByText("Add Item")).toBeNull();
+    expect(screen.queryByText("Add Recipe")).toBeNull();
+  });
+
+  it("should fall back to navigation buttons when the omnibar feature flag is disabled", async () => {
+    localStorage.setItem("feature_omnibar_search", "false");
+
+    server.use(
+      http.post("/api/v1/graphql", () => {
+        return HttpResponse.json({
+          data: {
+            food_diary_diary_entry: [],
+            current_week: { aggregate: { sum: { calories: 0 } } },
+            past_four_weeks: { aggregate: { sum: { calories: 0 } } },
+          },
+        });
+      }),
+    );
+
+    render(() => (
+      <OmnibarFeatureFlagProvider>
+        <DiaryList />
+      </OmnibarFeatureFlagProvider>
+    ));
+
+    await waitFor(() => {
       expect(screen.getByText("Add New Entry")).toBeTruthy();
       expect(screen.getByText("Add Item")).toBeTruthy();
       expect(screen.getByText("Add Recipe")).toBeTruthy();
+    });
+
+    expect(
+      screen.queryByPlaceholderText("Search items and recipes..."),
+    ).toBeNull();
+
+    localStorage.removeItem("feature_omnibar_search");
+  });
+
+  it("should hide the diary list content while the search bar has results", async () => {
+    server.use(
+      http.post("/api/v1/graphql", async ({ request }) => {
+        const body = (await request.json()) as { query?: string };
+        if (body.query?.includes("SearchItemsAndRecipes")) {
+          return HttpResponse.json({
+            data: { food_diary_search_all: [] },
+          });
+        }
+        return HttpResponse.json({
+          data: {
+            food_diary_diary_entry: [],
+            current_week: { aggregate: { sum: { calories: 0 } } },
+            past_four_weeks: { aggregate: { sum: { calories: 0 } } },
+          },
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(() => <DiaryList />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No entries this week.")).toBeTruthy();
+    });
+
+    const input = screen.getByPlaceholderText("Search items and recipes...");
+    await user.type(input, "kombucha");
+
+    await waitFor(() => {
+      expect(screen.queryByText('⊕ Add "kombucha" as new item')).not.toBeNull();
+    });
+
+    expect(screen.queryByText("No entries this week.")).toBeNull();
+
+    await user.click(screen.getByLabelText("Clear search"));
+
+    await waitFor(() => {
+      expect(screen.getByText("No entries this week.")).toBeTruthy();
     });
   });
 

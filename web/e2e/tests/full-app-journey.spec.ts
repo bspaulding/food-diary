@@ -326,7 +326,7 @@ test("the full app journey", async ({ page }) => {
   let bananaId = 0;
 
   await test.step("add item flow #1 -- manual entry (Banana)", async () => {
-    await page.getByRole("link", { name: "Add Item" }).click();
+    await page.goto("/nutrition_item/new");
     await fillNutritionForm(page, { description: "Banana", ...banana });
     await page.getByRole("button", { name: "Save" }).click();
     await page.waitForURL(/\/nutrition_item\/\d+$/);
@@ -340,7 +340,7 @@ test("the full app journey", async ({ page }) => {
 
   await test.step("search + log flow (log Banana, 2 servings)", async () => {
     await page.goto("/");
-    await page.getByRole("link", { name: "Add New Entry" }).click();
+    await page.goto("/diary_entry/new");
     await page.getByText("Search", { exact: true }).click();
     await page.fill('input[name="entry-item-search"]', "Banana");
     await expect(page.getByText(/^\d+ items$/)).toBeVisible();
@@ -384,7 +384,7 @@ test("the full app journey", async ({ page }) => {
 
   await test.step("add item flow #2 -- AI lookup (Peanut Butter)", async () => {
     await page.goto("/");
-    await page.getByRole("link", { name: "Add Item" }).click();
+    await page.goto("/nutrition_item/new");
     await page.fill('input[name="description"]', "Peanut Butter");
     await page.getByRole("button", { name: "AI" }).click();
     await expect(page.locator('input[name="calories"]')).not.toHaveValue("0");
@@ -541,7 +541,7 @@ test("the full app journey", async ({ page }) => {
 
   await test.step("log the recipe", async () => {
     await page.getByRole("link", { name: "Back to Diary" }).click();
-    await page.getByRole("link", { name: "Add New Entry" }).click();
+    await page.goto("/diary_entry/new");
     await page.getByText("Search", { exact: true }).click();
     await page.fill('input[name="entry-item-search"]', "PB Mix Recipe");
     const row = page.locator("li").filter({ hasText: "PB Mix Recipe" });
@@ -678,7 +678,7 @@ test("the full app journey", async ({ page }) => {
   });
 
   await test.step("most-logged + time-based suggestions", async () => {
-    await page.getByRole("link", { name: "Add New Entry" }).click();
+    await page.goto("/diary_entry/new");
     await expect(
       page.getByRole("heading", { name: "Logged at this time of day" }),
     ).toBeVisible();
@@ -731,7 +731,7 @@ test("the full app journey", async ({ page }) => {
     // run. Peanut Butter itself has only ever been used inside the recipe
     // until now.
     await page.goto("/");
-    await page.getByRole("link", { name: "Add New Entry" }).click();
+    await page.goto("/diary_entry/new");
     await page.getByText("Search", { exact: true }).click();
     await page.fill('input[name="entry-item-search"]', "Peanut Butter");
     const row = page.locator("li").filter({ hasText: "Peanut Butter" });
