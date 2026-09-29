@@ -38,6 +38,22 @@ vi.mock("@solidjs/router", () => ({
   ),
 }));
 
+vi.mock("./CameraModal", () => ({
+  default: (props: {
+    isOpen: boolean;
+    onImport: (data: { description: string; calories: number }) => void;
+  }) =>
+    props.isOpen ? (
+      <button
+        onClick={() =>
+          props.onImport({ description: "Scanned Label", calories: 200 })
+        }
+      >
+        Mock Import Scanned Label
+      </button>
+    ) : null,
+}));
+
 describe("NewNutritionItemForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -333,6 +349,34 @@ describe("NewNutritionItemForm", () => {
       // Just ensure the button click works - full modal testing in CameraModal.test
       expect(scanButton).toBeTruthy();
     });
+  });
+
+  it("should fill in description from a scanned label when it is empty", async () => {
+    const user = userEvent.setup();
+    render(() => <NewNutritionItemForm />);
+
+    await user.click(screen.getByText("Scan"));
+    await user.click(screen.getByText("Mock Import Scanned Label"));
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    expect(descInput.value).toBe("Scanned Label");
+  });
+
+  it("should not overwrite an existing description when importing a scanned label", async () => {
+    const user = userEvent.setup();
+    render(() => <NewNutritionItemForm />);
+
+    const descInput = document.querySelector(
+      'input[name="description"]',
+    ) as HTMLInputElement;
+    await user.type(descInput, "My Existing Description");
+
+    await user.click(screen.getByText("Scan"));
+    await user.click(screen.getByText("Mock Import Scanned Label"));
+
+    expect(descInput.value).toBe("My Existing Description");
   });
 
   it("should show Estimating… label while AI lookup is in progress", async () => {

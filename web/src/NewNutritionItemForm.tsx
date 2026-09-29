@@ -196,7 +196,7 @@ const NewNutritionItemForm: Component<Props> = ({
   };
 
   const handleImport = (nutritionData: Partial<NutritionItemAttrs>): void => {
-    if (nutritionData.description !== undefined)
+    if (nutritionData.description && !description().trim())
       setDescription(nutritionData.description);
     if (nutritionData.calories !== undefined)
       setCalories(nutritionData.calories);
