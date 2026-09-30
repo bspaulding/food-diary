@@ -42,11 +42,11 @@ export function handleLookup(description: string): {
   };
 }
 
-/** POST /upload -- fixed canned values (the mock camera "always sees" the
+/** POST /upload -- fixed canned values (the mock scanner "always sees" the
  * same label). Note the different key naming convention from /lookup
  * (`cholesterol_mg` not `cholesterol_milligrams`, etc.) -- this faithfully
  * reproduces the real app's existing (if inconsistent) contract; see
- * CameraModal.tsx's parsing vs. Api.ts's lookupNutritionWithLLM. */
+ * scanLabel.ts's parsing vs. Api.ts's lookupNutritionWithLLM. */
 export function handleUpload(): { image: Record<string, unknown> } {
   return {
     image: {
