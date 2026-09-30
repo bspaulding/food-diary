@@ -23,11 +23,10 @@ no manual setup required. First time only: `npx playwright install chromium`.
 ## Layout
 
 - `playwright.config.ts` — the three `webServer` entries plus browser/project
-  config (including the fake camera device flags `CameraModal`'s scan flow
-  needs).
+  config.
 - `servers/mock-auth-server/`, `servers/mock-api-server/` — the two mock
   servers, each with their own Vitest unit tests (`npm run test:e2e:servers`).
 - `support/login.ts` — drives the mock server's real HTML login form.
 - `fixtures/` — binary/static fixtures only (`nutrition-label.jpg` for the
-  camera-scan flow); CSV fixtures are generated inline in the test itself
+  label-scan flow); CSV fixtures are generated inline in the test itself
   since their dates need to stay relative to the real clock.

@@ -12,7 +12,7 @@ import {
 import { useAuth } from "./Auth0";
 import { accessorsToObject } from "./Util";
 import styles from "./NewNutritionItemForm.module.css";
-import CameraModal from "./CameraModal";
+import { scanLabelImage } from "./scanLabel";
 import createAuthorizedResource from "./createAuthorizedResource";
 
 interface GraphQLResponse<T> {
@@ -61,7 +61,8 @@ const NewNutritionItemForm: Component<Props> = ({
 }: Props) => {
   const [{ accessToken }] = useAuth();
   const [disabled, setDisabled] = createSignal(false);
-  const [showCameraModal, setShowCameraModal] = createSignal(false);
+  const [isScanning, setIsScanning] = createSignal(false);
+  let fileInputRef: HTMLInputElement | undefined;
   const [isLookingUp, setIsLookingUp] = createSignal(false);
   const [lookupError, setLookupError] = createSignal<string | null>(null);
   const navigate = useNavigate();
@@ -226,20 +227,32 @@ const NewNutritionItemForm: Component<Props> = ({
       setProteinGrams(nutritionData.proteinGrams);
   };
 
+  const handleFileSelect = async (event: Event): Promise<void> => {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    setIsScanning(true);
+    setLookupError(null);
+    try {
+      handleImport(await scanLabelImage(file, accessToken()));
+    } catch (err: unknown) {
+      setLookupError(err instanceof Error ? err.message : "Scan failed");
+    } finally {
+      setIsScanning(false);
+      input.value = "";
+    }
+  };
+
   return (
     <>
-      <Show when={showCameraModal()}>
-        <CameraModal
-          isOpen={showCameraModal()}
-          onClose={() => setShowCameraModal(false)}
-          onImport={handleImport}
-          accessToken={accessToken()}
-        />
-      </Show>
       <div class="flex justify-end mb-2 gap-2 flex-col items-end">
         <div class="flex gap-2 items-center">
           <Show when={isLookingUp()}>
             <span class="text-sm text-slate-500 italic">Estimating…</span>
+          </Show>
+          <Show when={isScanning()}>
+            <span class="text-sm text-slate-500 italic">Scanning…</span>
           </Show>
           <button
             type="button"
@@ -264,8 +277,9 @@ const NewNutritionItemForm: Component<Props> = ({
           </button>
           <button
             type="button"
-            class="bg-indigo-600 text-slate-50 py-2 px-4 rounded-md flex items-center gap-2"
-            onClick={() => setShowCameraModal(true)}
+            class="bg-indigo-600 text-slate-50 py-2 px-4 rounded-md flex items-center gap-2 disabled:opacity-50"
+            onClick={() => fileInputRef?.click()}
+            disabled={isScanning()}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -282,6 +296,14 @@ const NewNutritionItemForm: Component<Props> = ({
             </svg>
             Scan
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            class="hidden"
+            data-testid="scan-file-input"
+            onChange={handleFileSelect}
+          />
         </div>
         <Show when={lookupError()}>
           <div

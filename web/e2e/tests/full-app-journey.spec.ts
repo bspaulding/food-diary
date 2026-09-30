@@ -421,40 +421,11 @@ test("the full app journey", async ({ page }) => {
     addedSugarsGrams: 4,
     proteinGrams: 6,
   };
-  await test.step("add item flow #3 -- camera scan", async () => {
+  await test.step("add item flow #3 -- label scan", async () => {
     await page.goto("/nutrition_item/new");
-    await page.getByRole("button", { name: "Scan" }).click();
+    const fileInput = page.locator('input[type="file"]');
 
-    // Live "Take Picture" capture path (the modal's default mode; the fake
-    // camera device starts automatically) -- exercises captureAndUpload's
-    // video-frame-to-canvas route, which the Upload Image path below never
-    // touches. Both hit the same canned /labeller/upload response, so
-    // populating the form here and again via Upload Image just re-fills it
-    // with identical values -- only the final Save persists anything.
-    const captureButton = page.getByRole("button", {
-      name: "Capture & Import",
-    });
-    await expect(captureButton).toBeEnabled();
-    // The button is enabled as soon as the modal mounts, well before the
-    // fake camera device's video element actually has a frame ready --
-    // capturing too early draws a 0x0 canvas and captureAndUpload's own
-    // error path fires instead (the modal stays open, "Scan Nutrition
-    // Label" among other things never becomes hidden below).
-    await page.waitForFunction(() => {
-      const video = document.querySelector("video");
-      return !!video && video.videoWidth > 0;
-    });
-    await captureButton.click();
-    await expect(page.getByText("Scan Nutrition Label")).toBeHidden();
-    await expect(page.locator('input[name="description"]')).toHaveValue(
-      "Mock Scanned Nutrition Label",
-    );
-
-    // Re-open for the Upload Image path: first a rejected non-image file,
-    // then the real fixture through to a save.
-    await page.getByRole("button", { name: "Scan" }).click();
-    await page.getByRole("button", { name: "Upload Image" }).click();
-    await page.locator('input[type="file"]').setInputFiles({
+    await fileInput.setInputFiles({
       name: "not-an-image.txt",
       mimeType: "text/plain",
       buffer: Buffer.from("not an image"),
@@ -462,19 +433,10 @@ test("the full app journey", async ({ page }) => {
     await expect(
       page.getByText("Please select a valid image file"),
     ).toBeVisible();
-    // The error message replaces the file input in the DOM entirely (a
-    // ternary, not a dismissible banner) -- re-clicking the tab re-runs its
-    // handler, which clears the error and brings the input back.
-    await page.getByRole("button", { name: "Upload Image" }).click();
 
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles(join(__dirname, "..", "fixtures", "nutrition-label.jpg"));
-    const importButton = page.getByRole("button", { name: "Import Label" });
-    await expect(importButton).toBeEnabled();
-    await importButton.click();
-
-    await expect(page.getByText("Scan Nutrition Label")).toBeHidden();
+    await fileInput.setInputFiles(
+      join(__dirname, "..", "fixtures", "nutrition-label.jpg"),
+    );
     await expect(page.locator('input[name="description"]')).toHaveValue(
       "Mock Scanned Nutrition Label",
     );

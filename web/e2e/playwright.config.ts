@@ -29,15 +29,6 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        // Real synthetic camera/mic streams for CameraModal's "Take
-        // Picture" tab -- no real hardware, no OS permission prompts.
-        launchOptions: {
-          args: [
-            "--use-fake-device-for-media-stream",
-            "--use-fake-ui-for-media-stream",
-          ],
-        },
-        permissions: ["camera"],
       },
     },
   ],

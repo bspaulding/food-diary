@@ -38,20 +38,9 @@ vi.mock("@solidjs/router", () => ({
   ),
 }));
 
-vi.mock("./CameraModal", () => ({
-  default: (props: {
-    isOpen: boolean;
-    onImport: (data: { description: string; calories: number }) => void;
-  }) =>
-    props.isOpen ? (
-      <button
-        onClick={() =>
-          props.onImport({ description: "Scanned Label", calories: 200 })
-        }
-      >
-        Mock Import Scanned Label
-      </button>
-    ) : null,
+const mockScanLabelImage = vi.fn();
+vi.mock("./scanLabel", () => ({
+  scanLabelImage: (...args: unknown[]) => mockScanLabelImage(...args),
 }));
 
 describe("NewNutritionItemForm", () => {
@@ -337,35 +326,50 @@ describe("NewNutritionItemForm", () => {
     });
   });
 
-  it("should open camera modal when Scan button is clicked", async () => {
+  const scanFile = (name = "label.jpg", type = "image/jpeg") =>
+    new File(["img"], name, { type });
+  const fileInput = () =>
+    screen.getByTestId("scan-file-input") as HTMLInputElement;
+
+  it("should trigger the hidden file input when Scan is clicked", async () => {
     const user = userEvent.setup();
     render(() => <NewNutritionItemForm />);
 
-    const scanButton = screen.getByText("Scan");
-    await user.click(scanButton);
+    const clickSpy = vi.spyOn(fileInput(), "click");
+    await user.click(screen.getByText("Scan"));
 
-    // Camera modal should be shown (CameraModal component would be tested separately)
-    await waitFor(() => {
-      // Just ensure the button click works - full modal testing in CameraModal.test
-      expect(scanButton).toBeTruthy();
-    });
+    expect(clickSpy).toHaveBeenCalledTimes(1);
   });
 
   it("should fill in description from a scanned label when it is empty", async () => {
     const user = userEvent.setup();
+    mockScanLabelImage.mockResolvedValue({
+      description: "Scanned Label",
+      calories: 200,
+    });
     render(() => <NewNutritionItemForm />);
 
-    await user.click(screen.getByText("Scan"));
-    await user.click(screen.getByText("Mock Import Scanned Label"));
+    const file = scanFile();
+    await user.upload(fileInput(), file);
 
-    const descInput = document.querySelector(
-      'input[name="description"]',
-    ) as HTMLInputElement;
-    expect(descInput.value).toBe("Scanned Label");
+    await waitFor(() => {
+      expect(
+        (
+          document.querySelector(
+            'input[name="description"]',
+          ) as HTMLInputElement
+        ).value,
+      ).toBe("Scanned Label");
+    });
+    expect(mockScanLabelImage).toHaveBeenCalledWith(file, "test-token");
   });
 
   it("should not overwrite an existing description when importing a scanned label", async () => {
     const user = userEvent.setup();
+    mockScanLabelImage.mockResolvedValue({
+      description: "Scanned Label",
+      calories: 200,
+    });
     render(() => <NewNutritionItemForm />);
 
     const descInput = document.querySelector(
@@ -373,10 +377,28 @@ describe("NewNutritionItemForm", () => {
     ) as HTMLInputElement;
     await user.type(descInput, "My Existing Description");
 
-    await user.click(screen.getByText("Scan"));
-    await user.click(screen.getByText("Mock Import Scanned Label"));
+    await user.upload(fileInput(), scanFile());
+    await waitFor(() => expect(mockScanLabelImage).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(
+        (document.querySelector('input[name="calories"]') as HTMLInputElement)
+          .value,
+      ).toBe("200");
+    });
 
     expect(descInput.value).toBe("My Existing Description");
+  });
+
+  it("should show an error when scanning fails", async () => {
+    const user = userEvent.setup();
+    mockScanLabelImage.mockRejectedValue(new Error("Upload failed"));
+    render(() => <NewNutritionItemForm />);
+
+    await user.upload(fileInput(), scanFile());
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Upload failed",
+    );
   });
 
   it("should show Estimating… label while AI lookup is in progress", async () => {
